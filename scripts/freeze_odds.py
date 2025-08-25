@@ -20,6 +20,16 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # Odds API endpoint (update sport / region as needed)
 ODDS_API_URL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds"
 
+def get_nfl_week(game_datetime: datetime.datetime) -> int:
+    """
+    Returns the NFL week number based on the game start datetime.
+    Assumes NFL Week 1 starts on September 4, 2025.
+    """
+    season_start = datetime.datetime(2025, 9, 4, tzinfo=datetime.timezone.utc)
+    delta_days = (game_datetime - season_start).days
+    return max(1, delta_days // 7 + 1)
+
+
 def fetch_odds():
     """Fetches NFL odds from The Odds API."""
     params = {
@@ -44,6 +54,7 @@ def freeze_odds():
         home_team = game["home_team"]
         away_team = game["away_team"]
         time = game["commence_time"]
+        nfl_week = get_nfl_week(time)
         year = datetime.datetime.fromisoformat(time.replace("Z", "+00:00")).year
 
         # Check if this game already exists in Supabase
@@ -61,6 +72,7 @@ def freeze_odds():
                     "away_team": away_team,
                     "time": time,
                     "year": year,
+                    "nfl_week": nfl_week,
                     "locked_at": now
                 }).eq("id", game_id).execute()
 
@@ -76,6 +88,7 @@ def freeze_odds():
                 "away_team": away_team,
                 "time": time,
                 "year": year,
+                "nfl_week": nfl_week,
                 "locked_at": now
             }).execute()
 
