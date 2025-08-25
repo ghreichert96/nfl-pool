@@ -7,8 +7,13 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 ODDS_API_KEY = os.getenv("ODDS_API_KEY")
 
+# Check for Supabase URL and API key
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("Supabase credentials missing! Check your secrets.")
+
+# Check for Odds API key
+if not ODDS_API_KEY:
+    raise ValueError("Missing ODDS_API_KEY! Add it to your .env and GitHub secrets.")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -38,7 +43,7 @@ def freeze_odds():
         game_id = game["id"]
         home_team = game["home_team"]
         away_team = game["away_team"]
-        time = game["time"]
+        time = game["commence_time"]
 
         # Check if this game already exists in Supabase
         existing = supabase.table("games").select("*").eq("id", game_id).execute()
@@ -48,12 +53,12 @@ def freeze_odds():
         if existing_game:
             if (existing_game["home_team"] != home_team or
                 existing_game["away_team"] != away_team or
-                existing_game["time"] != time):
+                existing_game["commence_time"] != time):
                 
                 supabase.table("games").update({
                     "home_team": home_team,
                     "away_team": away_team,
-                    "time": time,
+                    "commence_time": time,
                     "locked_at": now
                 }).eq("id", game_id).execute()
 
@@ -67,7 +72,7 @@ def freeze_odds():
                 "id": game_id,
                 "home_team": home_team,
                 "away_team": away_team,
-                "time": time,
+                "commence_time": time,
                 "locked_at": now
             }).execute()
 
