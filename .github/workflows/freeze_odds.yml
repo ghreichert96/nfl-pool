@@ -30,4 +30,4 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
         run: |
-          python backend/freeze_odds.py
+          python scripts/freeze_odds.py
