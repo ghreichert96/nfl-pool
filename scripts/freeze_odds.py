@@ -43,7 +43,8 @@ def freeze_odds():
         game_id = game["id"]
         home_team = game["home_team"]
         away_team = game["away_team"]
-        time = game["commence_time"]  # API uses commence_time, but we'll map to Supabase "time"
+        time = game["commence_time"]
+        year = datetime.datetime.fromisoformat(time.replace("Z", "+00:00")).year
 
         # Check if this game already exists in Supabase
         existing = supabase.table("games").select("*").eq("id", game_id).execute()
@@ -58,7 +59,8 @@ def freeze_odds():
                 supabase.table("games").update({
                     "home_team": home_team,
                     "away_team": away_team,
-                    "time": time,             # Save into "time" column
+                    "time": time,
+                    "year": year,
                     "locked_at": now
                 }).eq("id", game_id).execute()
 
@@ -72,7 +74,8 @@ def freeze_odds():
                 "id": game_id,
                 "home_team": home_team,
                 "away_team": away_team,
-                "time": time,              # Insert into "time" column
+                "time": time,
+                "year": year,
                 "locked_at": now
             }).execute()
 
@@ -83,4 +86,3 @@ def freeze_odds():
 
 if __name__ == "__main__":  
     freeze_odds()
-
