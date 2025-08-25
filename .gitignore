@@ -1,4 +1,39 @@
+# Virtual environments
+venv/
 .venv/
+
+# Python cache
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables and secrets
 .env
 .streamlit/secrets.toml
+
+# macOS clutter
+.DS_Store
+
+# Streamlit state/session files
+.streamlit/
+
+# Jupyter notebooks checkpoints (if you add notebooks later)
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Build/packaging
+build/
+dist/
+*.egg-info/
+
+# IDE/project configs
+.vscode/
+.idea/
+
+# Coverage/test reports
+htmlcov/
+.coverage
+.pytest_cache/
