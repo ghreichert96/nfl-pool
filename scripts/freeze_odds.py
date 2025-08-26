@@ -117,6 +117,27 @@ def freeze_odds():
             inserted += 1
 
     print(f"Summary: {updated} updated, {inserted} inserted, {skipped} skipped.")
+    current_week = get_current_nfl_week()
+    refresh_spreads(current_week)
+
+def refresh_spreads(current_week: int):
+    """Rebuilds the spreads table with only current-week games."""
+    # Delete existing spreads data
+    supabase.table("spreads").delete().neq("id", "").execute()
+
+    # Fetch games for this week
+    spreads_data = supabase.table("games") \
+        .select("id, date, time, home_team, away_team, spread, over_under") \
+        .eq("nfl_week", current_week) \
+        .order("time", desc=True) \
+        .execute()
+
+    if spreads_data.data:
+        # Insert directly into spreads
+        supabase.table("spreads").insert(spreads_data.data).execute()
+        print(f"Rebuilt spreads table with {len(spreads_data.data)} games.")
+    else:
+        print("No games found for current week. Spreads table left empty.")
 
 if __name__ == "__main__":
     freeze_odds()
