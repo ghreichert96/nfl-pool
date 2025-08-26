@@ -2,6 +2,9 @@ import os
 import datetime
 from supabase import create_client, Client
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -123,7 +126,7 @@ def freeze_odds():
 def refresh_spreads(current_week: int):
     """Rebuilds the spreads table with only current-week games."""
     # Delete existing spreads data
-    supabase.table("spreads").delete().neq("id", "").execute()
+    supabase.table("spreads").delete().execute()
 
     # Fetch games for this week
     spreads_data = supabase.table("games") \
