@@ -23,6 +23,13 @@ def get_nfl_week(game_datetime: datetime.datetime) -> int:
     delta_days = (game_datetime - season_start).days
     return max(1, delta_days // 7 + 1)
 
+def get_current_nfl_week() -> int:
+    """Returns the current NFL week based on today's UTC date."""
+    today = datetime.datetime.utcnow().date()
+    season_start = datetime.date(2025, 9, 4)
+    delta_days = (today - season_start).days
+    return max(1, delta_days // 7 + 1)
+
 def fetch_odds():
     """Fetches NFL odds from The Odds API."""
     params = {
@@ -39,6 +46,7 @@ def freeze_odds():
     print("Fetching latest odds...")
     odds = fetch_odds()
     now = datetime.datetime.utcnow().isoformat()
+    current_week = get_current_nfl_week()
 
     updated, skipped, inserted = 0, 0, 0
 
@@ -52,15 +60,19 @@ def freeze_odds():
         year = dt_obj.year
         nfl_week = get_nfl_week(dt_obj)
 
+        # Skip any games outside the current week
+        if nfl_week != current_week:
+            continue
+
         # Extract spread and over/under if available
         spread = None
         over_under = None
         for bookmaker in game.get("bookmakers", []):
             for market in bookmaker.get("markets", []):
-                if market["key"] == "spreads":
-                    spread = market["outcomes"][0]["point"] if market["outcomes"] else None
-                elif market["key"] == "totals":
-                    over_under = market["outcomes"][0]["point"] if market["outcomes"] else None
+                if market["key"] == "spreads" and market["outcomes"]:
+                    spread = market["outcomes"][0]["point"]
+                elif market["key"] == "totals" and market["outcomes"]:
+                    over_under = market["outcomes"][0]["point"]
 
         # Check if this game already exists in Supabase
         existing = supabase.table("games").select("*").eq("id", game_id).execute()
