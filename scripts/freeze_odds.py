@@ -126,7 +126,7 @@ def freeze_odds():
 def refresh_spreads(current_week: int):
     """Rebuilds the spreads table with only current-week games."""
     # Delete existing spreads data
-    supabase.table("spreads").delete().execute()
+    supabase.table("spreads").delete().eq("nfl_week", current_week).execute()
 
     # Fetch games for this week
     spreads_data = supabase.table("games") \
