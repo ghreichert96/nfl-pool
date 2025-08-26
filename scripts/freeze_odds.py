@@ -123,36 +123,41 @@ def freeze_odds():
     current_week = get_current_nfl_week()
     refresh_spreads(current_week)
 
+import pytz
+
 def refresh_spreads(current_week):
+    eastern = pytz.timezone("US/Eastern")
+
     # Clear existing spreads for current week
     supabase.table("spreads").delete().eq("nfl_week", current_week).execute()
-
-    # Fetch games for this week ordered by date/time descending
+    
+    # Fetch games for this week ordered ascending (earliest → latest)
     spreads_data = supabase.table("games") \
-        .select("id, date, time, home_team, away_team, spread, over_under, nfl_week") \
+        .select("id, time, home_team, away_team, spread, over_under, nfl_week") \
         .eq("nfl_week", current_week) \
         .order("date", desc=False) \
         .order("time", desc=False) \
-        .execute()
+        .execute()  
 
     if not spreads_data.data:
         print("No games found for current week.")
-        return
+        return  
 
     # Fetch NFL team abbreviations
     teams = supabase.table("nfl_teams").select("team_name, abbrev").execute()
     team_map = {t["team_name"]: t["abbrev"] for t in teams.data}
 
-    # Build spreads payload using abbreviations
     valid_spreads = []
     for game in spreads_data.data:
         if not game.get("time"):
-            continue  # skip games without times
+            continue
 
-        # Parse datetime and extract date + time separately
-        dt_obj = datetime.datetime.fromisoformat(game["time"].replace("Z", "+00:00"))
-        date_str = dt_obj.date().isoformat()
-        time_str = dt_obj.time().strftime("%H:%M:%S")
+        # Parse commence_time as UTC and convert to ET
+        dt_obj_utc = datetime.datetime.fromisoformat(game["time"].replace("Z", "+00:00"))
+        dt_obj_et = dt_obj_utc.astimezone(eastern)
+
+        date_str = dt_obj_et.date().isoformat()
+        time_str = dt_obj_et.time().strftime("%H:%M:%S")
 
         valid_spreads.append({
             "game_id": game["id"],
@@ -163,7 +168,7 @@ def refresh_spreads(current_week):
             "home_team": team_map.get(game["home_team"], game["home_team"]),
             "spread": game["spread"],
             "over_under": game["over_under"]
-         })
+        })
     
     if valid_spreads:
         supabase.table("spreads").insert(valid_spreads).execute()
