@@ -146,20 +146,24 @@ def refresh_spreads(current_week):
     # Build spreads payload using abbreviations
     valid_spreads = []
     for game in spreads_data.data:
-        if not game.get("time"):
-            continue
+    if not game.get("time"):
+        continue  # skip games without times
 
-        valid_spreads.append({
-            "game_id": game["id"],
-            "nfl_week": game["nfl_week"],
-            "date": game["date"],
-            "time": game["time"],
-            "away_team": team_map.get(game["away_team"], game["away_team"]),
-            "home_team": team_map.get(game["home_team"], game["home_team"]),
-            "spread": game["spread"],
-            "over_under": game["over_under"]
-        })
+    # Parse datetime and extract date + time separately
+    dt_obj = datetime.datetime.fromisoformat(game["time"].replace("Z", "+00:00"))
+    date_str = dt_obj.date().isoformat()
+    time_str = dt_obj.time().strftime("%H:%M:%S")
 
+    valid_spreads.append({
+        "game_id": game["id"],
+        "nfl_week": game["nfl_week"],
+        "date": date_str,
+        "time": time_str,
+        "away_team": team_map.get(game["away_team"], game["away_team"]),
+        "home_team": team_map.get(game["home_team"], game["home_team"]),
+        "spread": game["spread"],
+        "over_under": game["over_under"]
+    })
     if valid_spreads:
         supabase.table("spreads").insert(valid_spreads).execute()
         print(f"Spreads table refreshed with {len(valid_spreads)} games.")
