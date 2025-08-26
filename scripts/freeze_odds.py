@@ -124,24 +124,45 @@ def freeze_odds():
     refresh_spreads(current_week)
 
 def refresh_spreads(current_week):
-    # Clear spreads for the current week
+    # Clear existing spreads for current week
     supabase.table("spreads").delete().eq("nfl_week", current_week).execute()
 
-    # Fetch current-week games from games table
+    # Fetch games for this week
     spreads_data = supabase.table("games") \
-        .select("id, time, home_team, away_team, spread, over_under, nfl_week, date") \
+        .select("id, time, date, home_team, away_team, spread, over_under, nfl_week") \
         .eq("nfl_week", current_week) \
         .order("time", desc=True) \
         .execute()
 
-    # Filter out games without valid times
-    valid_spreads = [game for game in spreads_data.data if game.get("time")]
+    if not spreads_data.data:
+        print("No games found for current week.")
+        return
+
+    # Fetch NFL team abbreviations
+    teams = supabase.table("nfl_teams").select("team_name, abbrev").execute()
+    team_map = {t["team_name"]: t["abbrev"] for t in teams.data}
+
+    # Build spreads payload using abbreviations
+    valid_spreads = []
+    for game in spreads_data.data:
+        if not game.get("time"):
+            continue  # skip games without times
+
+        valid_spreads.append({
+            "game_id": game["id"],
+            "date": game["date"],
+            "time": game["time"],
+            "away_team": team_map.get(game["away_team"], game["away_team"]),
+            "home_team": team_map.get(game["home_team"], game["home_team"]),
+            "spread": game["spread"],
+            "over_under": game["over_under"]
+        })
 
     if valid_spreads:
         supabase.table("spreads").insert(valid_spreads).execute()
         print(f"Spreads table refreshed with {len(valid_spreads)} games.")
     else:
-        print("No valid games with times found for current week.")
+        print("No valid spreads inserted.")
 
 if __name__ == "__main__":
     freeze_odds()
