@@ -124,43 +124,42 @@ def freeze_odds():
     refresh_spreads(current_week)
 
 def refresh_spreads(current_week):
-    # Clear existing spreads for the current week
+    # Clear existing spreads for current week
     supabase.table("spreads").delete().eq("nfl_week", current_week).execute()
 
-    # Fetch games for this week (must have a valid nfl_week)
+    # Fetch games for this week ordered by date/time descending
     spreads_data = supabase.table("games") \
-        .select("id, time, date, home_team, away_team, spread, over_under, nfl_week") \
+        .select("id, date, time, home_team, away_team, spread, over_under, nfl_week") \
         .eq("nfl_week", current_week) \
-        .order("time", desc=True) \
+        .order("date", desc=False) \
+        .order("time", desc=False) \
         .execute()
 
     if not spreads_data.data:
         print("No games found for current week.")
         return
 
-    # Fetch NFL team abbreviations into a mapping dict
+    # Fetch NFL team abbreviations
     teams = supabase.table("nfl_teams").select("team_name, abbrev").execute()
     team_map = {t["team_name"]: t["abbrev"] for t in teams.data}
 
     # Build spreads payload using abbreviations
     valid_spreads = []
     for game in spreads_data.data:
-        # Skip any games missing time or nfl_week
-        if not game.get("time") or not game.get("nfl_week"):
+        if not game.get("time"):
             continue
 
         valid_spreads.append({
             "game_id": game["id"],
+            "nfl_week": game["nfl_week"],
             "date": game["date"],
             "time": game["time"],
             "away_team": team_map.get(game["away_team"], game["away_team"]),
             "home_team": team_map.get(game["home_team"], game["home_team"]),
             "spread": game["spread"],
-            "over_under": game["over_under"],
-            "nfl_week": game["nfl_week"]
+            "over_under": game["over_under"]
         })
 
-    # Insert only valid spreads
     if valid_spreads:
         supabase.table("spreads").insert(valid_spreads).execute()
         print(f"Spreads table refreshed with {len(valid_spreads)} games.")
