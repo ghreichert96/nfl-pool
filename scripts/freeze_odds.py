@@ -146,8 +146,8 @@ def refresh_spreads(current_week):
     # Build spreads payload using abbreviations
     valid_spreads = []
     for game in spreads_data.data:
-    if not game.get("time"):
-        continue  # skip games without times
+        if not game.get("time"):
+            continue  # skip games without times
 
     # Parse datetime and extract date + time separately
     dt_obj = datetime.datetime.fromisoformat(game["time"].replace("Z", "+00:00"))
