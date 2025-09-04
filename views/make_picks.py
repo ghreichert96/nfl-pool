@@ -49,8 +49,9 @@ def save_pick(user_id, game_id, pick_type, selection, week, over_under_pick=None
 
 # ---- RENDER FUNCTION ----
 def render():
-    st.header("🏈 Make Picks")
+    st.header("🏈 Make Picks 🧮")
 
+    # Must be logged in
     if "user" not in st.session_state or not st.session_state["user"]:
         st.warning("Please log in to make picks.")
         st.stop()
@@ -83,10 +84,10 @@ def render():
         elif p["type"] in pick_counts:
             pick_counts[p["type"]] += 1
 
-    # --- Summary bar ---
+    # --- Picks Summary ---
     st.subheader("Your Picks Summary")
     summary_cols = st.columns([1, 1, 1, 1, 1])
-    summary_map = {"BB": "Best Bet", "ATS": "ATS", "O/U": "Over/Under", "SD": "Sudden Death", "UD": "Underdog"}
+    summary_map = {"BB": "BB:", "ATS": "ATS:", "O/U": "O/U:", "SD": "SD:", "UD": "UD:"}
 
     for i, pick_type in enumerate(["BB", "ATS", "O/U", "SD", "UD"]):
         with summary_cols[i]:
@@ -99,27 +100,48 @@ def render():
 
     st.write("Click a button to make picks. Picks save automatically.")
 
+    # --- Column headers ---
+    st.markdown("""
+    <div style="display: grid; grid-template-columns: 1fr 2fr 1fr 2fr 2fr 1fr 1fr; text-align: center; font-weight: bold; text-decoration: underline; margin-top:10px; margin-bottom:4px;">
+      <div>BB</div>
+      <div>Away</div>
+      <div>Spread</div>
+      <div>Home</div>
+      <div>O/U</div>
+      <div>SD</div>
+      <div>UD</div>
+    </div>
+    """, unsafe_allow_html=True)
+
     # --- Render game rows ---
     for game in spreads:
         game_id = game["game_id"]
         game_dt = datetime.datetime.fromisoformat(f"{game['date']}T{game['time']}")
         is_locked = datetime.datetime.now(datetime.timezone.utc) > game_dt.astimezone(datetime.timezone.utc)
 
-        cols = st.columns([2, 2, 1, 2, 2, 1, 1, 1])
+        cols = st.columns([1, 2, 1, 2, 2, 1, 1])
 
         away_logo = get_team_logo(game["away_team"])
         home_logo = get_team_logo(game["home_team"])
 
+        # BB
+        with cols[0]:
+            if st.button("⭐", key=f"bb_{game_id}"):
+                if pick_counts["BB"] < 1:
+                    save_pick(user_id, game_id, "ATS", game["home_team"], week, is_double=True)
+                    pick_counts["BB"] += 1
+                else:
+                    st.warning("You can only set 1 Best Bet.")
+
         if is_locked:
-            with cols[0]: st.write(f"{game['away_team']} (locked)")
-            with cols[1]: st.write(f"{game['home_team']} (locked)")
+            with cols[1]: st.write(f"{game['away_team']} (locked)")
             with cols[2]: st.write(f"{game['spread']}")
-            with cols[3]: st.write("O/U")
+            with cols[3]: st.write(f"{game['home_team']} (locked)")
             with cols[4]: st.write(f"{game['over_under']}")
             continue
 
         # Away pick (logo + team text)
-        with cols[0]:
+        with cols[1]:
             if st.button(f"{game['away_team']}", key=f"away_{game_id}"):
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["away_team"], week)
@@ -128,8 +150,12 @@ def render():
                     st.warning("Max 5 ATS picks reached.")
             if away_logo: st.image(away_logo, width=30)
 
+        # Spread
+        with cols[2]:
+            st.write(f"{game['spread']}")
+
         # Home pick (logo + team text)
-        with cols[1]:
+        with cols[3]:
             if st.button(f"{game['home_team']}", key=f"home_{game_id}"):
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["home_team"], week)
@@ -138,46 +164,31 @@ def render():
                     st.warning("Max 5 ATS picks reached.")
             if home_logo: st.image(home_logo, width=30)
 
-        # Spread
-        with cols[2]:
-            st.write(f"{game['spread']}")
-
         # Over/Under side-by-side
-        with cols[3]:
-            if st.button(f"O {game['over_under']}", key=f"over_{game_id}"):
-                if pick_counts["O/U"] < 3:
-                    save_pick(user_id, game_id, "O/U", None, week, over_under_pick="O")
-                    pick_counts["O/U"] += 1
-                else:
-                    st.warning("Max 3 O/U picks reached.")
         with cols[4]:
-            if st.button(f"U {game['over_under']}", key=f"under_{game_id}"):
-                if pick_counts["O/U"] < 3:
-                    save_pick(user_id, game_id, "O/U", None, week, over_under_pick="U")
-                    pick_counts["O/U"] += 1
-                else:
-                    st.warning("Max 3 O/U picks reached.")
+            ou_cols = st.columns(2)
+            with ou_cols[0]:
+                if st.button(f"O {game['over_under']}", key=f"over_{game_id}"):
+                    if pick_counts["O/U"] < 3:
+                        save_pick(user_id, game_id, "O/U", None, week, over_under_pick="O")
+                        pick_counts["O/U"] += 1
+            with ou_cols[1]:
+                if st.button(f"U {game['over_under']}", key=f"under_{game_id}"):
+                    if pick_counts["O/U"] < 3:
+                        save_pick(user_id, game_id, "O/U", None, week, over_under_pick="U")
+                        pick_counts["O/U"] += 1
 
-        # Best Bet
+        # SD
         with cols[5]:
-            if st.button("⭐ BB", key=f"bb_{game_id}"):
-                if pick_counts["BB"] < 1:
-                    save_pick(user_id, game_id, "ATS", game["home_team"], week, is_double=True)
-                    pick_counts["BB"] += 1
-                else:
-                    st.warning("You can only set 1 Best Bet.")
-
-        # Sudden Death
-        with cols[6]:
-            if st.button("💀 SD", key=f"sd_{game_id}"):
+            if st.button("💀", key=f"sd_{game_id}"):
                 if pick_counts["SD"] < 1:
                     save_pick(user_id, game_id, "SD", game["home_team"], week)
                     pick_counts["SD"] += 1
                 else:
                     st.warning("Only 1 Sudden Death pick allowed.")
 
-        # Underdog
-        with cols[7]:
+        # UD
+        with cols[6]:
             underdog = None
             underdog_points = None
             try:
@@ -191,7 +202,7 @@ def render():
             except:
                 pass
 
-            if underdog and st.button("🐶 UD", key=f"ud_{game_id}"):
+            if underdog and st.button("🐶", key=f"ud_{game_id}"):
                 if pick_counts["UD"] < 1:
                     save_pick(user_id, game_id, "UD", underdog, week, underdog_points=underdog_points)
                     pick_counts["UD"] += 1
