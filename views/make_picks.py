@@ -28,12 +28,13 @@ def fetch_spreads(week):
 # Fetch logos
 def get_team_logo(team_abbrev):
     row = supabase.table("nfl_teams").select("logo_url").eq("abbrev", team_abbrev).execute()
-    if row.data:
+    if row.data and row.data[0]["logo_url"]:
         return row.data[0]["logo_url"]
     return None
 
 # Save pick immediately on toggle
-def save_pick(user_id, game_id, pick_type, selection, over_under_pick=None, is_double=False, underdog_points=None):
+def save_pick(user_id, game_id, pick_type, selection, week, over_under_pick=None, is_double=False, underdog_points=None):
+    week_start = datetime.date.fromisocalendar(datetime.date.today().year, week, 4)
     supabase.table("picks").upsert({
         "user_id": user_id,
         "game_id": game_id,
@@ -42,6 +43,7 @@ def save_pick(user_id, game_id, pick_type, selection, over_under_pick=None, is_d
         "over_under_pick": over_under_pick,
         "is_double": is_double,
         "underdog_points": underdog_points,
+        "week_start": week_start,
         "submitted_at": datetime.datetime.utcnow().isoformat()
     }).execute()
 
@@ -55,9 +57,10 @@ def render():
 
     user_id = st.session_state["user"]["id"]
 
-    # Week selector
+    # Week selector (skip week 0)
     current_week = get_current_nfl_week()
-    week = st.selectbox("Select Week", [current_week, current_week - 1], index=0)
+    weeks = [w for w in [current_week, current_week - 1] if w >= 1]
+    week = st.selectbox("Select Week", weeks, index=0, key="makepicks_week_selector")
 
     # Load spreads
     spreads = fetch_spreads(week)
@@ -69,6 +72,7 @@ def render():
     picks = supabase.table("picks") \
         .select("*") \
         .eq("user_id", user_id) \
+        .eq("week_start", datetime.date.fromisocalendar(datetime.date.today().year, week, 4)) \
         .execute().data
 
     # Count picks
@@ -93,7 +97,7 @@ def render():
                     if logo:
                         st.image(logo, width=30)
 
-    st.write("Click logos or names to make picks. Picks save automatically.")
+    st.write("Click a button to make picks. Picks save automatically.")
 
     # --- Render game rows ---
     for game in spreads:
@@ -101,80 +105,79 @@ def render():
         game_dt = datetime.datetime.fromisoformat(f"{game['date']}T{game['time']}")
         is_locked = datetime.datetime.now(datetime.timezone.utc) > game_dt.astimezone(datetime.timezone.utc)
 
-
-        col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 2, 1, 2, 2, 1, 1, 1])
+        cols = st.columns([2, 2, 1, 2, 2, 1, 1, 1])
 
         away_logo = get_team_logo(game["away_team"])
         home_logo = get_team_logo(game["home_team"])
 
         if is_locked:
-            with col1: st.write(f"{game['away_team']} (locked)")
-            with col2: st.write(f"{game['spread']}")
-            with col3: st.write(f"{game['home_team']} (locked)")
-            with col4: st.write("O/U")
-            with col5: st.write(f"{game['over_under']}")
+            with cols[0]: st.write(f"{game['away_team']} (locked)")
+            with cols[1]: st.write(f"{game['home_team']} (locked)")
+            with cols[2]: st.write(f"{game['spread']}")
+            with cols[3]: st.write("O/U")
+            with cols[4]: st.write(f"{game['over_under']}")
             continue
 
-        # Away pick
-        with col1:
-            if away_logo: st.image(away_logo, width=40)
-            if st.button(game["away_team"], key=f"away_{game_id}"):
+        # Away pick (logo + team text)
+        with cols[0]:
+            if st.button(f"{game['away_team']}", key=f"away_{game_id}"):
                 if pick_counts["ATS"] < 5:
-                    save_pick(user_id, game_id, "ATS", game["away_team"])
+                    save_pick(user_id, game_id, "ATS", game["away_team"], week)
                     pick_counts["ATS"] += 1
                 else:
                     st.warning("Max 5 ATS picks reached.")
+            if away_logo: st.image(away_logo, width=30)
 
-        with col2:
+        # Home pick (logo + team text)
+        with cols[1]:
+            if st.button(f"{game['home_team']}", key=f"home_{game_id}"):
+                if pick_counts["ATS"] < 5:
+                    save_pick(user_id, game_id, "ATS", game["home_team"], week)
+                    pick_counts["ATS"] += 1
+                else:
+                    st.warning("Max 5 ATS picks reached.")
+            if home_logo: st.image(home_logo, width=30)
+
+        # Spread
+        with cols[2]:
             st.write(f"{game['spread']}")
 
-        # Home pick
-        with col3:
-            if home_logo: st.image(home_logo, width=40)
-            if st.button(game["home_team"], key=f"home_{game_id}"):
-                if pick_counts["ATS"] < 5:
-                    save_pick(user_id, game_id, "ATS", game["home_team"])
-                    pick_counts["ATS"] += 1
-                else:
-                    st.warning("Max 5 ATS picks reached.")
-
-        with col4:
-            st.write("O/U")
-
-        with col5:
+        # Over/Under side-by-side
+        with cols[3]:
             if st.button(f"O {game['over_under']}", key=f"over_{game_id}"):
                 if pick_counts["O/U"] < 3:
-                    save_pick(user_id, game_id, "O/U", None, over_under_pick="O")
+                    save_pick(user_id, game_id, "O/U", None, week, over_under_pick="O")
                     pick_counts["O/U"] += 1
                 else:
                     st.warning("Max 3 O/U picks reached.")
+        with cols[4]:
             if st.button(f"U {game['over_under']}", key=f"under_{game_id}"):
                 if pick_counts["O/U"] < 3:
-                    save_pick(user_id, game_id, "O/U", None, over_under_pick="U")
+                    save_pick(user_id, game_id, "O/U", None, week, over_under_pick="U")
                     pick_counts["O/U"] += 1
                 else:
                     st.warning("Max 3 O/U picks reached.")
 
-        # Best Bet toggle
-        with col6:
+        # Best Bet
+        with cols[5]:
             if st.button("⭐ BB", key=f"bb_{game_id}"):
                 if pick_counts["BB"] < 1:
-                    save_pick(user_id, game_id, "ATS", game["home_team"], is_double=True)
+                    save_pick(user_id, game_id, "ATS", game["home_team"], week, is_double=True)
                     pick_counts["BB"] += 1
                 else:
                     st.warning("You can only set 1 Best Bet.")
 
-        # Sudden Death pick
-        with col7:
+        # Sudden Death
+        with cols[6]:
             if st.button("💀 SD", key=f"sd_{game_id}"):
                 if pick_counts["SD"] < 1:
-                    save_pick(user_id, game_id, "SD", game["home_team"])
+                    save_pick(user_id, game_id, "SD", game["home_team"], week)
                     pick_counts["SD"] += 1
                 else:
                     st.warning("Only 1 Sudden Death pick allowed.")
 
-        # Underdog pick (awards points equal to spread if dog wins)
-        with col8:
+        # Underdog
+        with cols[7]:
             underdog = None
             underdog_points = None
             try:
@@ -190,7 +193,7 @@ def render():
 
             if underdog and st.button("🐶 UD", key=f"ud_{game_id}"):
                 if pick_counts["UD"] < 1:
-                    save_pick(user_id, game_id, "UD", underdog, underdog_points=underdog_points)
+                    save_pick(user_id, game_id, "UD", underdog, week, underdog_points=underdog_points)
                     pick_counts["UD"] += 1
                 else:
                     st.warning("Only 1 Underdog pick allowed.")
@@ -199,7 +202,6 @@ def render():
     st.divider()
     st.subheader("Weekly Comment")
 
-    # Load existing comment if one exists
     week_start = datetime.date.fromisocalendar(datetime.date.today().year, week, 4)  # anchor to Thu
     existing = supabase.table("weekly_entries") \
         .select("comment") \
@@ -208,7 +210,6 @@ def render():
         .execute().data
 
     existing_comment = existing[0]["comment"] if existing else ""
-
     comment = st.text_area("Add a comment for this week", value=existing_comment, key="weekly_comment")
 
     if st.button("Save Comment"):
@@ -219,4 +220,3 @@ def render():
             "submitted_at": datetime.datetime.utcnow().isoformat()
         }).execute()
         st.success("Comment saved!")
-                
