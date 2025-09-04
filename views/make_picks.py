@@ -143,33 +143,35 @@ def render():
             with cols[4]: st.markdown(f"<div style='text-align:center'>{game['over_under']}</div>", unsafe_allow_html=True)
             continue
 
-        # Away pick
+        # Away pick (abbr + logo inside button)
         with cols[1]:
-            btn = st.button(f"{game['away_team']}", key=f"away_{game_id}")
-            if btn:
+            if away_logo:
+                away_label = f"{game['away_team']} <img src='{away_logo}' style='height:18px; margin-left:4px;'/>"
+            else:
+                away_label = game['away_team']
+            if st.button(away_label, key=f"away_{game_id}"):
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["away_team"], week)
                     pick_counts["ATS"] += 1
                 else:
                     st.warning("Max 5 ATS picks reached.")
-            if away_logo:
-                st.markdown(f"<div style='text-align:center'><img src='{away_logo}' style='height:30px;'/></div>", unsafe_allow_html=True)
 
         # Spread
         with cols[2]:
             st.markdown(f"<div style='text-align:center'>{game['spread']}</div>", unsafe_allow_html=True)
 
-        # Home pick
+        # Home pick (abbr + logo inside button)
         with cols[3]:
-            btn = st.button(f"{game['home_team']}", key=f"home_{game_id}")
-            if btn:
+            if home_logo:
+                home_label = f"{game['home_team']} <img src='{home_logo}' style='height:18px; margin-left:4px;'/>"
+            else:
+                home_label = game['home_team']
+            if st.button(home_label, key=f"home_{game_id}"):
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["home_team"], week)
                     pick_counts["ATS"] += 1
                 else:
                     st.warning("Max 5 ATS picks reached.")
-            if home_logo:
-                st.markdown(f"<div style='text-align:center'><img src='{home_logo}' style='height:30px;'/></div>", unsafe_allow_html=True)
 
         # Over/Under
         with cols[4]:
@@ -220,7 +222,7 @@ def render():
     st.divider()
     st.subheader("Weekly Comment")
 
-    week_start = datetime.date.fromisocalendar(datetime.date.today().year, week, 4)  # anchor to Thu
+    week_start = datetime.date.fromisocalendar(datetime.date.today().year, week, 4)
     existing = supabase.table("weekly_entries") \
         .select("comment") \
         .eq("user_id", user_id) \
@@ -233,8 +235,9 @@ def render():
     if st.button("Save Comment"):
         supabase.table("weekly_entries").upsert({
             "user_id": user_id,
-            "week_start": week_start,
+            "week_start": week_start.isoformat(),
             "comment": comment,
-            "submitted_at": datetime.datetime.utcnow().isoformat()
+            "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }).execute()
         st.success("Comment saved!")
+
