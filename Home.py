@@ -1,8 +1,10 @@
 # Home.py
 import os
 import streamlit as st
+import pandas as pd
 from dotenv import load_dotenv, find_dotenv
 from backend.auth import ensure_session, login, register, logout
+from backend.db import supa
 
 # ---------- Page setup ----------
 st.set_page_config(page_title="NFL Pool", page_icon="🏈", layout="wide")
@@ -18,6 +20,7 @@ if missing:
 
 # Initialize session keys
 ensure_session()
+
 
 def auth_ui():
     login_tab, register_tab = st.tabs(["Login", "Register"])
@@ -39,6 +42,7 @@ def auth_ui():
             ok, msg = register(name, email2, pw2)
             st.toast(msg)
 
+
 # ---------- Auth gate ----------
 if not st.session_state["user"]:
     st.title("NFL Pool")
@@ -54,13 +58,47 @@ if st.sidebar.button("Logout"):
 # ---------- Lazy import views only after login ----------
 from views import make_picks, standings, rules, profile, admin  # noqa: E402
 
+
+# ---------- Helper: color function ----------
+def color_picks(val):
+    if val is None:
+        return ""
+    if str(val).endswith("W"):
+        return "background-color: #d4edda"  # green
+    if str(val).endswith("L"):
+        return "background-color: #f8d7da"  # red
+    if str(val).endswith("P"):
+        return "background-color: #fff3cd"  # yellow
+    if str(val).endswith("IP"):
+        return "background-color: #e2e3e5"  # grey
+    return ""
+
+
 # ---------- Tabs ----------
 tabs = st.tabs(["Home", "Make Picks", "Standings", "Rules", "Profile", "Admin"])
 
 with tabs[0]:
     st.subheader("Commissioner Message")
-    st.info("Welcome to the 2025 season! Picks lock Thu 8p ET. (Grid and chat coming soon.)")
-    st.write("Home grid goes here (entrants × picks with red/green shading).")
+    st.info("Welcome to the 2025 season! Picks lock Thu 8p ET.")
+
+    # --- Weekly Picks Grid ---
+    client = supa()
+    data = client.table("weekly_grid").select("*").execute().data
+
+    if not data:
+        st.info("No picks submitted yet.")
+    else:
+        df = pd.DataFrame(data)
+
+        # Reorder cols to match grid design
+        display_cols = [
+            "user_name", "bb", "ats1", "ats2", "ats3", "ats4", "ats5",
+            "ou1", "ou2", "ou3", "sd", "ud", "comment"
+        ]
+        grid = df[display_cols].rename(columns={"user_name": "Entry", "comment": "Comments"})
+
+        styled = grid.style.applymap(color_picks, subset=grid.columns[1:-1])  # all pick columns
+        st.dataframe(styled, use_container_width=True, hide_index=True)
 
 with tabs[1]:
     make_picks.render()
