@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 import streamlit as st
 from backend.odds import fetch_odds, upsert_games
 from backend.db import supa
