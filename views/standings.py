@@ -22,13 +22,15 @@ def render():
     if season_df.empty:
         st.info("No season data available yet.")
     else:
-        # Format columns for display
         display_cols = [
-            "rk", "user_id", "wins", "losses", "pushes", "win_pct",
+            "rk", "entry_abbreviation", "wins", "losses", "pushes", "win_pct",
             "ats_wins", "ou_wins", "ud_points", "sd_picks"
         ]
+        season_df = season_df[display_cols].rename(
+            columns={"entry_abbreviation": "Entry"}
+        )
         st.dataframe(
-            season_df[display_cols].sort_values("rk"),
+            season_df.sort_values("rk"),
             hide_index=True,
             use_container_width=True,
         )
@@ -43,18 +45,20 @@ def render():
     if weekly_df.empty:
         st.info("No weekly data available yet.")
     else:
-        # Collect unique weeks
         weeks = sorted(list(set(weekly_df["week_start"])), reverse=True)
         selected_week = st.selectbox("Select Week", weeks)
 
         week_df = weekly_df[weekly_df["week_start"] == selected_week]
 
         display_cols = [
-            "rk", "user_id", "wins", "losses", "pushes",
+            "rk", "entry_abbreviation", "wins", "losses", "pushes",
             "ats_wins", "ou_wins", "sd_wins", "ud_points"
         ]
+        week_df = week_df[display_cols].rename(
+            columns={"entry_abbreviation": "Entry"}
+        )
         st.dataframe(
-            week_df[display_cols].sort_values("rk"),
+            week_df.sort_values("rk"),
             hide_index=True,
             use_container_width=True,
         )

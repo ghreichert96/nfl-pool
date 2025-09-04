@@ -90,15 +90,31 @@ with tabs[0]:
     else:
         df = pd.DataFrame(data)
 
-        # Reorder cols to match grid design
+        # Week selector
+        weeks = sorted(df["week_start"].unique(), reverse=True)
+        selected_week = st.selectbox("Select Week", weeks)
+
+        grid = df[df["week_start"] == selected_week]
+
+        # Reorder columns
         display_cols = [
-            "user_name", "bb", "ats1", "ats2", "ats3", "ats4", "ats5",
+            "entry_abbreviation", "bb", "ats1", "ats2", "ats3", "ats4", "ats5",
             "ou1", "ou2", "ou3", "sd", "ud", "comment"
         ]
-        grid = df[display_cols].rename(columns={"user_name": "Entry", "comment": "Comments"})
+        grid = grid[display_cols].rename(columns={"entry_abbreviation": "Entry", "comment": "Comments"})
 
-        styled = grid.style.applymap(color_picks, subset=grid.columns[1:-1])  # all pick columns
+        # Color function
+        def color_picks(val):
+            if val is None: return ""
+            if str(val).endswith("W"): return "background-color: #d4edda"
+            if str(val).endswith("L"): return "background-color: #f8d7da"
+            if str(val).endswith("P"): return "background-color: #fff3cd"
+            if str(val).endswith("IP"): return "background-color: #e2e3e5"
+            return ""
+
+        styled = grid.style.applymap(color_picks, subset=grid.columns[1:-1])  # exclude Entry/Comments
         st.dataframe(styled, use_container_width=True, hide_index=True)
+
 
 with tabs[1]:
     make_picks.render()
