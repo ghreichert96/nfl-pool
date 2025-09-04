@@ -194,3 +194,29 @@ def render():
                     pick_counts["UD"] += 1
                 else:
                     st.warning("Only 1 Underdog pick allowed.")
+
+    # --- Weekly Comment ---
+    st.divider()
+    st.subheader("Weekly Comment")
+
+    # Load existing comment if one exists
+    week_start = datetime.date.fromisocalendar(datetime.date.today().year, week, 4)  # anchor to Thu
+    existing = supabase.table("weekly_entries") \
+        .select("comment") \
+        .eq("user_id", user_id) \
+        .eq("week_start", week_start) \
+        .execute().data
+
+    existing_comment = existing[0]["comment"] if existing else ""
+
+    comment = st.text_area("Add a comment for this week", value=existing_comment, key="weekly_comment")
+
+    if st.button("Save Comment"):
+        supabase.table("weekly_entries").upsert({
+            "user_id": user_id,
+            "week_start": week_start,
+            "comment": comment,
+            "submitted_at": datetime.datetime.utcnow().isoformat()
+        }).execute()
+        st.success("Comment saved!")
+                
