@@ -42,5 +42,5 @@ def render():
 - Failure to submit before game start results in a loss - no exceptions  
   - With that being said, games lock at start time, so if you miss early games you’re allowed to select from later games
 - Mistake picks (e.g. picking the same team twice or a Sudden Death team you’ve already picked before) can warrant a re-pick from games which haven’t started
-- All rules are subject to change at the commissioner’s discretion
+- Rules are subject to change at the commissioner’s discretion
                             """)
