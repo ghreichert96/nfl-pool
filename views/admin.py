@@ -10,6 +10,8 @@ def render():
         st.warning("Admins only.")
         return
 
+    client = supa()
+
     year = int(os.environ.get("DEFAULT_YEAR", "2025"))
     week = st.number_input("NFL Week", min_value=1, max_value=22, value=int(os.environ.get("NFL_WEEK", "1")))
 
