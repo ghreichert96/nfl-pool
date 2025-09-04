@@ -43,8 +43,8 @@ def save_pick(user_id, game_id, pick_type, selection, week, over_under_pick=None
         "over_under_pick": over_under_pick,
         "is_double": is_double,
         "underdog_points": underdog_points,
-        "week_start": week_start,
-        "submitted_at": datetime.datetime.utcnow().isoformat()
+        "week_start": week_start.isoformat(),
+        "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }).execute()
 
 # ---- RENDER FUNCTION ----
