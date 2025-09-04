@@ -36,9 +36,19 @@ def render():
 
     col1, col2 = st.columns(2)
     with col1:
-        away_score = st.number_input(f'{g["away_team"]} score', min_value=0, step=1, key=f"away_{g['id']}")
+        away_score = st.number_input(
+            f'{g["away_team"]} score',
+            min_value=0,
+            step=1,
+            key=f"away_{g['id']}_{g['away_team']}"
+        )
     with col2:
-        home_score = st.number_input(f'{g["home_team"]} score', min_value=0, step=1, key=f"home_{g['id']}")
+        home_score = st.number_input(
+            f'{g["home_team"]} score',
+            min_value=0,
+            step=1,
+            key=f"home_{g['id']}_{g['home_team']}"
+        )
 
     if st.button("Save Result"):
         # Compute basic O/U and ATS winners (MVP logic)
