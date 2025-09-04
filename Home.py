@@ -99,8 +99,9 @@ def fetch_picks_for_week(week):
         .order("submitted_at", desc=False)
         .execute()
     )
+    cols = ["user_id", "type", "selection", "game_id", "submitted_at", "over_under_pick", "is_double", "underdog_points", "correct"]
     if not resp.data:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=cols)
     return pd.DataFrame(resp.data)
 
 def fetch_results():
