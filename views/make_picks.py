@@ -178,7 +178,7 @@ def render():
 
         # O/U
         with cols[4]:
-            ou_cols = st.columns([1, 1])
+            ou_cols = st.columns(2)
             with ou_cols[0]:
                 st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
                 if st.button(f"O {game['over_under']}", key=f"over_{game_id}"):
@@ -251,5 +251,6 @@ def render():
             "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }).execute()
         st.success("Comment saved!")
+
 
 
