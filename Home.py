@@ -88,8 +88,9 @@ def fetch_spreads(week):
     return data.data or []
 
 def fetch_users():
-    resp = supabase.table("users").select("id, abbrev").order("abbrev").execute()
-    return {u["id"]: u["abbrev"] for u in resp.data} if resp.data else {}
+    resp = supabase.table("users").select("id, entry_abbreviation").order("entry_abbreviation").execute()
+    return {u["id"]: u["entry_abbreviation"] for u in resp.data} if resp.data else {}
+
 
 def fetch_picks_for_week(week):
     resp = (
