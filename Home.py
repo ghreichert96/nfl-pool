@@ -36,12 +36,11 @@ def auth_ui():
 
     with register_tab:
         name = st.text_input("Name", key="reg_name")
-        email2 = st.text_input("Email", key="reg_email")
-        pw2 = st.text_input("Password", type="password", key="reg_pw")
-
         # New entry abbreviation field
         entry_abbrev = st.text_input("Entry Abbreviation (max 4 chars)", key="reg_abbrev").upper()
-        entry_abbrev = entry_abbrev[:4]  # enforce 4-char max
+        entry_abbrev = entry_abbrev[:4]  # enforce 4-char max        
+        email2 = st.text_input("Email", key="reg_email")
+        pw2 = st.text_input("Password", type="password", key="reg_pw")
 
         if st.button("Create Account"):
             if not entry_abbrev:
