@@ -83,3 +83,5 @@ def render():
         }).execute()
 
         st.success("Result saved (MVP). Scoring/leaderboards next.")
+        st.rerun()
+
