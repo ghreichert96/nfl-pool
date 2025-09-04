@@ -92,7 +92,8 @@ with tabs[0]:
 
         # Week selector
         weeks = sorted(df["week_start"].unique(), reverse=True)
-        selected_week = st.selectbox("Select Week", weeks)
+        selected_week = st.selectbox("Select Week", weeks, key="home_week_selector")
+
 
         grid = df[df["week_start"] == selected_week]
 

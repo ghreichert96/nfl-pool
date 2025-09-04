@@ -46,7 +46,7 @@ def render():
         st.info("No weekly data available yet.")
     else:
         weeks = sorted(list(set(weekly_df["week_start"])), reverse=True)
-        selected_week = st.selectbox("Select Week", weeks)
+        selected_week = st.selectbox("Select Week", weeks, key="standings_week_selector")
 
         week_df = weekly_df[weekly_df["week_start"] == selected_week]
 
