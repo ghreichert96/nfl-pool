@@ -38,9 +38,20 @@ def auth_ui():
         name = st.text_input("Name", key="reg_name")
         email2 = st.text_input("Email", key="reg_email")
         pw2 = st.text_input("Password", type="password", key="reg_pw")
+
+        # New entry abbreviation field
+        entry_abbrev = st.text_input("Entry Abbreviation (max 4 chars)", key="reg_abbrev").upper()
+        entry_abbrev = entry_abbrev[:4]  # enforce 4-char max
+
         if st.button("Create Account"):
-            ok, msg = register(name, email2, pw2)
-            st.toast(msg)
+            if not entry_abbrev:
+                st.error("Entry Abbreviation is required.")
+            else:
+                ok, msg = register(name, email2, pw2, entry_abbrev)
+                st.toast(msg)
+                if ok:
+                    st.rerun()
+
 
 
 # ---------- Auth gate ----------

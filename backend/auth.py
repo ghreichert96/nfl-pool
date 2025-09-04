@@ -6,11 +6,19 @@ def ensure_session():
     st.session_state.setdefault("user", None)
     st.session_state.setdefault("is_admin", False)
 
-def register(name, email, password):
+def register(name, email, password, entry_abbreviation):
     client = supa()
     r = client.auth.sign_up({"email": email, "password": password})
     if r.user:
-        client.table("users").insert({"id": r.user.id, "name": name, "email": email}).execute()
+        # normalize abbreviation: uppercase, max 4 chars
+        abbrev = (entry_abbreviation or "").upper()[:4]
+
+        client.table("users").insert({
+            "id": r.user.id,
+            "name": name,
+            "email": email,
+            "entry_abbreviation": abbrev
+        }).execute()
         return True, "Registered."
     return False, "Registration failed."
 

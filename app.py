@@ -95,11 +95,32 @@ def render_admin():
     st.subheader("⚙️ Admin")
     st.info("Admin tools go here.")
 
+def load_user_admin_flag():
+    user_id = st.session_state.get("user_id")
+    if not user_id:
+        st.session_state["is_admin"] = False
+        return
+
+    resp = (
+        supabase.table("users")
+        .select("is_admin")
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+    if resp.data:
+        st.session_state["is_admin"] = resp.data["is_admin"]
+    else:
+        st.session_state["is_admin"] = False
+
 # -------------------------
 # Main app
 # -------------------------
 def main():
-    # build tab row
+    # ensure admin flag is loaded once per session
+    if "is_admin" not in st.session_state:
+        load_user_admin_flag()
+
     tabs = st.tabs(["Home", "Make Picks", "Standings", "Rules", "Profile", "Admin"])
 
     with tabs[0]:
