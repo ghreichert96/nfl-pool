@@ -33,21 +33,29 @@ def get_team_logo(team_abbrev):
     return None
 
 # Save pick immediately on toggle
-def save_pick(user_id, game_id, pick_type, selection,
-              week, over_under_pick=None, is_double=False, underdog_points=None):
+def save_pick(user_id, game_id, pick_type, selection, week,
+              over_under_pick=None, is_double=False, underdog_points=None,
+              over_under_total=None):
     week_start = datetime.date.fromisocalendar(datetime.date.today().year, week, 4)
+
+    # Normalize selection for O/U
+    if pick_type == "O/U" and selection in ("O", "U"):
+        selection_text = selection
+    else:
+        selection_text = selection
+
     supabase.table("picks").upsert({
         "user_id": user_id,
         "game_id": game_id,
         "type": pick_type,
-        "selection": selection,
+        "selection": selection_text,
         "over_under_pick": over_under_pick,
+        "over_under_total": over_under_total,   # ✅ new column
         "is_double": is_double,
         "underdog_points": underdog_points,
         "week_start": week_start.isoformat(),
         "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }).execute()
-
 
 # ---- RENDER FUNCTION ----
 def render():
@@ -70,11 +78,12 @@ def render():
         return
 
     # Existing picks
-    picks = supabase.table("picks") \
-        .select("*") \
-        .eq("user_id", user_id) \
-        .eq("week_start", datetime.date.fromisocalendar(datetime.date.today().year, week, 4)) \
-        .execute().data
+    picks = supabase.table("picks").select(
+        "*, games(away_abbrev, home_abbrev)"
+    ).eq("user_id", user_id) \
+     .eq("week_start", datetime.date.fromisocalendar(datetime.date.today().year, week, 4)) \
+     .execute().data
+
 
     # Count picks
     pick_counts = {"ATS": 0, "O/U": 0, "SD": 0, "UD": 0, "BB": 0}
@@ -92,17 +101,33 @@ def render():
     for i, pick_type in enumerate(["BB", "ATS", "O/U", "SD", "UD"]):
         with summary_cols[i]:
             st.markdown(f"**{summary_map[pick_type]}**")
-            logos = []
-            for p in picks:
-                if (pick_type == "BB" and p["is_double"]) or (p["type"] == pick_type):
-                    logo = get_team_logo(p["selection"])
-                    if logo:
-                        logos.append(f"<img src='{logo}' style='height:24px; margin-right:4px;'/>")
-            if logos:
-                st.markdown(
-                    f"<div style='display:flex; justify-content:center;'>{''.join(logos)}</div>",
-                    unsafe_allow_html=True
-                )
+
+            if pick_type == "O/U":
+                # Show text summary for O/U
+                for p in picks:
+                    if p["type"] == "O/U":
+                        ou_pick = p.get("over_under_pick", "")
+                        total = p.get("over_under_total", "")
+                        away = p.get("games", {}).get("away_abbrev", "?")
+                        home = p.get("games", {}).get("home_abbrev", "?")
+                        st.markdown(
+                            f"<div style='text-align:center'>{away} {home} {ou_pick} {total}</div>",
+                            unsafe_allow_html=True
+                        )
+            else:
+                # Logos for all other pick types
+                logos = []
+                for p in picks:
+                    if (pick_type == "BB" and p["is_double"]) or (p["type"] == pick_type):
+                        logo = get_team_logo(p["selection"])
+                        if logo:
+                            logos.append(f"<img src='{logo}' style='height:24px; margin-right:4px;'/>")
+                if logos:
+                    st.markdown(
+                        f"<div style='display:flex; justify-content:center;'>{''.join(logos)}</div>",
+                        unsafe_allow_html=True
+                    )
+
 
     st.write("Click a button to make picks. Picks save automatically.")
 
@@ -178,23 +203,28 @@ def render():
                 st.markdown(f"<img src='{home_logo}' style='height:28px; margin-top:4px;'/>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-        # O/U
+        # Over/Under
         with cols[4]:
             ou_cols = st.columns(2)
             with ou_cols[0]:
                 st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
                 if st.button(f"O {game['over_under']}", key=f"over_{game_id}"):
                     if pick_counts["O/U"] < 3:
-                        save_pick(user_id, game_id, "O/U", None, week, over_under_pick="O")
+                        save_pick(user_id, game_id, "O/U", "O", week,
+                                over_under_pick="O",
+                                over_under_total=game["over_under"])
                         pick_counts["O/U"] += 1
                 st.markdown("</div>", unsafe_allow_html=True)
             with ou_cols[1]:
                 st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
                 if st.button(f"U {game['over_under']}", key=f"under_{game_id}"):
                     if pick_counts["O/U"] < 3:
-                        save_pick(user_id, game_id, "O/U", None, week, over_under_pick="U")
+                        save_pick(user_id, game_id, "O/U", "U", week,
+                                over_under_pick="U",
+                                over_under_total=game["over_under"])
                         pick_counts["O/U"] += 1
                 st.markdown("</div>", unsafe_allow_html=True)
+
 
         # SD
         with cols[5]:
