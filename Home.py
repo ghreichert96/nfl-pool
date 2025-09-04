@@ -21,7 +21,6 @@ if missing:
 # Initialize session keys
 ensure_session()
 
-
 def auth_ui():
     login_tab, register_tab = st.tabs(["Login", "Register"])
 
@@ -50,8 +49,6 @@ def auth_ui():
                 st.toast(msg)
                 if ok:
                     st.rerun()
-
-
 
 # ---------- Auth gate ----------
 if not st.session_state["user"]:

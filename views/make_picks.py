@@ -58,6 +58,13 @@ def delete_pick(user_id, game_id, pick_type, selection=None):
 
 # ----------------- UI -----------------
 def render():
+    st.header("🏈 Make Picks 🧮")
+
+    # Restrict to admins only for now
+    if not st.session_state.get("is_admin"):
+        st.warning("Under Construction.")
+        return
+
     st.markdown("""
     <style>
     .stToggle [role="switch"][aria-checked="true"] {
@@ -65,8 +72,6 @@ def render():
     }
     </style>
     """, unsafe_allow_html=True)
-
-    st.header("🏈 Make Picks 🧮")
 
     if "user" not in st.session_state or not st.session_state["user"]:
         st.warning("Please log in to make picks.")
