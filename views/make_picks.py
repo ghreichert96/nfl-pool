@@ -33,7 +33,8 @@ def get_team_logo(team_abbrev):
     return None
 
 # Save pick immediately on toggle
-def save_pick(user_id, game_id, pick_type, selection, week, over_under_pick=None, is_double=False, underdog_points=None):
+def save_pick(user_id, game_id, pick_type, selection,
+              week, over_under_pick=None, is_double=False, underdog_points=None):
     week_start = datetime.date.fromisocalendar(datetime.date.today().year, week, 4)
     supabase.table("picks").upsert({
         "user_id": user_id,
@@ -46,6 +47,7 @@ def save_pick(user_id, game_id, pick_type, selection, week, over_under_pick=None
         "week_start": week_start.isoformat(),
         "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }).execute()
+
 
 # ---- RENDER FUNCTION ----
 def render():
