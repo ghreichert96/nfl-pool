@@ -49,12 +49,12 @@ def upsert_games(year: int, nfl_week: int, data: list, freeze: bool = False):
             # skip any weird/incomplete games
             continue
 
-        # MVP: simple insert (may duplicate if pressed multiple times)
-        client.table("games").insert({
+        # ✅ Upsert with timestamptz for "time"
+        client.table("games").upsert({
             "year": year,
             "nfl_week": nfl_week,
             "date": eastern.date().isoformat(),
-            "time": eastern.time().strftime("%H:%M:%S"),
+            "time": eastern.isoformat(),   # full ISO timestamp with TZ
             "home_team": home,
             "away_team": away,
             "spread": float(spread_point),
