@@ -86,17 +86,20 @@ def render():
 
     # --- Picks Summary ---
     st.subheader("Your Picks Summary")
-    summary_cols = st.columns([1, 1, 1, 1, 1])
+    summary_cols = st.columns([1, 3, 1, 1, 1])  # ATS wider
     summary_map = {"BB": "BB:", "ATS": "ATS:", "O/U": "O/U:", "SD": "SD:", "UD": "UD:"}
 
     for i, pick_type in enumerate(["BB", "ATS", "O/U", "SD", "UD"]):
         with summary_cols[i]:
             st.markdown(f"**{summary_map[pick_type]}**")
+            logos = []
             for p in picks:
                 if (pick_type == "BB" and p["is_double"]) or (p["type"] == pick_type):
                     logo = get_team_logo(p["selection"])
                     if logo:
-                        st.image(logo, width=30)
+                        logos.append(f"<img src='{logo}' style='height:24px; margin-right:4px;'/>")
+            if logos:
+                st.markdown("".join(logos), unsafe_allow_html=True)
 
     st.write("Click a button to make picks. Picks save automatically.")
 
@@ -134,37 +137,41 @@ def render():
                     st.warning("You can only set 1 Best Bet.")
 
         if is_locked:
-            with cols[1]: st.write(f"{game['away_team']} (locked)")
-            with cols[2]: st.write(f"{game['spread']}")
-            with cols[3]: st.write(f"{game['home_team']} (locked)")
-            with cols[4]: st.write(f"{game['over_under']}")
+            with cols[1]: st.markdown(f"<div style='text-align:center'>{game['away_team']} (locked)</div>", unsafe_allow_html=True)
+            with cols[2]: st.markdown(f"<div style='text-align:center'>{game['spread']}</div>", unsafe_allow_html=True)
+            with cols[3]: st.markdown(f"<div style='text-align:center'>{game['home_team']} (locked)</div>", unsafe_allow_html=True)
+            with cols[4]: st.markdown(f"<div style='text-align:center'>{game['over_under']}</div>", unsafe_allow_html=True)
             continue
 
-        # Away pick (logo + team text)
+        # Away pick
         with cols[1]:
-            if st.button(f"{game['away_team']}", key=f"away_{game_id}"):
+            btn = st.button(f"{game['away_team']}", key=f"away_{game_id}")
+            if btn:
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["away_team"], week)
                     pick_counts["ATS"] += 1
                 else:
                     st.warning("Max 5 ATS picks reached.")
-            if away_logo: st.image(away_logo, width=30)
+            if away_logo:
+                st.markdown(f"<div style='text-align:center'><img src='{away_logo}' style='height:30px;'/></div>", unsafe_allow_html=True)
 
         # Spread
         with cols[2]:
-            st.write(f"{game['spread']}")
+            st.markdown(f"<div style='text-align:center'>{game['spread']}</div>", unsafe_allow_html=True)
 
-        # Home pick (logo + team text)
+        # Home pick
         with cols[3]:
-            if st.button(f"{game['home_team']}", key=f"home_{game_id}"):
+            btn = st.button(f"{game['home_team']}", key=f"home_{game_id}")
+            if btn:
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["home_team"], week)
                     pick_counts["ATS"] += 1
                 else:
                     st.warning("Max 5 ATS picks reached.")
-            if home_logo: st.image(home_logo, width=30)
+            if home_logo:
+                st.markdown(f"<div style='text-align:center'><img src='{home_logo}' style='height:30px;'/></div>", unsafe_allow_html=True)
 
-        # Over/Under side-by-side
+        # Over/Under
         with cols[4]:
             ou_cols = st.columns(2)
             with ou_cols[0]:
