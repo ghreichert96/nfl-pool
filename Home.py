@@ -129,7 +129,13 @@ def render_home():
     st.info("Welcome to the 2025 season! Picks lock Thu 8p ET.")
 
     max_week = get_max_available_week()
-    selected_week = st.selectbox("Select Week", list(range(1, max_week + 1)), index=max_week - 1)
+    selected_week = st.selectbox(
+        "Select Week",
+        list(range(1, max_week + 1)),
+        index=max_week - 1,
+        key="standings_week_select"
+    )
+
 
     sub_tabs = st.tabs(["Board", "Grid"])
 
