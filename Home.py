@@ -93,13 +93,21 @@ def fetch_users():
 
 
 def fetch_picks_for_week(week):
-    resp = supabase.table("picks").select("*").limit(1).execute()
-    st.write("DEBUG picks row:", resp)
-    return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
+    resp = (
+        supabase.table("picks")
+        .select("user_id, type, selection, game_id, submitted_at, over_under_pick, is_double, underdog_points, correct")
+        .order("submitted_at", desc=False)
+        .execute()
+    )
+    if not resp.data:
+        return pd.DataFrame()
+    return pd.DataFrame(resp.data)
 
 def fetch_results():
     resp = supabase.table("results").select("game_id, ml_winner, ats_winner, ou_result").execute()
-    return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
+    if not resp.data:
+        return pd.DataFrame()
+    return pd.DataFrame(resp.data)
 
 def fetch_standings(week):
     resp = supabase.table("standings_view").select("*").eq("nfl_week", week).execute()
@@ -154,7 +162,11 @@ def render_home():
             grid_df["Entry"] = users
 
             picks_df = fetch_picks_for_week(selected_week)
-            results_df = fetch_results().set_index("game_id")
+            results_df = fetch_results()
+            if not results_df.empty:
+                results_df = results_df.set_index("game_id")
+            else:
+                results_df = pd.DataFrame()  # keep empty df
 
             # fill picks into grid
             for user_id, abbrev in user_map.items():
