@@ -17,8 +17,25 @@ def render():
     if st.button("Fetch & Freeze Odds (now)"):
         data = fetch_odds()
         upsert_games(year, int(week), data, freeze=True)
-        st.success("Frozen odds inserted. Check Supabase → games.")
-        st.rerun()
+        st.success("Frozen odds inserted into Supabase.")
+
+        # Preview what was just inserted
+        games = client.table("games") \
+            .select("date, time, away_team, home_team, spread, over_under") \
+            .eq("year", year) \
+            .eq("nfl_week", int(week)) \
+            .order("date") \
+            .order("time") \
+            .execute().data
+
+        if games:
+            st.subheader("This Week's Games (from DB)")
+            st.dataframe(
+                pd.DataFrame(games),
+                hide_index=True,
+                use_container_width=True
+            )
+
 
     st.divider()
 
