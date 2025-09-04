@@ -110,9 +110,18 @@ def fetch_results():
         return pd.DataFrame()
     return pd.DataFrame(resp.data)
 
-def fetch_standings(week):
-    resp = supabase.table("weekly_standings").select("*").eq("nfl_week", week).execute()
-    return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
+def get_available_weeks():
+    resp = supabase.table("weekly_standings").select("week_start").order("week_start").execute()
+    if resp.error:
+        st.error(f"Supabase error: {resp.error}")
+        return []
+    return sorted({row["week_start"] for row in resp.data})
+def fetch_standings(week_start):
+    resp = supabase.table("weekly_standings").select("*").eq("week_start", week_start).execute()
+    if resp.error:
+        st.error(f"Supabase error: {resp.error}")
+        return pd.DataFrame()
+    return pd.DataFrame(resp.data)
 
 def convert_to_est(date_str, time_str):
     date_obj = datetime.datetime.strptime(str(date_str), "%Y-%m-%d").date()
@@ -243,14 +252,25 @@ def render_home():
 # ---------- Standings Tab ----------
 def render_standings():
     st.subheader("📊 Standings")
-    max_week = get_max_available_week()
-    selected_week = st.selectbox("Select Week", list(range(1, max_week + 1)), index=max_week - 1)
+
+    weeks = get_available_weeks()
+    if not weeks:
+        st.info("No standings available yet.")
+        return
+
+    # Show latest week by default
+    selected_week = st.selectbox(
+        "Select Week",
+        weeks,
+        index=len(weeks) - 1,
+        format_func=lambda x: pd.to_datetime(x).strftime("Week of %b %d, %Y")  # nice label
+    )
 
     df = fetch_standings(selected_week)
     if not df.empty:
         st.dataframe(df, use_container_width=True, hide_index=True)
     else:
-        st.info(f"No standings available for week {selected_week}.")
+        st.info(f"No standings available for {selected_week}.")
 
 # ---------- Tabs ----------
 tabs = ["Home", "Standings", "Rules", "Profile"]
