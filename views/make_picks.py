@@ -51,25 +51,23 @@ def save_pick(user_id, game_id, pick_type, selection, week, over_under_pick=None
 def render():
     st.header("🏈 Make Picks 🧮")
 
-    # Must be logged in
     if "user" not in st.session_state or not st.session_state["user"]:
         st.warning("Please log in to make picks.")
         st.stop()
 
     user_id = st.session_state["user"]["id"]
 
-    # Week selector (skip week 0)
+    # Week selector
     current_week = get_current_nfl_week()
     weeks = [w for w in [current_week, current_week - 1] if w >= 1]
     week = st.selectbox("Select Week", weeks, index=0, key="makepicks_week_selector")
 
-    # Load spreads
     spreads = fetch_spreads(week)
     if not spreads:
         st.warning("No games found for this week.")
         return
 
-    # Fetch existing picks for this user/week
+    # Existing picks
     picks = supabase.table("picks") \
         .select("*") \
         .eq("user_id", user_id) \
@@ -99,7 +97,10 @@ def render():
                     if logo:
                         logos.append(f"<img src='{logo}' style='height:24px; margin-right:4px;'/>")
             if logos:
-                st.markdown("".join(logos), unsafe_allow_html=True)
+                st.markdown(
+                    f"<div style='display:flex; justify-content:center;'>{''.join(logos)}</div>",
+                    unsafe_allow_html=True
+                )
 
     st.write("Click a button to make picks. Picks save automatically.")
 
@@ -116,7 +117,7 @@ def render():
     </div>
     """, unsafe_allow_html=True)
 
-    # --- Render game rows ---
+    # --- Game rows ---
     for game in spreads:
         game_id = game["game_id"]
         game_dt = datetime.datetime.fromisoformat(f"{game['date']}T{game['time']}")
@@ -129,12 +130,14 @@ def render():
 
         # BB
         with cols[0]:
+            st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
             if st.button("⭐", key=f"bb_{game_id}"):
                 if pick_counts["BB"] < 1:
                     save_pick(user_id, game_id, "ATS", game["home_team"], week, is_double=True)
                     pick_counts["BB"] += 1
                 else:
                     st.warning("You can only set 1 Best Bet.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
         if is_locked:
             with cols[1]: st.markdown(f"<div style='text-align:center'>{game['away_team']} (locked)</div>", unsafe_allow_html=True)
@@ -143,61 +146,68 @@ def render():
             with cols[4]: st.markdown(f"<div style='text-align:center'>{game['over_under']}</div>", unsafe_allow_html=True)
             continue
 
-        # Away pick (abbr + logo inside button)
+        # Away pick
         with cols[1]:
-            if away_logo:
-                away_label = f"{game['away_team']} <img src='{away_logo}' style='height:18px; margin-left:4px;'/>"
-            else:
-                away_label = game['away_team']
-            if st.button(away_label, key=f"away_{game_id}"):
+            st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
+            if st.button(game["away_team"], key=f"away_{game_id}"):
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["away_team"], week)
                     pick_counts["ATS"] += 1
                 else:
                     st.warning("Max 5 ATS picks reached.")
+            if away_logo:
+                st.markdown(f"<img src='{away_logo}' style='height:28px; margin-top:4px;'/>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # Spread
         with cols[2]:
             st.markdown(f"<div style='text-align:center'>{game['spread']}</div>", unsafe_allow_html=True)
 
-        # Home pick (abbr + logo inside button)
+        # Home pick
         with cols[3]:
-            if home_logo:
-                home_label = f"{game['home_team']} <img src='{home_logo}' style='height:18px; margin-left:4px;'/>"
-            else:
-                home_label = game['home_team']
-            if st.button(home_label, key=f"home_{game_id}"):
+            st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
+            if st.button(game["home_team"], key=f"home_{game_id}"):
                 if pick_counts["ATS"] < 5:
                     save_pick(user_id, game_id, "ATS", game["home_team"], week)
                     pick_counts["ATS"] += 1
                 else:
                     st.warning("Max 5 ATS picks reached.")
+            if home_logo:
+                st.markdown(f"<img src='{home_logo}' style='height:28px; margin-top:4px;'/>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # Over/Under
+        # O/U
         with cols[4]:
-            ou_cols = st.columns(2)
+            ou_cols = st.columns([1, 1])
             with ou_cols[0]:
+                st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
                 if st.button(f"O {game['over_under']}", key=f"over_{game_id}"):
                     if pick_counts["O/U"] < 3:
                         save_pick(user_id, game_id, "O/U", None, week, over_under_pick="O")
                         pick_counts["O/U"] += 1
+                st.markdown("</div>", unsafe_allow_html=True)
             with ou_cols[1]:
+                st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
                 if st.button(f"U {game['over_under']}", key=f"under_{game_id}"):
                     if pick_counts["O/U"] < 3:
                         save_pick(user_id, game_id, "O/U", None, week, over_under_pick="U")
                         pick_counts["O/U"] += 1
+                st.markdown("</div>", unsafe_allow_html=True)
 
         # SD
         with cols[5]:
+            st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
             if st.button("💀", key=f"sd_{game_id}"):
                 if pick_counts["SD"] < 1:
                     save_pick(user_id, game_id, "SD", game["home_team"], week)
                     pick_counts["SD"] += 1
                 else:
                     st.warning("Only 1 Sudden Death pick allowed.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
         # UD
         with cols[6]:
+            st.markdown("<div style='text-align:center'>", unsafe_allow_html=True)
             underdog = None
             underdog_points = None
             try:
@@ -217,6 +227,7 @@ def render():
                     pick_counts["UD"] += 1
                 else:
                     st.warning("Only 1 Underdog pick allowed.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
     # --- Weekly Comment ---
     st.divider()
@@ -240,4 +251,5 @@ def render():
             "submitted_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }).execute()
         st.success("Comment saved!")
+
 
