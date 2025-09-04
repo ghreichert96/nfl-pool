@@ -95,7 +95,7 @@ def fetch_users():
 def fetch_picks_for_week(week):
     resp = (
         supabase.table("picks")
-        .select("user_id, type, selection, game_id, submitted_at, over_under_pick, comments")
+        .select("user_id, type, selection, game_id, submitted_at, over_under_pick, is_double, underdog_points, correct")
         .eq("nfl_week", week)
         .order("submitted_at", desc=False)
         .execute()
@@ -181,9 +181,6 @@ def render_home():
                         col = f"O/U {ou_count + 1}"
                         grid_df.loc[grid_df["Entry"] == abbrev, col] = row["over_under_pick"]
                         ou_count += 1
-                comments = user_picks["comments"].dropna().unique()
-                if len(comments):
-                    grid_df.loc[grid_df["Entry"] == abbrev, "Comments"] = comments[-1]
 
             # shading
             def highlight(val, col_name, game_id):
