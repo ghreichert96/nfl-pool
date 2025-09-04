@@ -111,7 +111,7 @@ def fetch_results():
     return pd.DataFrame(resp.data)
 
 def fetch_standings(week):
-    resp = supabase.table("standings_view").select("*").eq("nfl_week", week).execute()
+    resp = supabase.table("weekly_standings").select("*").eq("nfl_week", week).execute()
     return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
 
 def convert_to_est(date_str, time_str):
