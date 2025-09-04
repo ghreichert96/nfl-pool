@@ -99,7 +99,8 @@ def render():
     for game in spreads:
         game_id = game["game_id"]
         game_dt = datetime.datetime.fromisoformat(f"{game['date']}T{game['time']}")
-        is_locked = datetime.datetime.utcnow() > game_dt.replace(tzinfo=datetime.timezone.utc)
+        is_locked = datetime.datetime.now(datetime.timezone.utc) > game_dt.astimezone(datetime.timezone.utc)
+
 
         col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 2, 1, 2, 2, 1, 1, 1])
 
