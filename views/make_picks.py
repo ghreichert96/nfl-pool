@@ -1,136 +1,195 @@
 import os
+import datetime
 import streamlit as st
-from backend.db import supa
+from supabase import create_client
 
-def _team_opts(g):
-    return [g["away_team"], g["home_team"]]
+# Connect to Supabase
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# Helper: get current NFL week
+def get_current_nfl_week():
+    today = datetime.datetime.utcnow().date()
+    season_start = datetime.date(2025, 9, 4)  # kickoff
+    delta_days = (today - season_start).days
+    return max(1, delta_days // 7 + 1)
+
+# Fetch spreads for a week
+def fetch_spreads(week):
+    data = supabase.table("spreads") \
+        .select("game_id, date, time, away_team, home_team, spread, over_under") \
+        .eq("nfl_week", week) \
+        .order("date") \
+        .order("time") \
+        .execute()
+    return data.data or []
+
+# Fetch logos
+def get_team_logo(team_abbrev):
+    row = supabase.table("nfl_teams").select("logo_url").eq("abbrev", team_abbrev).execute()
+    if row.data:
+        return row.data[0]["logo_url"]
+    return None
+
+# Save pick immediately on toggle
+def save_pick(user_id, game_id, pick_type, selection, over_under_pick=None, is_double=False, underdog_points=None):
+    supabase.table("picks").upsert({
+        "user_id": user_id,
+        "game_id": game_id,
+        "type": pick_type,
+        "selection": selection,
+        "over_under_pick": over_under_pick,
+        "is_double": is_double,
+        "underdog_points": underdog_points,
+        "submitted_at": datetime.datetime.utcnow().isoformat()
+    }).execute()
+
+# ---- RENDER FUNCTION ----
 def render():
-    st.title("Make Picks")
+    st.header("🏈 Make Picks")
 
-    user = st.session_state.get("user")
-    if not user:
-        st.warning("Please login.")
+    if "user" not in st.session_state or not st.session_state["user"]:
+        st.warning("Please log in to make picks.")
+        st.stop()
+
+    user_id = st.session_state["user"]["id"]
+
+    # Week selector
+    current_week = get_current_nfl_week()
+    week = st.selectbox("Select Week", [current_week, current_week - 1], index=0)
+
+    # Load spreads
+    spreads = fetch_spreads(week)
+    if not spreads:
+        st.warning("No games found for this week.")
         return
 
-    year = int(os.environ.get("DEFAULT_YEAR", "2025"))
-    week = int(os.environ.get("NFL_WEEK", "1"))
-    client = supa()
+    # Fetch existing picks for this user/week
+    picks = supabase.table("picks") \
+        .select("*") \
+        .eq("user_id", user_id) \
+        .execute().data
 
-    # Show only FROZEN lines for this week
-    resp = client.table("games").select("*") \
-        .eq("year", year).eq("nfl_week", week) \
-        .not_.is_("locked_at", None).execute()
-    games = resp.data or []
+    # Count picks
+    pick_counts = {"ATS": 0, "O/U": 0, "SD": 0, "UD": 0, "BB": 0}
+    for p in picks:
+        if p["is_double"]:
+            pick_counts["BB"] += 1
+        elif p["type"] in pick_counts:
+            pick_counts[p["type"]] += 1
 
-    if not games:
-        st.info("No frozen games for this week yet. Ask the commissioner to freeze odds on the Admin page.")
-        return
+    # --- Summary bar ---
+    st.subheader("Your Picks Summary")
+    summary_cols = st.columns([1, 1, 1, 1, 1])
+    summary_map = {"BB": "Best Bet", "ATS": "ATS", "O/U": "Over/Under", "SD": "Sudden Death", "UD": "Underdog"}
 
-    st.caption("Select **6 ATS** picks (mark exactly **1** as your Double), **3 O/U** picks, **1 Survivor**, and **1 Underdog**. Add an optional comment at the end.")
+    for i, pick_type in enumerate(["BB", "ATS", "O/U", "SD", "UD"]):
+        with summary_cols[i]:
+            st.markdown(f"**{summary_map[pick_type]}**")
+            for p in picks:
+                if (pick_type == "BB" and p["is_double"]) or (p["type"] == pick_type):
+                    logo = get_team_logo(p["selection"])
+                    if logo:
+                        st.image(logo, width=30)
 
-    # --- ATS PICKS (exactly 6; 1 double) ---
-    st.subheader("Against the Spread (6 picks, 1 double)")
-    ats_selections = {}
-    double_game_id = st.radio(
-        "Pick your **Double** (best bet):",
-        [g["id"] for g in games],
-        format_func=lambda gid: next(f'{x["away_team"]} @ {x["home_team"]}' for x in games if x["id"] == gid),
-        horizontal=True,
-    )
+    st.write("Click logos or names to make picks. Picks save automatically.")
 
-    for g in games:
-        label = f'{g["away_team"]} @ {g["home_team"]}   |   Spread: {g["spread"]}'
-        ats_selections[g["id"]] = st.radio(
-            label, _team_opts(g), key=f"ats_{g['id']}", horizontal=True
-        )
+    # --- Render game rows ---
+    for game in spreads:
+        game_id = game["game_id"]
+        game_dt = datetime.datetime.fromisoformat(f"{game['date']}T{game['time']}")
+        is_locked = datetime.datetime.utcnow() > game_dt.replace(tzinfo=datetime.timezone.utc)
 
-    st.caption("Tip: You must submit exactly 6 ATS picks; we'll take the first 6 in the order shown for MVP. (We’ll add per-game toggles soon.)")
+        col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([2, 2, 1, 2, 2, 1, 1, 1])
 
-    # --- O/U PICKS (exactly 3) ---
-    st.subheader("Totals (Over/Under) – choose 3")
-    ou_selections = {}
-    for g in games:
-        label = f'{g["away_team"]} @ {g["home_team"]}   |   O/U: {g["over_under"]}'
-        ou_selections[g["id"]] = st.radio(
-            label, ["O", "U"], key=f"ou_{g['id']}", horizontal=True
-        )
+        away_logo = get_team_logo(game["away_team"])
+        home_logo = get_team_logo(game["home_team"])
 
-    # --- Survivor (1 team to win outright) ---
-    st.subheader("Survivor (1 pick to win outright)")
-    all_teams = []
-    for g in games:
-        all_teams.extend(_team_opts(g))
-    survivor_pick = st.selectbox("Survivor pick:", sorted(set(all_teams)))
+        if is_locked:
+            with col1: st.write(f"{game['away_team']} (locked)")
+            with col2: st.write(f"{game['spread']}")
+            with col3: st.write(f"{game['home_team']} (locked)")
+            with col4: st.write("O/U")
+            with col5: st.write(f"{game['over_under']}")
+            continue
 
-    # --- Underdog (1 team; if they win outright, you get points = spread) ---
-    st.subheader("Underdog (1 pick)")
-    underdog_pick = st.selectbox("Underdog pick:", sorted(set(all_teams)))
-    st.caption("MVP note: We aren’t verifying underdog status here yet; we’ll validate server-side / during scoring.")
+        # Away pick
+        with col1:
+            if away_logo: st.image(away_logo, width=40)
+            if st.button(game["away_team"], key=f"away_{game_id}"):
+                if pick_counts["ATS"] < 5:
+                    save_pick(user_id, game_id, "ATS", game["away_team"])
+                    pick_counts["ATS"] += 1
+                else:
+                    st.warning("Max 5 ATS picks reached.")
 
-    comment = st.text_area("Comments (optional)")
+        with col2:
+            st.write(f"{game['spread']}")
 
-    if st.button("Submit All Picks"):
-        # Basic MVP logic: take FIRST 6 ATS and FIRST 3 O/U (in the shown order)
-        ats_ids = list(ats_selections.keys())[:6]
-        ou_ids = list(ou_selections.keys())[:3]
+        # Home pick
+        with col3:
+            if home_logo: st.image(home_logo, width=40)
+            if st.button(game["home_team"], key=f"home_{game_id}"):
+                if pick_counts["ATS"] < 5:
+                    save_pick(user_id, game_id, "ATS", game["home_team"])
+                    pick_counts["ATS"] += 1
+                else:
+                    st.warning("Max 5 ATS picks reached.")
 
-        # Validate counts
-        if len(ats_ids) != 6:
-            st.error("You must have 6 ATS picks.")
-            return
-        if len(ou_ids) != 3:
-            st.error("You must have 3 O/U picks.")
-            return
-        if not survivor_pick:
-            st.error("Please select a Survivor pick.")
-            return
-        if not underdog_pick:
-            st.error("Please select an Underdog pick.")
-            return
+        with col4:
+            st.write("O/U")
 
-        client = supa()
+        with col5:
+            if st.button(f"O {game['over_under']}", key=f"over_{game_id}"):
+                if pick_counts["O/U"] < 3:
+                    save_pick(user_id, game_id, "O/U", None, over_under_pick="O")
+                    pick_counts["O/U"] += 1
+                else:
+                    st.warning("Max 3 O/U picks reached.")
+            if st.button(f"U {game['over_under']}", key=f"under_{game_id}"):
+                if pick_counts["O/U"] < 3:
+                    save_pick(user_id, game_id, "O/U", None, over_under_pick="U")
+                    pick_counts["O/U"] += 1
+                else:
+                    st.warning("Max 3 O/U picks reached.")
 
-        # Save ATS
-        for gid in ats_ids:
-            client.table("picks").insert({
-                "user_id": user["id"],
-                "game_id": gid,
-                "type": "ATS",
-                "selection": ats_selections[gid],
-                "is_double": (gid == double_game_id)
-            }).execute()
+        # Best Bet toggle
+        with col6:
+            if st.button("⭐ BB", key=f"bb_{game_id}"):
+                if pick_counts["BB"] < 1:
+                    save_pick(user_id, game_id, "ATS", game["home_team"], is_double=True)
+                    pick_counts["BB"] += 1
+                else:
+                    st.warning("You can only set 1 Best Bet.")
 
-        # Save O/U
-        for gid in ou_ids:
-            client.table("picks").insert({
-                "user_id": user["id"],
-                "game_id": gid,
-                "type": "OU",
-                "selection": "TOTAL",
-                "over_under_pick": ou_selections[gid]
-            }).execute()
+        # Sudden Death pick
+        with col7:
+            if st.button("💀 SD", key=f"sd_{game_id}"):
+                if pick_counts["SD"] < 1:
+                    save_pick(user_id, game_id, "SD", game["home_team"])
+                    pick_counts["SD"] += 1
+                else:
+                    st.warning("Only 1 Sudden Death pick allowed.")
 
-        # Save Survivor (use any game_id just to associate week; we’ll compute by team later)
-        # MVP: associate with the first game for this week
-        first_gid = games[0]["id"]
-        client.table("picks").insert({
-            "user_id": user["id"],
-            "game_id": first_gid,
-            "type": "SD",
-            "selection": survivor_pick
-        }).execute()
+        # Underdog pick (awards points equal to spread if dog wins)
+        with col8:
+            underdog = None
+            underdog_points = None
+            try:
+                spread_val = float(game["spread"])
+                if spread_val > 0:
+                    underdog = game["away_team"]
+                    underdog_points = spread_val
+                elif spread_val < 0:
+                    underdog = game["home_team"]
+                    underdog_points = abs(spread_val)
+            except:
+                pass
 
-        # Save Underdog (same association trick)
-        client.table("picks").insert({
-            "user_id": user["id"],
-            "game_id": first_gid,
-            "type": "UD",
-            "selection": underdog_pick
-        }).execute()
-
-        # Optional: log a comment (create a simple table later if you want it persisted)
-        if comment.strip():
-            st.session_state["last_comment"] = comment.strip()
-
-        st.success("Picks submitted! (Check the Admin/DB to confirm.)")
+            if underdog and st.button("🐶 UD", key=f"ud_{game_id}"):
+                if pick_counts["UD"] < 1:
+                    save_pick(user_id, game_id, "UD", underdog, underdog_points=underdog_points)
+                    pick_counts["UD"] += 1
+                else:
+                    st.warning("Only 1 Underdog pick allowed.")
