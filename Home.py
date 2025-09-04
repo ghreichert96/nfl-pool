@@ -95,12 +95,24 @@ def fetch_users():
 def fetch_picks_for_week(week):
     resp = (
         supabase.table("picks")
-        .select("user_id, type, selection, game_id, submitted_at, over_under_pick, is_double, underdog_points, correct")
-        .eq("nfl_week", week)
+        .select(
+            "user_id, type, selection, game_id, submitted_at, over_under_pick, is_double, underdog_points, correct, spreads(nfl_week)"
+        )
+        .eq("spreads.nfl_week", week)
         .order("submitted_at", desc=False)
         .execute()
     )
-    return pd.DataFrame(resp.data) if resp.data else pd.DataFrame()
+    if not resp.data:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(resp.data)
+
+    # drop nested spreads column since we don’t need it in the grid
+    if "spreads" in df.columns:
+        df = df.drop(columns=["spreads"])
+
+    return df
+
 
 def fetch_results():
     resp = supabase.table("results").select("game_id, ml_winner, ats_winner, ou_result").execute()
