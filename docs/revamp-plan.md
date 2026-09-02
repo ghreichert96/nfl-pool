@@ -20,7 +20,8 @@ The existing Streamlit application was a prototype. The production pool ultimate
 - Main-pool pushes count as ties.
 - The regular-season pool retains Main, Sudden Death, and Underdog formats.
 - Sudden Death and Underdog each pay $200, split among tied winners where applicable.
-- Sudden Death ends with the regular season. If multiple players remain, the commissioner resolves the winner through a separately recorded tiebreaker rather than extending normal Sudden Death picks into the playoffs.
+- Sudden Death ends with the regular season and does not extend into playoff picks. Multiple survivors after Week 18 split the $200 pool.
+- If every remaining Sudden Death player receives a second strike in the same week, those simultaneous eliminations are waived and the tied players continue the following week. If this occurs in Week 18, they split the $200 pool.
 - The playoff pool initially follows the spreadsheet's 25/25/20/30 round-point format and listed ATS, O/U, bonus-chip, and Super Bowl prop weights.
 - International, Thanksgiving, Christmas, and other nonstandard weeks require explicit week-level exceptions rather than hard-coded calendar branches.
 - Weekly pool lines use a consensus across available sportsbooks, with an auditable commissioner override.
@@ -29,6 +30,7 @@ The existing Streamlit application was a prototype. The production pool ultimate
 - The Admin pane exposes configurable weekly freeze time, eligible games, required ATS/O-U counts, and side-pool availability.
 - Playoff bonus chips modify the value of a selected pick, similar to a Best Bet. They are optional; if omitted, the underlying picks score normally and no chip bonus is earned.
 - Main-pool payout schedules are configurable per season in the Admin pane. Maximum win/loss values and rank payouts are data, not constants; ties average the payouts for occupied ranks.
+- After enrollment closes, the system generates a symmetric payout table from participant count and the commissioner-selected maximum gain/loss. The commissioner may edit individual ranks before locking the schedule.
 
 ## Confirmed current state
 
@@ -299,6 +301,7 @@ Standings should initially be derived from score events through security-invoker
 4. Run a deterministic consensus-line calculation across all available US-region sportsbooks for the commissioner board, preferring an observed half-point when an otherwise tied consensus would select a whole number.
 5. Permit the commissioner to override every proposed line before freezing it; record the proposed value, final value, actor, time, and reason.
 6. At the weekly freeze time, create immutable `pool_lines` records.
+   - If no current line is available, use the most recent valid consensus and visibly flag the line for commissioner review.
 7. Continue updating live odds separately without altering frozen lines.
 8. Record API request metadata and quota headers for monitoring.
 
@@ -352,8 +355,6 @@ End the session with a safe branch, reproducible local stack, preserved legacy i
 
 - Confirm whether playoff bonus chips are mandatory or optional and how a missed chip is scored.
 - Confirm the approved Super Bowl prop source and how eligible `-110 or better` props are selected and frozen.
-- Clarify Sudden Death simultaneous-elimination behavior at the end of the regular season.
-- Confirm automatic freeze behavior when no current consensus line is available.
 - Choose the initial 2026 main-pool payout curve/max after participant count is known.
 - Should prior-season standings remain visible, even though 2025 picks were kept in Google Sheets?
 
