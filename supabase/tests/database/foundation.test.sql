@@ -129,14 +129,11 @@ select is(
   1::bigint,
   'a member sees only their own profile'
 );
+update public.pools set name = 'Unauthorized';
+
 select is(
-  (
-    with updated as (
-      update public.pools set name = 'Unauthorized' returning id
-    )
-    select count(*) from updated
-  ),
-  0::bigint,
+  (select name from public.pools),
+  'HPPP NFL Pool',
   'a member cannot update pool settings'
 );
 
