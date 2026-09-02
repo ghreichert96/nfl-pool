@@ -24,7 +24,11 @@ The existing Streamlit application was a prototype. The production pool ultimate
 - The playoff pool initially follows the spreadsheet's 25/25/20/30 round-point format and listed ATS, O/U, bonus-chip, and Super Bowl prop weights.
 - International, Thanksgiving, Christmas, and other nonstandard weeks require explicit week-level exceptions rather than hard-coded calendar branches.
 - Weekly pool lines use a consensus across available sportsbooks, with an auditable commissioner override.
+- Consensus includes all US-region sportsbooks returned by The Odds API by default. The commissioner may exclude a book if a concrete issue arises.
+- When consensus is split, the selection process prefers an observed half-point line over a whole-number line to reduce pushes; the commissioner retains final override authority.
 - The Admin pane exposes configurable weekly freeze time, eligible games, required ATS/O-U counts, and side-pool availability.
+- Playoff bonus chips modify the value of a selected pick, similar to a Best Bet. They are optional; if omitted, the underlying picks score normally and no chip bonus is earned.
+- Main-pool payout schedules are configurable per season in the Admin pane. Maximum win/loss values and rank payouts are data, not constants; ties average the payouts for occupied ranks.
 
 ## Confirmed current state
 
@@ -256,6 +260,7 @@ The exact names can change during design, but the responsibilities should remain
 | `picks` | One normalized pick per game/market/type |
 | `game_results` | Final scores and derived market outcomes |
 | `score_events` | Deterministic scoring output/audit trail |
+| `payout_schedules` | Commissioner-configured seasonal rank payouts and tie behavior |
 
 Standings should initially be derived from score events through security-invoker views or queries. Persisted standings are only justified later if measured performance requires them.
 
@@ -291,8 +296,8 @@ Standings should initially be derived from score events through security-invoker
 1. Fetch `americanfootball_nfl` events with the required `spreads`, `totals`, and possibly `h2h` markets.
 2. Upsert one canonical game by provider plus external event ID.
 3. Append bookmaker market observations to `odds_snapshots`; never create another game row for an odds update.
-4. Run a deterministic consensus-line calculation across eligible sportsbooks for the commissioner board.
-5. Permit the commissioner to override a proposed line before freezing it; record the proposed value, final value, actor, time, and reason.
+4. Run a deterministic consensus-line calculation across all available US-region sportsbooks for the commissioner board, preferring an observed half-point when an otherwise tied consensus would select a whole number.
+5. Permit the commissioner to override every proposed line before freezing it; record the proposed value, final value, actor, time, and reason.
 6. At the weekly freeze time, create immutable `pool_lines` records.
 7. Continue updating live odds separately without altering frozen lines.
 8. Record API request metadata and quota headers for monitoring.
@@ -347,8 +352,9 @@ End the session with a safe branch, reproducible local stack, preserved legacy i
 
 - Confirm whether playoff bonus chips are mandatory or optional and how a missed chip is scored.
 - Confirm the approved Super Bowl prop source and how eligible `-110 or better` props are selected and frozen.
-- Define the Sudden Death end-of-regular-season tiebreaker.
-- Choose the exact consensus calculation and eligible sportsbook set.
+- Clarify Sudden Death simultaneous-elimination behavior at the end of the regular season.
+- Confirm automatic freeze behavior when no current consensus line is available.
+- Choose the initial 2026 main-pool payout curve/max after participant count is known.
 - Should prior-season standings remain visible, even though 2025 picks were kept in Google Sheets?
 
 ## Definition of season-ready
