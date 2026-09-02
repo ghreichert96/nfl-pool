@@ -17,10 +17,14 @@ The existing Streamlit application was a prototype. The production pool ultimate
 - Picks become visible to competitors game-by-game at kickoff. Picks attached to later games remain hidden.
 - A missing standard pick counts as a loss.
 - A missing Best Bet counts as two losses because that selection occupies two of the ten weekly main-pool decisions.
+- Main-pool pushes count as ties.
 - The regular-season pool retains Main, Sudden Death, and Underdog formats.
 - Sudden Death and Underdog each pay $200, split among tied winners where applicable.
+- Sudden Death ends with the regular season. If multiple players remain, the commissioner resolves the winner through a separately recorded tiebreaker rather than extending normal Sudden Death picks into the playoffs.
 - The playoff pool initially follows the spreadsheet's 25/25/20/30 round-point format and listed ATS, O/U, bonus-chip, and Super Bowl prop weights.
 - International, Thanksgiving, Christmas, and other nonstandard weeks require explicit week-level exceptions rather than hard-coded calendar branches.
+- Weekly pool lines use a consensus across available sportsbooks, with an auditable commissioner override.
+- The Admin pane exposes configurable weekly freeze time, eligible games, required ATS/O-U counts, and side-pool availability.
 
 ## Confirmed current state
 
@@ -287,10 +291,11 @@ Standings should initially be derived from score events through security-invoker
 1. Fetch `americanfootball_nfl` events with the required `spreads`, `totals`, and possibly `h2h` markets.
 2. Upsert one canonical game by provider plus external event ID.
 3. Append bookmaker market observations to `odds_snapshots`; never create another game row for an odds update.
-4. Run a deterministic consensus/selection rule for the commissioner board.
-5. At the weekly freeze time, create immutable `pool_lines` records.
-6. Continue updating live odds separately without altering frozen lines.
-7. Record API request metadata and quota headers for monitoring.
+4. Run a deterministic consensus-line calculation across eligible sportsbooks for the commissioner board.
+5. Permit the commissioner to override a proposed line before freezing it; record the proposed value, final value, actor, time, and reason.
+6. At the weekly freeze time, create immutable `pool_lines` records.
+7. Continue updating live odds separately without altering frozen lines.
+8. Record API request metadata and quota headers for monitoring.
 
 The scheduler can be Vercel Cron or GitHub Actions. The job should run in UTC while application logic decides the relevant New York time, avoiding daylight-saving drift.
 
@@ -340,12 +345,10 @@ End the session with a safe branch, reproducible local stack, preserved legacy i
 
 ### Decisions needed from the commissioner
 
-- Are pushes ties, repicks, or excluded from denominators?
-- Is Sudden Death history scoped to regular season only?
-- Which bookmaker or consensus method determines pool lines?
-- How should the commissioner declare week-level exceptions, and which rule categories may they override?
 - Confirm whether playoff bonus chips are mandatory or optional and how a missed chip is scored.
 - Confirm the approved Super Bowl prop source and how eligible `-110 or better` props are selected and frozen.
+- Define the Sudden Death end-of-regular-season tiebreaker.
+- Choose the exact consensus calculation and eligible sportsbook set.
 - Should prior-season standings remain visible, even though 2025 picks were kept in Google Sheets?
 
 ## Definition of season-ready
