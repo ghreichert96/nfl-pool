@@ -42,20 +42,20 @@ The code contains incompatible assumptions about table names and columns, hard-c
 
 ### Live Supabase project
 
-| Object | Rows | Disposition |
-|---|---:|---|
-| `auth.users` | 9 | Preserve |
-| `public.users` | 8 | Migrate into profiles |
-| `public.entries` | 8 | Preserve identity/entry mapping only |
-| `public.nfl_teams` | 32 | Preserve after validation |
-| `public.games` | 1,587 | Archive as raw integration history |
-| `public.nfl_games` | 241 | Candidate historical game source |
-| `public.spreads` | 109 | Partial line history; archive/import selectively |
-| `pick_submissions` | 0 | Replace |
-| `picks` | 0 | Replace |
-| `results` | 0 | Replace |
-| `standings` | 0 | Replace |
-| `weekly_entries` | 0 | Replace |
+| Object             |  Rows | Disposition                                      |
+| ------------------ | ----: | ------------------------------------------------ |
+| `auth.users`       |     9 | Preserve                                         |
+| `public.users`     |     8 | Migrate into profiles                            |
+| `public.entries`   |     8 | Preserve identity/entry mapping only             |
+| `public.nfl_teams` |    32 | Preserve after validation                        |
+| `public.games`     | 1,587 | Archive as raw integration history               |
+| `public.nfl_games` |   241 | Candidate historical game source                 |
+| `public.spreads`   |   109 | Partial line history; archive/import selectively |
+| `pick_submissions` |     0 | Replace                                          |
+| `picks`            |     0 | Replace                                          |
+| `results`          |     0 | Replace                                          |
+| `standings`        |     0 | Replace                                          |
+| `weekly_entries`   |     0 | Replace                                          |
 
 Eight public user IDs match Supabase Auth directly. One Auth user has no public profile. All eight legacy entries map to public users through the older text `user_id` field.
 
@@ -127,33 +127,33 @@ These are the working defaults for the rebuild. Versions should be selected from
 
 ### Locked decisions
 
-| Concern | Decision | Reason |
-|---|---|---|
-| Language | TypeScript in strict mode | Shared types across UI, server code, validation, and generated database definitions |
-| Web framework | Next.js App Router | Strong fit for authenticated forms, server-rendered pages, server actions/routes, and Vercel |
-| Runtime | Current active Node.js LTS | Stable deployment and package compatibility |
-| Package manager | pnpm | Fast, deterministic installs with a committed `pnpm-lock.yaml` |
-| Hosting | Vercel | Native Next.js deployment, preview environments, environment variables, and straightforward rollbacks |
-| Database | Supabase-managed Postgres | More than sufficient capacity; relational constraints and transactions suit pool rules |
-| Authentication | Supabase Auth | Fresh invitations with profiles referencing `auth.users.id`; the commissioner account is the initial tester |
-| Database client | `@supabase/supabase-js` plus the current official server/SSR package | Supported Auth/session and Data API path; generated database types |
-| Schema management | Supabase CLI migrations | Reproducible local, development, and production databases |
-| Database access | Supabase Data API for normal application access; narrowly scoped database functions for atomic domain operations | Keeps RLS authoritative while allowing transactional submission/scoring workflows |
-| ORM | None initially | Supabase already provides a typed client; an ORM would duplicate schema/type machinery without solving a current problem |
-| Validation | Zod | One boundary schema can validate environment variables, forms, route payloads, and provider responses |
-| Forms | React Hook Form with Zod integration | Explicit draft state, field errors, and reliable pick validation |
-| Styling | Tailwind CSS | Fast responsive implementation with low runtime overhead |
-| Components | shadcn/ui selectively | Accessible primitives that remain application-owned; avoid importing a large generic design system |
-| Icons | Lucide | Consistent, small, and framework-friendly |
-| Dates/timezones | `date-fns` with timezone support; store database timestamps as `timestamptz` | Explicit `America/New_York` handling without hand-written date arithmetic |
-| Unit tests | Vitest | Fast TypeScript tests for scoring and validation |
-| Component tests | Testing Library | Tests user-visible behavior rather than component internals |
-| End-to-end tests | Playwright | Covers Auth, draft/submission, lock deadlines, RLS-facing behavior, and commissioner workflows |
-| Linting | ESLint with Next.js and TypeScript rules | Framework-aware correctness checks |
-| Formatting | Prettier | Stable low-debate formatting |
-| CI | GitHub Actions | Existing repository integration; run install, types, lint, tests, build, and migration verification |
-| Error monitoring | Sentry | Frontend/server errors with release and source-map context |
-| Dependency updates | Dependabot or Renovate, one configured service | Controlled update PRs rather than ambient upgrades |
+| Concern            | Decision                                                                                                         | Reason                                                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Language           | TypeScript in strict mode                                                                                        | Shared types across UI, server code, validation, and generated database definitions                                      |
+| Web framework      | Next.js App Router                                                                                               | Strong fit for authenticated forms, server-rendered pages, server actions/routes, and Vercel                             |
+| Runtime            | Current active Node.js LTS                                                                                       | Stable deployment and package compatibility                                                                              |
+| Package manager    | pnpm                                                                                                             | Fast, deterministic installs with a committed `pnpm-lock.yaml`                                                           |
+| Hosting            | Vercel                                                                                                           | Native Next.js deployment, preview environments, environment variables, and straightforward rollbacks                    |
+| Database           | Supabase-managed Postgres                                                                                        | More than sufficient capacity; relational constraints and transactions suit pool rules                                   |
+| Authentication     | Supabase Auth                                                                                                    | Fresh invitations with profiles referencing `auth.users.id`; the commissioner account is the initial tester              |
+| Database client    | `@supabase/supabase-js` plus the current official server/SSR package                                             | Supported Auth/session and Data API path; generated database types                                                       |
+| Schema management  | Supabase CLI migrations                                                                                          | Reproducible local, development, and production databases                                                                |
+| Database access    | Supabase Data API for normal application access; narrowly scoped database functions for atomic domain operations | Keeps RLS authoritative while allowing transactional submission/scoring workflows                                        |
+| ORM                | None initially                                                                                                   | Supabase already provides a typed client; an ORM would duplicate schema/type machinery without solving a current problem |
+| Validation         | Zod                                                                                                              | One boundary schema can validate environment variables, forms, route payloads, and provider responses                    |
+| Forms              | React Hook Form with Zod integration                                                                             | Explicit draft state, field errors, and reliable pick validation                                                         |
+| Styling            | Tailwind CSS                                                                                                     | Fast responsive implementation with low runtime overhead                                                                 |
+| Components         | shadcn/ui selectively                                                                                            | Accessible primitives that remain application-owned; avoid importing a large generic design system                       |
+| Icons              | Lucide                                                                                                           | Consistent, small, and framework-friendly                                                                                |
+| Dates/timezones    | `date-fns` with timezone support; store database timestamps as `timestamptz`                                     | Explicit `America/New_York` handling without hand-written date arithmetic                                                |
+| Unit tests         | Vitest                                                                                                           | Fast TypeScript tests for scoring and validation                                                                         |
+| Component tests    | Testing Library                                                                                                  | Tests user-visible behavior rather than component internals                                                              |
+| End-to-end tests   | Playwright                                                                                                       | Covers Auth, draft/submission, lock deadlines, RLS-facing behavior, and commissioner workflows                           |
+| Linting            | ESLint with Next.js and TypeScript rules                                                                         | Framework-aware correctness checks                                                                                       |
+| Formatting         | Prettier                                                                                                         | Stable low-debate formatting                                                                                             |
+| CI                 | GitHub Actions                                                                                                   | Existing repository integration; run install, types, lint, tests, build, and migration verification                      |
+| Error monitoring   | Sentry                                                                                                           | Frontend/server errors with release and source-map context                                                               |
+| Dependency updates | Dependabot or Renovate, one configured service                                                                   | Controlled update PRs rather than ambient upgrades                                                                       |
 
 ### Application boundaries
 
@@ -186,11 +186,11 @@ These are the working defaults for the rebuild. Versions should be selected from
 
 ### Environments
 
-| Environment | Purpose | Data policy |
-|---|---|---|
-| Local Supabase | Migration, RLS, and scoring development | Synthetic seed data only |
-| Supabase development project | Shared integration and Vercel preview testing | Synthetic or sanitized data |
-| Existing production project | Auth continuity and eventual live season | Backed up before writes; no experimental migrations |
+| Environment                  | Purpose                                       | Data policy                                         |
+| ---------------------------- | --------------------------------------------- | --------------------------------------------------- |
+| Local Supabase               | Migration, RLS, and scoring development       | Synthetic seed data only                            |
+| Supabase development project | Shared integration and Vercel preview testing | Synthetic or sanitized data                         |
+| Existing production project  | Auth continuity and eventual live season      | Backed up before writes; no experimental migrations |
 
 Vercel preview deployments should use the development Supabase project. Pull requests must never point at production by default.
 
@@ -247,22 +247,22 @@ Every pull request should pass:
 
 The exact names can change during design, but the responsibilities should remain distinct.
 
-| Table | Responsibility |
-|---|---|
-| `profiles` | One protected profile per Auth user |
-| `roles` or `pool_memberships` | Commissioner/admin/member authorization |
-| `pools` | Pool configuration and timezone |
-| `seasons` | NFL season identity and scheduling boundaries |
-| `pool_entries` | A user's named entry in one pool/season |
-| `teams` | Stable NFL team reference data |
-| `games` | One canonical row per NFL event |
-| `odds_snapshots` | Timestamped bookmaker/market observations |
-| `pool_lines` | The exact commissioner-selected/frozen spread and total |
-| `weekly_submissions` | Draft/submitted/locked state for an entry and week |
-| `picks` | One normalized pick per game/market/type |
-| `game_results` | Final scores and derived market outcomes |
-| `score_events` | Deterministic scoring output/audit trail |
-| `payout_schedules` | Commissioner-configured seasonal rank payouts and tie behavior |
+| Table                         | Responsibility                                                 |
+| ----------------------------- | -------------------------------------------------------------- |
+| `profiles`                    | One protected profile per Auth user                            |
+| `roles` or `pool_memberships` | Commissioner/admin/member authorization                        |
+| `pools`                       | Pool configuration and timezone                                |
+| `seasons`                     | NFL season identity and scheduling boundaries                  |
+| `pool_entries`                | A user's named entry in one pool/season                        |
+| `teams`                       | Stable NFL team reference data                                 |
+| `games`                       | One canonical row per NFL event                                |
+| `odds_snapshots`              | Timestamped bookmaker/market observations                      |
+| `pool_lines`                  | The exact commissioner-selected/frozen spread and total        |
+| `weekly_submissions`          | Draft/submitted/locked state for an entry and week             |
+| `picks`                       | One normalized pick per game/market/type                       |
+| `game_results`                | Final scores and derived market outcomes                       |
+| `score_events`                | Deterministic scoring output/audit trail                       |
+| `payout_schedules`            | Commissioner-configured seasonal rank payouts and tie behavior |
 
 Standings should initially be derived from score events through security-invoker views or queries. Persisted standings are only justified later if measured performance requires them.
 
