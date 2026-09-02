@@ -20,6 +20,16 @@ pnpm dev
 
 Run all foundation checks with `pnpm check`.
 
+Start and verify the local database:
+
+```bash
+pnpm db:start
+pnpm db:test
+pnpm db:lint
+```
+
+The first migration creates five application tables: profiles, pools, pool memberships, seasons, and pool entries. Local seed data creates only HPPP and its 2026 season.
+
 ## Development policy
 
 - Database changes use versioned migrations.
