@@ -4,12 +4,15 @@ import { describe, expect, it } from "vitest";
 import Home from "./page";
 
 describe("Home", () => {
-  it("identifies the pool rebuild", () => {
+  it("renders both production candidate pick layouts", () => {
     render(<Home />);
 
+    expect(screen.getByRole("heading", { name: "Week 1" })).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "HPPP NFL Pool" }),
+      screen.getByRole("button", { name: "A · DIRECT GRID" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("2026 foundation")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "B · TAP + CHOOSE" }),
+    ).toBeInTheDocument();
   });
 });

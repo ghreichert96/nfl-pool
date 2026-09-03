@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { MOCK_GAMES } from "./mock-games";
 import {
@@ -128,7 +128,7 @@ function FormA({
         return (
           <article
             key={game.id}
-            className="grid grid-cols-[40px_minmax(82px,1fr)_40px_116px] items-center gap-1 rounded-xl border border-slate-800 bg-slate-950 p-1.5 sm:grid-cols-[48px_minmax(110px,1fr)_48px_142px] sm:gap-2 sm:p-2"
+            className="grid grid-cols-[40px_minmax(72px,1fr)_40px_124px] items-center gap-1 rounded-xl border border-slate-800 bg-slate-950 p-1.5 sm:grid-cols-[48px_minmax(110px,1fr)_48px_142px] sm:gap-2 sm:p-2"
           >
             <Logo
               abbreviation={game.away.abbreviation}
@@ -140,7 +140,7 @@ function FormA({
               selected={ats?.team === game.home.abbreviation}
             />
             <div
-              className="grid grid-cols-3 gap-1"
+              className="grid grid-cols-[1fr_1fr_1.35fr] gap-1"
               aria-label={`${game.away.abbreviation} at ${game.home.abbreviation} picks`}
             >
               <span className="text-center text-[9px] font-bold text-slate-500">
@@ -575,49 +575,127 @@ function Summary({
   );
 }
 
-export function PicksPrototype() {
+const draftStorageKey = "hppp:2026:week-1:draft";
+const variantStorageKey = "hppp:picks-layout";
+
+export function PicksExperience() {
   const [variant, setVariant] = useState<Variant>("A");
   const [picks, setPicks] = useState<Picks>(EMPTY_PICKS);
+  const [view, setView] = useState<"picks" | "grid">("picks");
+  const [draftReady, setDraftReady] = useState(false);
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- restore external browser state after hydration */
+    const savedDraft = window.localStorage.getItem(draftStorageKey);
+    const savedVariant = window.localStorage.getItem(variantStorageKey);
+
+    if (savedDraft) {
+      try {
+        setPicks(JSON.parse(savedDraft) as Picks);
+      } catch {
+        window.localStorage.removeItem(draftStorageKey);
+      }
+    }
+
+    if (savedVariant === "A" || savedVariant === "B") {
+      setVariant(savedVariant);
+    }
+
+    setDraftReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    window.localStorage.setItem(draftStorageKey, JSON.stringify(picks));
+  }, [draftReady, picks]);
+
+  function chooseVariant(next: Variant) {
+    setVariant(next);
+    window.localStorage.setItem(variantStorageKey, next);
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-56 text-slate-100 sm:px-4">
-      <header className="sticky top-0 z-10 -mx-2 border-b border-slate-700 bg-slate-950/95 px-3 py-3 backdrop-blur sm:-mx-4">
+      <header className="sticky top-0 z-10 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pb-2 pt-3 backdrop-blur sm:-mx-4 sm:px-4">
         <div className="flex items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-300">
-              HPPP · 2026
+              HPPP · 2026 · HARR
             </p>
-            <h1 className="text-2xl font-black">Week 1 picks</h1>
+            <h1 className="text-2xl font-black">Week 1</h1>
           </div>
           <span className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-bold">
             Unlocked 🔓
           </span>
         </div>
+        <nav className="mt-3 grid grid-cols-3 gap-1" aria-label="Primary">
+          <button className="min-h-11 rounded-lg bg-lime-300 text-sm font-black text-slate-950">
+            HOME
+          </button>
+          <button className="min-h-11 rounded-lg bg-slate-900 text-sm font-black text-slate-300">
+            STANDINGS
+          </button>
+          <button className="min-h-11 rounded-lg bg-slate-900 text-sm font-black text-slate-300">
+            RULES
+          </button>
+        </nav>
+        <div className="mt-2 flex items-center justify-between gap-2">
+          <div className="grid flex-1 grid-cols-2 rounded-xl bg-slate-900 p-1">
+            {(["picks", "grid"] as const).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setView(option)}
+                className={`min-h-10 rounded-lg text-xs font-black uppercase ${view === option ? "bg-white text-slate-950" : "text-slate-400"}`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          <select
+            aria-label="Week"
+            className="min-h-11 rounded-lg border border-slate-600 bg-slate-950 px-3 text-sm font-black"
+            defaultValue="1"
+          >
+            <option value="1">Week 1</option>
+          </select>
+        </div>
         <div
-          className="mt-3 grid grid-cols-2 rounded-xl bg-slate-900 p-1"
+          className="mt-2 grid grid-cols-2 rounded-xl bg-slate-900 p-1"
           aria-label="Pick form variant"
         >
           {(["A", "B"] as const).map((option) => (
             <button
               key={option}
               type="button"
-              onClick={() => setVariant(option)}
+              onClick={() => chooseVariant(option)}
               className={`min-h-11 rounded-lg text-sm font-black ${variant === option ? "bg-white text-slate-950" : "text-slate-400"}`}
             >
-              FORM {option}
+              {option === "A" ? "A · DIRECT GRID" : "B · TAP + CHOOSE"}
             </button>
           ))}
         </div>
       </header>
       <p className="my-3 text-sm text-slate-400">
-        Prototype data only. Switching forms preserves every selection.
+        Demo Week 1 lines. Your draft and chosen layout stay on this device.
       </p>
-      {variant === "A" ? (
+      {view === "grid" ? (
+        <section className="rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
+          <h2 className="text-lg font-black">Weekly grid</h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Picks remain hidden until each game kicks off. Return here as the
+            slate is revealed.
+          </p>
+        </section>
+      ) : variant === "A" ? (
         <FormA picks={picks} updatePicks={setPicks} />
       ) : (
         <FormB picks={picks} updatePicks={setPicks} />
       )}
-      <Summary picks={picks} setPicks={setPicks} />
+      {view === "picks" && <Summary picks={picks} setPicks={setPicks} />}
     </main>
   );
 }
+
+export const PicksPrototype = PicksExperience;
