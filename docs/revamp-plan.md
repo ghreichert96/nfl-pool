@@ -12,6 +12,7 @@ The existing Streamlit application was a prototype. The production pool ultimate
 
 - One person may own exactly one entry.
 - New participants will receive fresh invitations; existing mock accounts are not production participants.
+- Invitation and passwordless sign-in links are single-use and expire after 24 hours.
 - Thursday at 8:00 PM `America/New_York` freezes a common betting-line slate for everyone.
 - The line freeze does not lock picks. Each pick remains editable until its associated game starts.
 - Picks become visible to competitors game-by-game at kickoff. Picks attached to later games remain hidden.
