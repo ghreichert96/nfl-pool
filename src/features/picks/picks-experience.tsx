@@ -235,7 +235,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
     result: "win" | "loss" | "tie" | undefined;
   }> = [
     {
-      label: `SD ${sdTeam}`,
+      label: `${sdTeam}·SD`,
       selected: sdSelected,
       result: standingForTeam(game, sdTeam, "side"),
     },
@@ -250,7 +250,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
       result: standingForTotal(game, "under"),
     },
     {
-      label: `UD ${underdog}`,
+      label: `${underdog}·UD`,
       selected: udSelected,
       result: standingForTeam(game, underdog, "side"),
     },
@@ -532,9 +532,9 @@ function GameRow({
                     : { gameId: game.id, team: sdTeam },
                 }));
               }}
-              className="h-full min-h-9 w-full touch-none select-none text-[10px] font-black disabled:opacity-30"
+              className="h-full min-h-9 w-full touch-none select-none text-[11px] font-black disabled:opacity-30"
             >
-              SD · {sdTeam}
+              {sdTeam} · SD
             </button>
             {sdGestureActive && (
               <div
@@ -559,7 +559,7 @@ function GameRow({
               }))
             }
           >
-            {underdog} UD
+            {underdog} · UD
           </SmallToggle>
         </div>
       )}
@@ -674,28 +674,47 @@ function Preview({
             );
           })}
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto text-[10px] font-black">
-          <span className="text-slate-400">SD</span>
+        <div className="grid grid-cols-[42px_42px_repeat(3,minmax(0,1fr))] gap-1 text-[9px] font-black">
           <span
-            className={`rounded-full border px-2 py-1 ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            aria-label={
+              picks.suddenDeath
+                ? `${picks.suddenDeath.team} Sudden Death`
+                : "Sudden Death not selected"
+            }
+            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
           >
-            {picks.suddenDeath?.team ?? "—"}
+            {picks.suddenDeath?.team ?? "—"}·SD
           </span>
-          <span className="text-slate-400">UD</span>
           <span
-            className={`rounded-full border px-2 py-1 ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            aria-label={
+              picks.underdog
+                ? `${picks.underdog.team} Underdog`
+                : "Underdog not selected"
+            }
+            className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
           >
-            {picks.underdog?.team ?? "—"}
+            {picks.underdog?.team ?? "—"}·UD
           </span>
-          <span className="ml-1 text-slate-400">O/U</span>
-          {picks.totals.map((pick) => {
+          {Array.from({ length: 3 }, (_, index) => {
+            const pick = picks.totals[index];
+            if (!pick) {
+              return (
+                <span
+                  key={index}
+                  className="truncate rounded-full border border-dashed border-slate-700 px-1 py-1 text-center text-slate-600"
+                >
+                  O/U
+                </span>
+              );
+            }
             const game = gameMap.get(pick.gameId);
             return (
               <span
                 key={pick.gameId}
-                className={`whitespace-nowrap rounded-full border px-2 py-1 ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
+                aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
+                className={`truncate rounded-full border px-1 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
               >
-                {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
+                {game?.away.abbreviation}-{game?.home.abbreviation}·
                 {pick.direction === "over" ? "O" : "U"}
               </span>
             );

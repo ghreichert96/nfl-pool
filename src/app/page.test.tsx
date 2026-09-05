@@ -70,7 +70,7 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("button", { name: "Sudden Death SF" }),
-    ).toHaveTextContent("SD · SF");
+    ).toHaveTextContent("SF · SD");
   });
 
   it("collapses a started game and retains only relevant selections", () => {
@@ -82,10 +82,10 @@ describe("Home", () => {
     fireEvent.click(screen.getByRole("button", { name: "live" }));
 
     expect(screen.getByText(/SF 24/)).toBeInTheDocument();
-    expect(screen.getByText("SD LAR")).toBeInTheDocument();
+    expect(screen.getAllByText("LAR·SD")).toHaveLength(2);
     expect(screen.getByText("O45.5")).toBeInTheDocument();
     expect(screen.getByText("U45.5")).toBeInTheDocument();
-    expect(screen.getByText("UD SF")).toBeInTheDocument();
+    expect(screen.getByText("SF·UD")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Over 45.5" }),
     ).not.toBeInTheDocument();
