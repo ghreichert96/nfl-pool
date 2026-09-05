@@ -12,7 +12,6 @@ import {
   toggleTeamPick,
   toggleTotalPick,
   underdogFor,
-  validationMessage,
   type Game,
   type Picks,
   type TeamPick,
@@ -136,12 +135,18 @@ function TeamToggle({
   selected,
   disabled,
   onClick,
+  side,
+  bestBet,
+  onBestBet,
 }: {
   game: Game;
   team: string;
   selected: boolean;
   disabled: boolean;
   onClick: () => void;
+  side: "away" | "home";
+  bestBet: boolean;
+  onBestBet: () => void;
 }) {
   const status = game.status ?? "upcoming";
   const selectedStateClass =
@@ -152,19 +157,36 @@ function TeamToggle({
         : selectedClass;
 
   return (
-    <button
-      type="button"
-      aria-label={`${team} ${formatSpread(spreadFor(game, team))}`}
-      aria-pressed={selected}
-      disabled={disabled}
-      onClick={onClick}
-      className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
-    >
-      <Logo abbreviation={team} />
-      <span className="mt-1 leading-none">
-        {formatSpread(spreadFor(game, team))}
-      </span>
-    </button>
+    <div className="relative w-full">
+      <button
+        type="button"
+        aria-label={`${team} ${formatSpread(spreadFor(game, team))}`}
+        aria-pressed={selected}
+        disabled={disabled}
+        onClick={onClick}
+        className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
+      >
+        <Logo abbreviation={team} />
+        <span className="mt-1 leading-none">
+          {formatSpread(spreadFor(game, team))}
+        </span>
+      </button>
+      {selected && status === "upcoming" && (
+        <button
+          type="button"
+          aria-label={
+            bestBet
+              ? `Remove ${team} as Best Bet in game row`
+              : `Make ${team} Best Bet in game row`
+          }
+          aria-pressed={bestBet}
+          onClick={onBestBet}
+          className={`absolute top-1 z-10 grid size-5 place-items-center rounded-t-sm rounded-b-full border text-sm leading-none shadow-md ${side === "away" ? "-right-3.5" : "-left-3.5"} ${bestBet ? "border-amber-200 bg-amber-300 text-slate-950 shadow-[inset_0_2px_3px_rgb(0_0_0/0.35)]" : "control-raised text-slate-400"}`}
+        >
+          ♛
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -325,8 +347,6 @@ function GameRow({
 
       if (current.bestBet && !bestBetStillSelected) {
         nextBestBet = replacementOnGame ?? nextAts[0] ?? null;
-      } else if (current.ats.length === 0 && nextAts.length > 0) {
-        nextBestBet = nextAts[0];
       }
 
       return {
@@ -359,6 +379,24 @@ function GameRow({
           selected={ats?.team === game.away.abbreviation}
           disabled={Boolean(locked || atsAtLimit)}
           onClick={() => toggleAts(game.away.abbreviation)}
+          side="away"
+          bestBet={isTeamSelected(
+            picks.bestBet,
+            game.id,
+            game.away.abbreviation,
+          )}
+          onBestBet={() =>
+            setPicks((current) => ({
+              ...current,
+              bestBet: isTeamSelected(
+                current.bestBet,
+                game.id,
+                game.away.abbreviation,
+              )
+                ? null
+                : { gameId: game.id, team: game.away.abbreviation },
+            }))
+          }
         />
         <GameInfo game={game} picks={picks} />
         <TeamToggle
@@ -367,6 +405,24 @@ function GameRow({
           selected={ats?.team === game.home.abbreviation}
           disabled={Boolean(locked || atsAtLimit)}
           onClick={() => toggleAts(game.home.abbreviation)}
+          side="home"
+          bestBet={isTeamSelected(
+            picks.bestBet,
+            game.id,
+            game.home.abbreviation,
+          )}
+          onBestBet={() =>
+            setPicks((current) => ({
+              ...current,
+              bestBet: isTeamSelected(
+                current.bestBet,
+                game.id,
+                game.home.abbreviation,
+              )
+                ? null
+                : { gameId: game.id, team: game.home.abbreviation },
+            }))
+          }
         />
       </div>
       {!locked && (
@@ -390,8 +446,24 @@ function GameRow({
             ▼ U {game.total}
           </SmallToggle>
           <div
-            className={`grid min-h-10 grid-cols-[1fr_22px] overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+            className={`grid min-h-9 grid-cols-[30px_1fr] overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
           >
+            <button
+              type="button"
+              aria-label={`Change Sudden Death team from ${sdTeam}`}
+              disabled={Boolean(locked || sdUnavailable)}
+              onClick={() => {
+                setSdUnderdog((value) => !value);
+                setPicks((current) =>
+                  current.suddenDeath?.gameId === game.id
+                    ? { ...current, suddenDeath: null }
+                    : current,
+                );
+              }}
+              className="border-r border-current/30 text-[10px] font-black disabled:opacity-30"
+            >
+              {sdTeam}
+            </button>
             <button
               type="button"
               aria-label={`Sudden Death ${sdTeam}`}
@@ -409,27 +481,9 @@ function GameRow({
                     : { gameId: game.id, team: sdTeam },
                 }))
               }
-              className="text-xs font-black leading-tight disabled:opacity-30"
+              className="text-[10px] font-black disabled:opacity-30"
             >
               SD
-              <br />
-              {sdTeam}
-            </button>
-            <button
-              type="button"
-              aria-label={`Switch Sudden Death to ${sdUnderdog ? favorite : underdog}`}
-              disabled={Boolean(locked || sdUnavailable)}
-              onClick={() => {
-                setSdUnderdog((value) => !value);
-                setPicks((current) =>
-                  current.suddenDeath?.gameId === game.id
-                    ? { ...current, suddenDeath: null }
-                    : current,
-                );
-              }}
-              className="border-l border-current/30 text-xs font-black disabled:opacity-30"
-            >
-              ⇄
             </button>
           </div>
           <SmallToggle
@@ -446,9 +500,7 @@ function GameRow({
               }))
             }
           >
-            UD
-            <br />
-            {underdog}
+            {underdog} UD
           </SmallToggle>
         </div>
       )}
@@ -489,7 +541,6 @@ function Preview({
 }) {
   const [message, setMessage] = useState("Draft saved on this device");
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(null);
-  const [submitAttempted, setSubmitAttempted] = useState(false);
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -499,7 +550,15 @@ function Preview({
     picks.ats.length === 6 &&
     picks.totals.length === 3 &&
     Boolean(picks.bestBet && picks.suddenDeath && picks.underdog);
-  const submitted = complete && submittedDraft === serializedDraft;
+  const submitted = submittedDraft === serializedDraft;
+  const modified = submittedDraft !== null && !submitted;
+  const statusLabel = submitted
+    ? "SUBMITTED"
+    : modified
+      ? "MODIFIED"
+      : complete
+        ? "READY"
+        : "IN PROGRESS";
   const statusItems = [
     { label: `ATS ${picks.ats.length}/6`, filled: picks.ats.length === 6 },
     {
@@ -590,7 +649,6 @@ function Preview({
           onClick={() => {
             setPicks(EMPTY_PICKS);
             setSubmittedDraft(null);
-            setSubmitAttempted(false);
             setMessage("Draft cleared");
           }}
           className="min-h-12 border-r border-slate-800 text-[11px] font-bold text-slate-300 underline"
@@ -599,16 +657,24 @@ function Preview({
         </button>
         <div
           aria-label={submitted ? "Submission saved" : "Submission status"}
-          className={`flex flex-wrap content-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors ${submitted ? "bg-emerald-800" : submitAttempted ? "bg-amber-950" : "bg-slate-900"}`}
+          className={`flex flex-wrap content-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors ${submitted && complete ? "bg-emerald-800" : submitted ? "bg-amber-950" : modified ? "bg-fuchsia-950" : "bg-slate-900"}`}
         >
           {statusItems.map((item) => (
             <span
               key={item.label}
-              className={`rounded border px-1 py-0.5 ${submitted ? "border-emerald-300 bg-emerald-600 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
+              className={`rounded border px-1 py-0.5 ${submitted && item.filled ? "border-emerald-300 bg-emerald-600 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
             >
               {item.label}
             </span>
           ))}
+          <span className="ml-auto flex min-w-16 flex-col justify-center self-stretch rounded border border-current px-1 text-center leading-none">
+            <strong>{statusLabel}</strong>
+            {submitted && picks.bestBet && (
+              <small className="mt-0.5 text-[8px] font-medium">
+                (BB = {picks.bestBet.team})
+              </small>
+            )}
+          </span>
           <span role="status" className="sr-only">
             {message}
           </span>
@@ -616,10 +682,13 @@ function Preview({
         <button
           type="button"
           onClick={() => {
-            const validation = validationMessage(picks);
-            setSubmitAttempted(true);
-            setMessage(complete ? "Demo submission recorded" : validation);
-            if (complete) setSubmittedDraft(serializedDraft);
+            const nextPicks =
+              !picks.bestBet && picks.ats[0]
+                ? { ...picks, bestBet: picks.ats[0] }
+                : picks;
+            setPicks(nextPicks);
+            setSubmittedDraft(JSON.stringify(nextPicks));
+            setMessage("Demo submission recorded");
           }}
           className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)]"
         >
@@ -742,9 +811,10 @@ export function PicksExperience() {
         </div>
         {showHelp && (
           <div className="mb-1 rounded border border-fuchsia-400 bg-slate-900 px-2 py-1.5 text-[10px] leading-4 text-slate-200">
-            Pick 6 ATS and 3 totals. Your first ATS defaults to BB; tap a
-            different preview logo to move it. Choose one SD and one UD. Submit
-            after every change. Each game locks at its scheduled kickoff.
+            Pick 6 ATS and 3 totals. Use a crown or tap a preview logo to choose
+            BB; if omitted, your first ATS becomes BB when submitted. Choose one
+            SD and one UD. Submit after every change. Each game locks at its
+            scheduled kickoff.
           </div>
         )}
       </header>

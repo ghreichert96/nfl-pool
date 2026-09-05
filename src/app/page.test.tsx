@@ -29,14 +29,19 @@ describe("Home", () => {
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
   });
 
-  it("defaults the first ATS selection to Best Bet", () => {
+  it("offers an in-row BB control and defaults BB only on submission", () => {
     render(<Home />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
 
     expect(
-      screen.getByRole("button", { name: "SF, Best Bet" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      screen.getByRole("button", { name: "Make SF Best Bet in game row" }),
+    ).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
+
+    expect(screen.getByRole("button", { name: "SAVED" })).toBeInTheDocument();
+    expect(screen.getByText("(BB = SF)")).toBeInTheDocument();
   });
 
   it("shows inline instructions and highlights incomplete submission status", () => {
@@ -46,9 +51,10 @@ describe("Home", () => {
     expect(screen.getByText(/Pick 6 ATS and 3 totals/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
-    expect(screen.getByLabelText("Submission status")).toHaveClass(
+    expect(screen.getByLabelText("Submission saved")).toHaveClass(
       "bg-amber-950",
     );
+    expect(screen.getByText("SUBMITTED")).toBeInTheDocument();
   });
 
   it("collapses a started game and retains only relevant selections", () => {
