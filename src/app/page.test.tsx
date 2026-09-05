@@ -29,6 +29,28 @@ describe("Home", () => {
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
   });
 
+  it("defaults the first ATS selection to Best Bet", () => {
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
+
+    expect(
+      screen.getByRole("button", { name: "SF, Best Bet" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("shows inline instructions and highlights incomplete submission status", () => {
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "How to make picks" }));
+    expect(screen.getByText(/Pick 6 ATS and 3 totals/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
+    expect(screen.getByLabelText("Submission status")).toHaveClass(
+      "bg-amber-950",
+    );
+  });
+
   it("collapses a started game and retains only relevant selections", () => {
     render(<Home />);
 

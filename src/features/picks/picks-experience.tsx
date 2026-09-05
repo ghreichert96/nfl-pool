@@ -322,12 +322,20 @@ function GameRow({
       const nextAts = toggleTeamPick(current.ats, { gameId: game.id, team }, 6);
       const bestBetStillSelected = current.bestBet
         ? nextAts.some((pick) => pickKey(pick) === pickKey(current.bestBet!))
-        : true;
+        : false;
+      const replacementOnGame = nextAts.find((pick) => pick.gameId === game.id);
+      let nextBestBet = bestBetStillSelected ? current.bestBet : null;
+
+      if (current.bestBet && !bestBetStillSelected) {
+        nextBestBet = replacementOnGame ?? nextAts[0] ?? null;
+      } else if (current.ats.length === 0 && nextAts.length > 0) {
+        nextBestBet = nextAts[0];
+      }
 
       return {
         ...current,
         ats: nextAts,
-        bestBet: bestBetStillSelected ? current.bestBet : null,
+        bestBet: nextBestBet,
       };
     });
   }
@@ -484,6 +492,7 @@ function Preview({
 }) {
   const [message, setMessage] = useState("Draft saved on this device");
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -494,6 +503,16 @@ function Preview({
     picks.totals.length === 3 &&
     Boolean(picks.bestBet && picks.suddenDeath && picks.underdog);
   const submitted = complete && submittedDraft === serializedDraft;
+  const statusItems = [
+    { label: `ATS ${picks.ats.length}/6`, filled: picks.ats.length === 6 },
+    {
+      label: `O/U ${picks.totals.length}/3`,
+      filled: picks.totals.length === 3,
+    },
+    { label: "BB", filled: Boolean(picks.bestBet) },
+    { label: "SD", filled: Boolean(picks.suddenDeath) },
+    { label: "UD", filled: Boolean(picks.underdog) },
+  ];
 
   return (
     <aside className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur">
@@ -574,30 +593,25 @@ function Preview({
           onClick={() => {
             setPicks(EMPTY_PICKS);
             setSubmittedDraft(null);
+            setSubmitAttempted(false);
             setMessage("Draft cleared");
           }}
           className="min-h-12 border-r border-slate-800 text-[11px] font-bold text-slate-300 underline"
         >
           Clear
         </button>
-        <div className="flex flex-col justify-center px-2 text-[10px] font-bold leading-4 text-slate-300">
-          <span className="flex items-center gap-1 whitespace-nowrap">
-            ATS {picks.ats.length}/6 · O/U {picks.totals.length}/3
-            {complete ? (
-              <span
-                aria-label={submitted ? "Submitted" : "Ready to submit"}
-                className={`grid size-4 place-items-center rounded-full text-[11px] font-black ${submitted ? "bg-emerald-400 text-white" : "bg-white text-black"}`}
-              >
-                ✓
-              </span>
-            ) : (
-              <span className="size-4 rounded-full border border-slate-600" />
-            )}
-          </span>
-          <span className="whitespace-nowrap">
-            BB {picks.bestBet ? "✓" : "□"} · SD {picks.suddenDeath ? "✓" : "□"}{" "}
-            · UD {picks.underdog ? "✓" : "□"}
-          </span>
+        <div
+          aria-label={submitted ? "Submission saved" : "Submission status"}
+          className={`flex flex-wrap content-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors ${submitted ? "bg-emerald-800" : submitAttempted ? "bg-amber-950" : "bg-slate-900"}`}
+        >
+          {statusItems.map((item) => (
+            <span
+              key={item.label}
+              className={`rounded border px-1 py-0.5 ${submitted ? "border-emerald-300 bg-emerald-600 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
+            >
+              {item.label}
+            </span>
+          ))}
           <span role="status" className="sr-only">
             {message}
           </span>
@@ -606,12 +620,13 @@ function Preview({
           type="button"
           onClick={() => {
             const validation = validationMessage(picks);
+            setSubmitAttempted(true);
             setMessage(complete ? "Demo submission recorded" : validation);
             if (complete) setSubmittedDraft(serializedDraft);
           }}
           className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)]"
         >
-          SUBMIT
+          {submitted ? "SAVED" : "SUBMIT"}
         </button>
       </div>
     </aside>
@@ -622,6 +637,7 @@ export function PicksExperience() {
   const [picks, setPicks] = useState<Picks>(EMPTY_PICKS);
   const [view, setView] = useState<"picks" | "grid">("picks");
   const [theme, setTheme] = useState<"core" | "retro">("core");
+  const [showHelp, setShowHelp] = useState(false);
   const [demoStatus, setDemoStatus] = useState<"upcoming" | "live" | "final">(
     "upcoming",
   );
@@ -668,15 +684,26 @@ export function PicksExperience() {
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-lime-300">
             HPPP · 2026 · HARR
           </p>
-          <button
-            type="button"
-            onClick={() =>
-              setTheme((value) => (value === "core" ? "retro" : "core"))
-            }
-            className="control-raised rounded border px-2 py-0.5 text-[9px] font-black uppercase"
-          >
-            Style: {theme}
-          </button>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() =>
+                setTheme((value) => (value === "core" ? "retro" : "core"))
+              }
+              className="control-raised rounded border px-2 py-0.5 text-[9px] font-black uppercase"
+            >
+              Style: {theme}
+            </button>
+            <button
+              type="button"
+              aria-label="How to make picks"
+              aria-expanded={showHelp}
+              onClick={() => setShowHelp((value) => !value)}
+              className="control-raised grid size-5 place-items-center rounded-full border text-[11px] font-black"
+            >
+              ?
+            </button>
+          </div>
         </div>
         <nav
           className="grid grid-cols-3 border-b border-slate-600"
@@ -716,6 +743,13 @@ export function PicksExperience() {
             <option value="1">Week 1</option>
           </select>
         </div>
+        {showHelp && (
+          <div className="mb-1 rounded border border-fuchsia-400 bg-slate-900 px-2 py-1.5 text-[10px] leading-4 text-slate-200">
+            Pick 6 ATS and 3 totals. Your first ATS defaults to BB; tap a
+            different preview logo to move it. Choose one SD and one UD. Submit
+            after every change. Each game locks at its scheduled kickoff.
+          </div>
+        )}
       </header>
       {view === "grid" ? (
         <section className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
