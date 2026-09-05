@@ -672,7 +672,7 @@ function Preview({
                 className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))}`}
               >
                 {bestBet && (
-                  <span className="absolute top-0 text-xs text-amber-300">
+                  <span className="absolute -top-1 text-xs text-amber-300">
                     ♛
                   </span>
                 )}
