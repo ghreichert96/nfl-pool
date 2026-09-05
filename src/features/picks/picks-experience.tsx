@@ -660,8 +660,12 @@ function Preview({
           </span>
           {Array.from({ length: 6 }, (_, index) => {
             const pick = picks.ats[index];
+            const removedGameId = savedPicks?.ats[index]?.gameId;
             const removedPick = Boolean(
-              modified && !pick && savedPicks && index < savedPicks.ats.length,
+              modified &&
+              !pick &&
+              removedGameId &&
+              (gameMap.get(removedGameId)?.status ?? "upcoming") === "upcoming",
             );
             if (!pick)
               return (
@@ -670,8 +674,9 @@ function Preview({
                   className={`size-9 justify-self-center rounded-full border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
                 />
               );
-            const bestBet =
-              picks.bestBet && pickKey(picks.bestBet) === pickKey(pick);
+            const bestBet = Boolean(
+              picks.bestBet && pickKey(picks.bestBet) === pickKey(pick),
+            );
             const savedAsAts = savedPicks?.ats.some(
               (savedPick) => pickKey(savedPick) === pickKey(pick),
             );
@@ -680,7 +685,9 @@ function Preview({
               pickKey(savedPicks.bestBet) === pickKey(pick),
             );
             const pickModified = Boolean(
-              modified && (!savedAsAts || bestBet !== savedAsBestBet),
+              modified &&
+              (gameMap.get(pick.gameId)?.status ?? "upcoming") === "upcoming" &&
+              (!savedAsAts || bestBet !== savedAsBestBet),
             );
             return (
               <button
@@ -718,7 +725,7 @@ function Preview({
                 ? `${picks.suddenDeath.team} Sudden Death`
                 : "Sudden Death not selected"
             }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && pickKey(picks.suddenDeath ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.suddenDeath ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
+            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && (gameMap.get(picks.suddenDeath?.gameId ?? savedPicks?.suddenDeath?.gameId ?? "")?.status ?? "upcoming") === "upcoming" && pickKey(picks.suddenDeath ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.suddenDeath ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
           >
             {picks.suddenDeath?.team ?? "—"}·SD
           </span>
@@ -728,7 +735,7 @@ function Preview({
                 ? `${picks.underdog.team} Underdog`
                 : "Underdog not selected"
             }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && pickKey(picks.underdog ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.underdog ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
+            className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && (gameMap.get(picks.underdog?.gameId ?? savedPicks?.underdog?.gameId ?? "")?.status ?? "upcoming") === "upcoming" && pickKey(picks.underdog ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.underdog ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
           >
             {picks.underdog?.team ?? "—"}·UD
           </span>
@@ -736,7 +743,10 @@ function Preview({
             const pick = picks.totals[index];
             if (!pick) {
               const removedPick = Boolean(
-                modified && savedPicks && index < savedPicks.totals.length,
+                modified &&
+                savedPicks?.totals[index] &&
+                (gameMap.get(savedPicks.totals[index].gameId)?.status ??
+                  "upcoming") === "upcoming",
               );
               return (
                 <span
@@ -750,6 +760,7 @@ function Preview({
             const game = gameMap.get(pick.gameId);
             const pickModified = Boolean(
               modified &&
+              (game?.status ?? "upcoming") === "upcoming" &&
               !savedPicks?.totals.some(
                 (savedPick) =>
                   savedPick.gameId === pick.gameId &&

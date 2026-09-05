@@ -72,6 +72,27 @@ describe("Home", () => {
     expect(screen.getByText("Submitted")).not.toHaveClass("border");
   });
 
+  it("limits a removed BB highlight and gives live state visual priority", () => {
+    render(<Home />);
+
+    fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
+    fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
+    fireEvent.click(screen.getByRole("button", { name: "SF, Best Bet" }));
+
+    expect(
+      screen.getByLabelText("ATS picks").querySelectorAll(".pick-modified"),
+    ).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "live" }));
+
+    expect(
+      screen.getByLabelText("ATS picks").querySelectorAll(".pick-modified"),
+    ).toHaveLength(0);
+    expect(
+      screen.getByRole("button", { name: "SF, mark Best Bet" }),
+    ).toHaveClass("border-amber-400");
+  });
+
   it("offers a keyboard equivalent for switching the SD team", () => {
     render(<Home />);
 
