@@ -37,7 +37,7 @@ function badgeColorClass(badge: string) {
   const normalized = badge.toUpperCase();
   if (normalized === "TNF") return "bg-teal-400 text-slate-950";
   if (normalized === "INTL") return "bg-cyan-400 text-slate-950";
-  if (normalized === "1 PM") return "bg-sky-400 text-slate-950";
+  if (normalized === "1 PM") return "bg-blue-400 text-slate-950";
   if (normalized === "4 PM") return "bg-orange-400 text-slate-950";
   if (normalized === "SNF") return "bg-violet-400 text-slate-950";
   if (normalized === "MNF") return "bg-fuchsia-400 text-slate-950";
