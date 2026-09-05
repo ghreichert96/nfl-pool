@@ -830,7 +830,7 @@ export function PicksExperience() {
 
   return (
     <main
-      className={`pick-shell ${theme === "retro" ? "retro" : ""} mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-40 text-slate-100`}
+      className={`pick-shell ${theme === "retro" ? "retro" : ""} mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-[136px] text-slate-100`}
     >
       <header className="sticky top-0 z-30 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pt-1 backdrop-blur">
         <div className="mb-1 flex items-center justify-between">
