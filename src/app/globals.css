@@ -15,6 +15,87 @@ html,
 body {
   min-height: 100%;
 }
+
+.pick-shell {
+  --panel: #0f172a;
+  --panel-raised: #172033;
+  --line: #475569;
+  --accent-ui: #b8ff5a;
+  --accent-ink: #07110d;
+  --badge: #38bdf8;
+}
+
+.pick-shell.retro {
+  --panel: #181526;
+  --panel-raised: #29223d;
+  --line: #74658c;
+  --accent-ui: #63d471;
+  --accent-ink: #101512;
+  --badge: #d95fd1;
+  background-color: #100e19;
+  background-image: linear-gradient(
+    rgb(255 255 255 / 0.025) 1px,
+    transparent 1px
+  );
+  background-size: 100% 4px;
+}
+
+.game-card {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.game-card-live {
+  border-color: #a88735;
+  background: #211e19;
+}
+
+.game-card-final {
+  border-color: #64748b;
+  background: #171b22;
+}
+
+.game-badge {
+  background: var(--badge);
+}
+
+.control-raised {
+  border-color: var(--line);
+  background: var(--panel-raised);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.14),
+    0 3px 0 #05070b;
+  transform: translateY(0);
+}
+
+.control-pressed {
+  border-color: #d8ff9d;
+  background: var(--accent-ui);
+  color: var(--accent-ink);
+  box-shadow: inset 0 3px 5px rgb(0 0 0 / 0.48);
+  transform: translateY(2px);
+}
+
+.retro .control-raised,
+.retro .control-pressed,
+.retro .game-card,
+.retro .game-card-live,
+.retro .game-card-final {
+  border-radius: 3px;
+}
+
+.retro .control-raised {
+  box-shadow:
+    inset 2px 2px 0 rgb(255 255 255 / 0.2),
+    inset -2px -2px 0 rgb(0 0 0 / 0.35),
+    0 3px 0 #050408;
+}
+
+.retro .control-pressed {
+  box-shadow:
+    inset 3px 3px 0 rgb(0 0 0 / 0.45),
+    inset -1px -1px 0 rgb(255 255 255 / 0.14);
+}
 body {
   margin: 0;
   background: var(--background);

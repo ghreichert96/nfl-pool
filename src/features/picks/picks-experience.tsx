@@ -20,10 +20,8 @@ import {
 } from "./model";
 
 const draftStorageKey = "hppp:2026:week-1:draft";
-const selectedClass =
-  "border-lime-300 bg-lime-300 text-slate-950 shadow-[inset_0_3px_5px_rgb(15_23_42/0.45)]";
-const idleClass =
-  "border-slate-600 bg-slate-950 text-slate-100 shadow-[0_1px_2px_rgb(0_0_0/0.3)]";
+const selectedClass = "control-pressed";
+const idleClass = "control-raised text-slate-100";
 
 function isTeamSelected(pick: TeamPick | null, gameId: string, team: string) {
   return pick?.gameId === gameId && pick.team === team;
@@ -88,6 +86,14 @@ function TeamToggle({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const status = game.status ?? "upcoming";
+  const selectedStateClass =
+    status === "live"
+      ? "border-amber-500 bg-amber-900/70 text-amber-100 shadow-[inset_0_3px_5px_rgb(0_0_0/0.5)] translate-y-0.5"
+      : status === "final"
+        ? resultClass(teamResult(game, team, "ats"))
+        : selectedClass;
+
   return (
     <button
       type="button"
@@ -95,7 +101,7 @@ function TeamToggle({
       aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
-      className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-colors disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/40 disabled:text-slate-600 ${selected ? selectedClass : idleClass}`}
+      className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
     >
       <Logo abbreviation={team} />
       <span className="mt-1 leading-none">
@@ -127,35 +133,88 @@ function SmallToggle({
       aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
-      className={`min-h-10 rounded-md border px-1 text-[11px] font-black leading-tight transition-colors disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/40 disabled:text-slate-600 ${selected ? selectedClass : idleClass} ${className}`}
+      className={`min-h-9 rounded-md border px-1 text-[11px] font-black leading-tight transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed disabled:opacity-45 ${selected ? selectedClass : idleClass} ${className}`}
     >
       {children}
     </button>
   );
 }
 
-function GameInfo({ game }: { game: Game }) {
+function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
+  const status = game.status ?? "upcoming";
+  const locked = status !== "upcoming";
+  const total = picks.totals.find((pick) => pick.gameId === game.id);
+  const compactPicks = [
+    picks.suddenDeath?.gameId === game.id
+      ? {
+          label: `SD ${picks.suddenDeath.team}`,
+          result: teamResult(game, picks.suddenDeath.team, "side"),
+        }
+      : null,
+    total
+      ? {
+          label: `${total.direction === "over" ? "O" : "U"}${game.total}`,
+          result: totalResult(game, total.direction),
+        }
+      : null,
+    picks.underdog?.gameId === game.id
+      ? {
+          label: `UD ${picks.underdog.team}`,
+          result: teamResult(game, picks.underdog.team, "side"),
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    label: string;
+    result: "win" | "loss" | "tie" | undefined;
+  }>;
+
   return (
     <div className="flex min-w-0 flex-col items-center text-center">
       <div className="flex items-center gap-1">
-        <span className="rounded bg-sky-400 px-1.5 py-0.5 text-[9px] font-black text-slate-950">
+        <span className="game-badge rounded px-1.5 py-0.5 text-[9px] font-black text-slate-950">
           {game.badge}
         </span>
-        <LockIcon locked={Boolean(game.locked)} />
+        <LockIcon locked={locked} />
       </div>
-      <strong className="mt-0.5 whitespace-nowrap text-xs">
-        {game.away.abbreviation} {formatSpread(game.awaySpread)} @{" "}
-        {game.home.abbreviation}
-      </strong>
-      <span className="whitespace-nowrap text-[11px] text-slate-300">
-        O/U {game.total}
-      </span>
-      <span className="whitespace-nowrap text-[10px] text-slate-400">
-        {game.kickoff}
-      </span>
-      <span className="max-w-full truncate text-[9px] text-slate-500">
-        {game.location}
-      </span>
+      {locked ? (
+        <>
+          <strong className="mt-1 whitespace-nowrap text-[11px]">
+            {game.away.abbreviation} {game.score?.away ?? 0} ·{" "}
+            {game.home.abbreviation} {game.score?.home ?? 0}
+          </strong>
+          <span className="text-[9px] font-black uppercase text-amber-300">
+            {status === "final" ? "Final" : game.score?.detail}
+          </span>
+          {compactPicks.length > 0 && (
+            <div className="mt-1 flex max-w-full gap-0.5 overflow-hidden">
+              {compactPicks.map((pick) => (
+                <span
+                  key={pick.label}
+                  className={`rounded-sm border px-1 py-0.5 text-[8px] font-black ${status === "final" ? resultClass(pick.result) : "border-amber-700 bg-amber-950/70 text-amber-100"}`}
+                >
+                  {pick.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <strong className="mt-0.5 whitespace-nowrap text-xs">
+            {game.away.abbreviation} {formatSpread(game.awaySpread)} @{" "}
+            {game.home.abbreviation}
+          </strong>
+          <span className="whitespace-nowrap text-[11px] text-slate-300">
+            O/U {game.total}
+          </span>
+          <span className="whitespace-nowrap text-[10px] text-slate-400">
+            {game.kickoff}
+          </span>
+          <span className="max-w-full truncate text-[9px] text-slate-500">
+            {game.location}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -170,6 +229,7 @@ function GameRow({
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
 }) {
   const [sdUnderdog, setSdUnderdog] = useState(false);
+  const locked = (game.status ?? "upcoming") !== "upcoming";
   const ats = picks.ats.find((pick) => pick.gameId === game.id);
   const total = picks.totals.find((pick) => pick.gameId === game.id);
   const favorite = favoriteFor(game);
@@ -213,106 +273,108 @@ function GameRow({
 
   return (
     <article
-      className={`rounded-xl border p-1.5 ${game.locked ? "border-slate-700 bg-slate-800/50 opacity-45" : "border-slate-700 bg-slate-900"}`}
+      className={`game-card rounded-xl border p-1.5 ${game.status === "live" ? "game-card-live" : ""} ${game.status === "final" ? "game-card-final" : ""}`}
     >
       <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-2">
         <TeamToggle
           game={game}
           team={game.away.abbreviation}
           selected={ats?.team === game.away.abbreviation}
-          disabled={Boolean(game.locked || atsAtLimit)}
+          disabled={Boolean(locked || atsAtLimit)}
           onClick={() => toggleAts(game.away.abbreviation)}
         />
-        <GameInfo game={game} />
+        <GameInfo game={game} picks={picks} />
         <TeamToggle
           game={game}
           team={game.home.abbreviation}
           selected={ats?.team === game.home.abbreviation}
-          disabled={Boolean(game.locked || atsAtLimit)}
+          disabled={Boolean(locked || atsAtLimit)}
           onClick={() => toggleAts(game.home.abbreviation)}
         />
       </div>
-      <div className="mt-1 grid grid-cols-4 gap-1">
-        <SmallToggle
-          className="order-2"
-          label={`Over ${game.total}`}
-          selected={total?.direction === "over"}
-          disabled={Boolean(game.locked || totalsAtLimit)}
-          onClick={() => toggleTotal("over")}
-        >
-          ▲ O {game.total}
-        </SmallToggle>
-        <SmallToggle
-          className="order-3"
-          label={`Under ${game.total}`}
-          selected={total?.direction === "under"}
-          disabled={Boolean(game.locked || totalsAtLimit)}
-          onClick={() => toggleTotal("under")}
-        >
-          ▼ U {game.total}
-        </SmallToggle>
-        <div
-          className={`grid min-h-10 grid-cols-[1fr_22px] overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
-        >
-          <button
-            type="button"
-            aria-label={`Sudden Death ${sdTeam}`}
-            aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
-            disabled={Boolean(game.locked || sdUnavailable)}
+      {!locked && (
+        <div className="mt-1 grid grid-cols-4 gap-1">
+          <SmallToggle
+            className="order-2"
+            label={`Over ${game.total}`}
+            selected={total?.direction === "over"}
+            disabled={Boolean(locked || totalsAtLimit)}
+            onClick={() => toggleTotal("over")}
+          >
+            ▲ O {game.total}
+          </SmallToggle>
+          <SmallToggle
+            className="order-3"
+            label={`Under ${game.total}`}
+            selected={total?.direction === "under"}
+            disabled={Boolean(locked || totalsAtLimit)}
+            onClick={() => toggleTotal("under")}
+          >
+            ▼ U {game.total}
+          </SmallToggle>
+          <div
+            className={`grid min-h-10 grid-cols-[1fr_22px] overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+          >
+            <button
+              type="button"
+              aria-label={`Sudden Death ${sdTeam}`}
+              aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
+              disabled={Boolean(locked || sdUnavailable)}
+              onClick={() =>
+                setPicks((current) => ({
+                  ...current,
+                  suddenDeath: isTeamSelected(
+                    current.suddenDeath,
+                    game.id,
+                    sdTeam,
+                  )
+                    ? null
+                    : { gameId: game.id, team: sdTeam },
+                }))
+              }
+              className="text-xs font-black leading-tight disabled:opacity-30"
+            >
+              SD
+              <br />
+              {sdTeam}
+            </button>
+            <button
+              type="button"
+              aria-label={`Switch Sudden Death to ${sdUnderdog ? favorite : underdog}`}
+              disabled={Boolean(locked || sdUnavailable)}
+              onClick={() => {
+                setSdUnderdog((value) => !value);
+                setPicks((current) =>
+                  current.suddenDeath?.gameId === game.id
+                    ? { ...current, suddenDeath: null }
+                    : current,
+                );
+              }}
+              className="border-l border-current/30 text-xs font-black disabled:opacity-30"
+            >
+              ⇄
+            </button>
+          </div>
+          <SmallToggle
+            className={awayIsFavorite ? "order-4" : "order-1"}
+            label={`Underdog ${underdog}`}
+            selected={isTeamSelected(picks.underdog, game.id, underdog)}
+            disabled={Boolean(locked || udUnavailable)}
             onClick={() =>
               setPicks((current) => ({
                 ...current,
-                suddenDeath: isTeamSelected(
-                  current.suddenDeath,
-                  game.id,
-                  sdTeam,
-                )
+                underdog: isTeamSelected(current.underdog, game.id, underdog)
                   ? null
-                  : { gameId: game.id, team: sdTeam },
+                  : { gameId: game.id, team: underdog },
               }))
             }
-            className="text-xs font-black leading-tight disabled:opacity-30"
           >
-            SD
+            UD
             <br />
-            {sdTeam}
-          </button>
-          <button
-            type="button"
-            aria-label={`Switch Sudden Death to ${sdUnderdog ? favorite : underdog}`}
-            disabled={Boolean(game.locked || sdUnavailable)}
-            onClick={() => {
-              setSdUnderdog((value) => !value);
-              setPicks((current) =>
-                current.suddenDeath?.gameId === game.id
-                  ? { ...current, suddenDeath: null }
-                  : current,
-              );
-            }}
-            className="border-l border-current/30 text-xs font-black disabled:opacity-30"
-          >
-            ⇄
-          </button>
+            {underdog}
+          </SmallToggle>
         </div>
-        <SmallToggle
-          className={awayIsFavorite ? "order-4" : "order-1"}
-          label={`Underdog ${underdog}`}
-          selected={isTeamSelected(picks.underdog, game.id, underdog)}
-          disabled={Boolean(game.locked || udUnavailable)}
-          onClick={() =>
-            setPicks((current) => ({
-              ...current,
-              underdog: isTeamSelected(current.underdog, game.id, underdog)
-                ? null
-                : { gameId: game.id, team: underdog },
-            }))
-          }
-        >
-          UD
-          <br />
-          {underdog}
-        </SmallToggle>
-      </div>
+      )}
     </article>
   );
 }
@@ -485,7 +547,23 @@ function Preview({
 export function PicksExperience() {
   const [picks, setPicks] = useState<Picks>(EMPTY_PICKS);
   const [view, setView] = useState<"picks" | "grid">("picks");
+  const [theme, setTheme] = useState<"core" | "retro">("core");
+  const [demoStatus, setDemoStatus] = useState<"upcoming" | "live" | "final">(
+    "upcoming",
+  );
   const [draftReady, setDraftReady] = useState(false);
+  const games = MOCK_GAMES.map((game, index) =>
+    index === 0
+      ? {
+          ...game,
+          status: demoStatus,
+          score:
+            demoStatus === "final"
+              ? { away: 31, home: 24, detail: "Final" }
+              : game.score,
+        }
+      : game,
+  );
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- restore external browser state after hydration */
@@ -508,12 +586,28 @@ export function PicksExperience() {
   }, [draftReady, picks]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-32 text-slate-100">
-      <header className="sticky top-0 z-10 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pb-1.5 pt-1.5 backdrop-blur">
-        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-lime-300">
-          HPPP · 2026 · HARR
-        </p>
-        <nav className="grid grid-cols-3 gap-1" aria-label="Primary">
+    <main
+      className={`pick-shell ${theme === "retro" ? "retro" : ""} mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-32 text-slate-100`}
+    >
+      <header className="sticky top-0 z-10 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pt-1 backdrop-blur">
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-lime-300">
+            HPPP · 2026 · HARR
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              setTheme((value) => (value === "core" ? "retro" : "core"))
+            }
+            className="control-raised rounded border px-2 py-0.5 text-[9px] font-black uppercase"
+          >
+            Style: {theme}
+          </button>
+        </div>
+        <nav
+          className="grid grid-cols-3 border-b border-slate-600"
+          aria-label="Primary"
+        >
           {[
             ["HOME", true],
             ["STANDINGS", false],
@@ -521,20 +615,20 @@ export function PicksExperience() {
           ].map(([label, active]) => (
             <button
               key={String(label)}
-              className={`min-h-9 rounded-md text-[11px] font-black ${active ? "bg-lime-300 text-slate-950" : "bg-slate-900 text-slate-300"}`}
+              className={`min-h-7 border-x border-t border-slate-600 text-[10px] font-black ${active ? "bg-slate-100 text-slate-950" : "bg-slate-900 text-slate-400"}`}
             >
               {label}
             </button>
           ))}
         </nav>
-        <div className="mt-1 flex items-center justify-between gap-1">
-          <div className="grid flex-1 grid-cols-2 rounded-xl bg-slate-900 p-1">
+        <div className="flex items-center justify-between gap-1 py-1">
+          <div className="grid flex-1 grid-cols-2 rounded-lg border border-slate-600 bg-slate-900 p-0.5">
             {(["picks", "grid"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setView(option)}
-                className={`min-h-8 rounded-md text-[11px] font-black uppercase ${view === option ? "bg-white text-slate-950 shadow-[inset_0_2px_4px_rgb(15_23_42/0.35)]" : "text-slate-400"}`}
+                className={`min-h-6 rounded text-[10px] font-black uppercase ${view === option ? "control-pressed" : "text-slate-400"}`}
               >
                 {option}
               </button>
@@ -542,7 +636,7 @@ export function PicksExperience() {
           </div>
           <select
             aria-label="Week"
-            className="min-h-9 rounded-md border border-slate-600 bg-slate-950 px-2 text-xs font-black"
+            className="min-h-7 rounded border border-slate-600 bg-slate-950 px-2 text-[10px] font-black"
             defaultValue="1"
           >
             <option value="1">Week 1</option>
@@ -558,11 +652,27 @@ export function PicksExperience() {
         </section>
       ) : (
         <>
-          <p className="my-2 text-xs text-slate-400">
-            Demo Week 1 lines · picks save on this device
-          </p>
+          <div className="my-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-400">
+            <span>Demo lines · draft saved locally</span>
+            <div
+              className="flex rounded border border-slate-600"
+              aria-label="Demo game state"
+            >
+              {(["upcoming", "live", "final"] as const).map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  aria-pressed={demoStatus === status}
+                  onClick={() => setDemoStatus(status)}
+                  className={`px-1.5 py-1 font-black uppercase ${demoStatus === status ? "control-pressed" : ""}`}
+                >
+                  {status === "upcoming" ? "Pre" : status}
+                </button>
+              ))}
+            </div>
+          </div>
           <section className="space-y-2" aria-label="Week 1 games">
-            {MOCK_GAMES.map((game) => (
+            {games.map((game) => (
               <GameRow
                 key={game.id}
                 game={game}

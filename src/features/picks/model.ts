@@ -12,7 +12,12 @@ export type Game = {
   badge: string;
   kickoff: string;
   location: string;
-  locked?: boolean;
+  status?: "upcoming" | "live" | "final";
+  score?: {
+    away: number;
+    home: number;
+    detail: string;
+  };
   result?: {
     atsWinner: string | null;
     totalWinner: "over" | "under" | null;
