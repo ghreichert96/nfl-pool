@@ -23,7 +23,7 @@ const draftStorageKey = "hppp:2026:week-1:draft";
 const selectedClass =
   "border-lime-300 bg-lime-300 text-slate-950 shadow-[inset_0_3px_5px_rgb(15_23_42/0.45)]";
 const idleClass =
-  "border-slate-600 bg-slate-900 text-slate-100 shadow-[0_1px_2px_rgb(0_0_0/0.3)]";
+  "border-slate-600 bg-slate-950 text-slate-100 shadow-[0_1px_2px_rgb(0_0_0/0.3)]";
 
 function isTeamSelected(pick: TeamPick | null, gameId: string, team: string) {
   return pick?.gameId === gameId && pick.team === team;
@@ -44,6 +44,34 @@ function Logo({ abbreviation }: { abbreviation: string }) {
     >
       {abbreviation}
     </span>
+  );
+}
+
+function LockIcon({ locked }: { locked: boolean }) {
+  return locked ? (
+    <svg
+      aria-label="Locked"
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+    >
+      <rect x="5" y="10" width="14" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+    </svg>
+  ) : (
+    <svg
+      aria-label="Unlocked"
+      viewBox="0 0 24 24"
+      className="size-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+    >
+      <rect x="5" y="10" width="14" height="11" rx="2" />
+      <path d="M8 10V7a4 4 0 0 1 7.5-2" />
+    </svg>
   );
 }
 
@@ -106,14 +134,12 @@ function SmallToggle({
 
 function GameInfo({ game }: { game: Game }) {
   return (
-    <div className="flex min-w-0 flex-col items-start text-left">
+    <div className="flex min-w-0 flex-col items-center text-center">
       <div className="flex items-center gap-1">
         <span className="rounded bg-sky-400 px-1.5 py-0.5 text-[9px] font-black text-slate-950">
           {game.badge}
         </span>
-        <span aria-label={game.locked ? "Locked" : "Unlocked"}>
-          {game.locked ? "🔒" : "🔓"}
-        </span>
+        <LockIcon locked={Boolean(game.locked)} />
       </div>
       <strong className="mt-0.5 whitespace-nowrap text-xs">
         {game.away.abbreviation} @ {game.home.abbreviation}
@@ -183,7 +209,7 @@ function GameRow({
 
   return (
     <article
-      className={`rounded-xl border p-1.5 ${game.locked ? "border-slate-800 bg-slate-900/35 opacity-45" : "border-slate-800 bg-slate-950"}`}
+      className={`rounded-xl border p-1.5 ${game.locked ? "border-slate-700 bg-slate-800/50 opacity-45" : "border-slate-700 bg-slate-900"}`}
     >
       <div className="grid grid-cols-[76px_minmax(100px,1fr)_76px] items-center gap-2">
         <TeamToggle
@@ -219,10 +245,13 @@ function GameRow({
         >
           ▼ U {game.total}
         </SmallToggle>
-        <div className="grid grid-cols-[1fr_20px] gap-1">
-          <SmallToggle
-            label={`Sudden Death ${sdTeam}`}
-            selected={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
+        <div
+          className={`grid min-h-12 grid-cols-[1fr_22px] overflow-hidden rounded-md border transition-colors disabled:opacity-30 ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+        >
+          <button
+            type="button"
+            aria-label={`Sudden Death ${sdTeam}`}
+            aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
             disabled={Boolean(game.locked || sdUnavailable)}
             onClick={() =>
               setPicks((current) => ({
@@ -236,14 +265,15 @@ function GameRow({
                   : { gameId: game.id, team: sdTeam },
               }))
             }
+            className="text-xs font-black leading-tight disabled:opacity-30"
           >
             SD
             <br />
             {sdTeam}
-          </SmallToggle>
+          </button>
           <button
             type="button"
-            aria-label={`Use ${sdUnderdog ? "favorite" : "underdog"} for Sudden Death`}
+            aria-label={`Switch Sudden Death to ${sdUnderdog ? favorite : underdog}`}
             disabled={Boolean(game.locked || sdUnavailable)}
             onClick={() => {
               setSdUnderdog((value) => !value);
@@ -253,7 +283,7 @@ function GameRow({
                   : current,
               );
             }}
-            className="rounded-md border border-slate-700 text-[10px] font-black text-slate-300 disabled:opacity-30"
+            className="border-l border-current/30 text-xs font-black disabled:opacity-30"
           >
             ⇄
           </button>
@@ -324,7 +354,7 @@ function Preview({
 
   return (
     <aside className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur">
-      <div className="space-y-1.5 px-2 py-2">
+      <div className="space-y-1 px-2 py-1.5">
         <div
           className="flex items-center gap-1 overflow-x-auto"
           aria-label="ATS picks"
@@ -338,7 +368,7 @@ function Preview({
               return (
                 <span
                   key={index}
-                  className="size-10 shrink-0 rounded-full border border-dashed border-slate-700"
+                  className="size-9 shrink-0 rounded-full border border-dashed border-slate-700"
                 />
               );
             const bestBet =
@@ -355,7 +385,7 @@ function Preview({
                     bestBet: bestBet ? null : pick,
                   }))
                 }
-                className={`relative grid size-10 shrink-0 place-items-center rounded-full border text-[11px] font-black ${resultClass(teamResult(games.get(pick.gameId), pick.team, "ats"))} ${bestBet ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950" : ""}`}
+                className={`relative grid size-9 shrink-0 place-items-center rounded-full border text-[10px] font-black ${resultClass(teamResult(games.get(pick.gameId), pick.team, "ats"))} ${bestBet ? "ring-2 ring-amber-300 ring-offset-1 ring-offset-slate-950" : ""}`}
               >
                 {bestBet && (
                   <span className="absolute -top-2 text-sm text-amber-300">
@@ -395,7 +425,7 @@ function Preview({
           })}
         </div>
       </div>
-      <div className="grid grid-cols-[58px_1fr_minmax(116px,1.35fr)] border-t border-slate-800">
+      <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
         <button
           type="button"
           onClick={() => {
@@ -403,12 +433,13 @@ function Preview({
             setSubmittedDraft(null);
             setMessage("Draft cleared");
           }}
-          className="min-h-16 border-r border-slate-800 text-xs font-bold text-slate-300 underline"
+          className="min-h-12 border-r border-slate-800 text-[11px] font-bold text-slate-300 underline"
         >
           Clear
         </button>
         <div className="flex flex-col justify-center px-2 text-[10px] font-bold leading-4 text-slate-300">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 whitespace-nowrap">
+            ATS {picks.ats.length}/6 · O/U {picks.totals.length}/3
             {complete ? (
               <span
                 aria-label={submitted ? "Submitted" : "Ready to submit"}
@@ -419,17 +450,14 @@ function Preview({
             ) : (
               <span className="size-4 rounded-full border border-slate-600" />
             )}
-            {submitted ? "Submitted" : complete ? "Ready" : "Incomplete"}
           </span>
-          <span>
-            ATS {picks.ats.length}/6 · O/U {picks.totals.length}/3
+          <span className="whitespace-nowrap">
+            BB {picks.bestBet ? "✓" : "□"} · SD {picks.suddenDeath ? "✓" : "□"}{" "}
+            · UD {picks.underdog ? "✓" : "□"}
           </span>
-          <span>
-            BB {picks.bestBet ? "set" : "open"} · SD{" "}
-            {picks.suddenDeath ? "set" : "open"} · UD{" "}
-            {picks.underdog ? "set" : "open"}
+          <span role="status" className="sr-only">
+            {message}
           </span>
-          <span className="truncate text-slate-500">{message}</span>
         </div>
         <button
           type="button"
@@ -438,7 +466,7 @@ function Preview({
             setMessage(complete ? "Demo submission recorded" : validation);
             if (complete) setSubmittedDraft(serializedDraft);
           }}
-          className="min-h-16 bg-emerald-500 px-3 text-xl font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)]"
+          className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)]"
         >
           SUBMIT
         </button>
@@ -473,20 +501,12 @@ export function PicksExperience() {
   }, [draftReady, picks]);
 
   return (
-    <main className="mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-40 text-slate-100">
-      <header className="sticky top-0 z-10 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pb-2 pt-3 backdrop-blur">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-lime-300">
-              HPPP · 2026 · HARR
-            </p>
-            <h1 className="text-2xl font-black">Week 1</h1>
-          </div>
-          <span className="rounded-lg border border-slate-600 px-3 py-2 text-sm font-bold">
-            Unlocked 🔓
-          </span>
-        </div>
-        <nav className="mt-3 grid grid-cols-3 gap-1" aria-label="Primary">
+    <main className="mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-32 text-slate-100">
+      <header className="sticky top-0 z-10 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pb-1.5 pt-1.5 backdrop-blur">
+        <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-lime-300">
+          HPPP · 2026 · HARR
+        </p>
+        <nav className="grid grid-cols-3 gap-1" aria-label="Primary">
           {[
             ["HOME", true],
             ["STANDINGS", false],
@@ -494,20 +514,20 @@ export function PicksExperience() {
           ].map(([label, active]) => (
             <button
               key={String(label)}
-              className={`min-h-11 rounded-lg text-xs font-black ${active ? "bg-lime-300 text-slate-950" : "bg-slate-900 text-slate-300"}`}
+              className={`min-h-9 rounded-md text-[11px] font-black ${active ? "bg-lime-300 text-slate-950" : "bg-slate-900 text-slate-300"}`}
             >
               {label}
             </button>
           ))}
         </nav>
-        <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="mt-1 flex items-center justify-between gap-1">
           <div className="grid flex-1 grid-cols-2 rounded-xl bg-slate-900 p-1">
             {(["picks", "grid"] as const).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setView(option)}
-                className={`min-h-10 rounded-lg text-xs font-black uppercase ${view === option ? "bg-white text-slate-950 shadow-[inset_0_2px_4px_rgb(15_23_42/0.35)]" : "text-slate-400"}`}
+                className={`min-h-8 rounded-md text-[11px] font-black uppercase ${view === option ? "bg-white text-slate-950 shadow-[inset_0_2px_4px_rgb(15_23_42/0.35)]" : "text-slate-400"}`}
               >
                 {option}
               </button>
@@ -515,7 +535,7 @@ export function PicksExperience() {
           </div>
           <select
             aria-label="Week"
-            className="min-h-11 rounded-lg border border-slate-600 bg-slate-950 px-3 text-sm font-black"
+            className="min-h-9 rounded-md border border-slate-600 bg-slate-950 px-2 text-xs font-black"
             defaultValue="1"
           >
             <option value="1">Week 1</option>
