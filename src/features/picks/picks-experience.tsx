@@ -95,7 +95,7 @@ function TeamToggle({
       aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
-      className={`flex min-h-20 w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-colors disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/40 disabled:text-slate-600 ${selected ? selectedClass : idleClass}`}
+      className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-colors disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/40 disabled:text-slate-600 ${selected ? selectedClass : idleClass}`}
     >
       <Logo abbreviation={team} />
       <span className="mt-1 leading-none">
@@ -111,12 +111,14 @@ function SmallToggle({
   children,
   onClick,
   label,
+  className = "",
 }: {
   selected: boolean;
   disabled: boolean;
   children: React.ReactNode;
   onClick: () => void;
   label: string;
+  className?: string;
 }) {
   return (
     <button
@@ -125,7 +127,7 @@ function SmallToggle({
       aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
-      className={`min-h-12 rounded-md border px-1 text-xs font-black leading-tight transition-colors disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/40 disabled:text-slate-600 ${selected ? selectedClass : idleClass}`}
+      className={`min-h-10 rounded-md border px-1 text-[11px] font-black leading-tight transition-colors disabled:cursor-not-allowed disabled:border-slate-800 disabled:bg-slate-900/40 disabled:text-slate-600 ${selected ? selectedClass : idleClass} ${className}`}
     >
       {children}
     </button>
@@ -142,7 +144,8 @@ function GameInfo({ game }: { game: Game }) {
         <LockIcon locked={Boolean(game.locked)} />
       </div>
       <strong className="mt-0.5 whitespace-nowrap text-xs">
-        {game.away.abbreviation} @ {game.home.abbreviation}
+        {game.away.abbreviation} {formatSpread(game.awaySpread)} @{" "}
+        {game.home.abbreviation}
       </strong>
       <span className="whitespace-nowrap text-[11px] text-slate-300">
         O/U {game.total}
@@ -172,6 +175,7 @@ function GameRow({
   const favorite = favoriteFor(game);
   const underdog = underdogFor(game);
   const sdTeam = sdUnderdog ? underdog : favorite;
+  const awayIsFavorite = favorite === game.away.abbreviation;
   const atsAtLimit = picks.ats.length >= 6 && !ats;
   const totalsAtLimit = picks.totals.length >= 3 && !total;
   const sdUnavailable = Boolean(
@@ -211,7 +215,7 @@ function GameRow({
     <article
       className={`rounded-xl border p-1.5 ${game.locked ? "border-slate-700 bg-slate-800/50 opacity-45" : "border-slate-700 bg-slate-900"}`}
     >
-      <div className="grid grid-cols-[76px_minmax(100px,1fr)_76px] items-center gap-2">
+      <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-2">
         <TeamToggle
           game={game}
           team={game.away.abbreviation}
@@ -230,6 +234,7 @@ function GameRow({
       </div>
       <div className="mt-1 grid grid-cols-4 gap-1">
         <SmallToggle
+          className="order-2"
           label={`Over ${game.total}`}
           selected={total?.direction === "over"}
           disabled={Boolean(game.locked || totalsAtLimit)}
@@ -238,6 +243,7 @@ function GameRow({
           ▲ O {game.total}
         </SmallToggle>
         <SmallToggle
+          className="order-3"
           label={`Under ${game.total}`}
           selected={total?.direction === "under"}
           disabled={Boolean(game.locked || totalsAtLimit)}
@@ -246,7 +252,7 @@ function GameRow({
           ▼ U {game.total}
         </SmallToggle>
         <div
-          className={`grid min-h-12 grid-cols-[1fr_22px] overflow-hidden rounded-md border transition-colors disabled:opacity-30 ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+          className={`grid min-h-10 grid-cols-[1fr_22px] overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
         >
           <button
             type="button"
@@ -289,6 +295,7 @@ function GameRow({
           </button>
         </div>
         <SmallToggle
+          className={awayIsFavorite ? "order-4" : "order-1"}
           label={`Underdog ${underdog}`}
           selected={isTeamSelected(picks.underdog, game.id, underdog)}
           disabled={Boolean(game.locked || udUnavailable)}
