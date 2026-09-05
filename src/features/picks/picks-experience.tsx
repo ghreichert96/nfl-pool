@@ -247,16 +247,18 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
           {game.badge}
         </span>
         <LockIcon locked={locked} />
+        {locked && (
+          <span className="whitespace-nowrap text-[9px] font-black uppercase text-amber-300">
+            {status === "final" ? "Final" : game.score?.detail}
+          </span>
+        )}
       </div>
       {locked ? (
         <>
-          <strong className="mt-1 whitespace-nowrap text-[11px]">
+          <strong className="mt-0.5 whitespace-nowrap text-[11px]">
             {game.away.abbreviation} {game.score?.away ?? 0} ·{" "}
             {game.home.abbreviation} {game.score?.home ?? 0}
           </strong>
-          <span className="text-[9px] font-black uppercase text-amber-300">
-            {status === "final" ? "Final" : game.score?.detail}
-          </span>
           <div className="mt-1 grid w-full grid-cols-4 gap-0.5">
             {lockedControls.map((pick) => (
               <span
