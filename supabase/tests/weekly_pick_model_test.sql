@@ -1,5 +1,8 @@
 begin;
-select plan(16);
+
+create extension if not exists pgtap with schema extensions;
+
+select plan(18);
 
 select has_table('public', 'teams', 'teams table exists');
 select has_table('public', 'pool_weeks', 'pool weeks table exists');
@@ -59,6 +62,101 @@ select col_type_is(
   'revision',
   'integer',
   'submission revisions are explicit'
+);
+
+insert into auth.users (id, email, raw_user_meta_data)
+values
+  ('00000000-0000-0000-0000-000000000011', 'picker-one@example.test', '{}'),
+  ('00000000-0000-0000-0000-000000000012', 'picker-two@example.test', '{}');
+
+insert into public.profiles (id, display_name)
+values
+  ('00000000-0000-0000-0000-000000000011', 'Picker One'),
+  ('00000000-0000-0000-0000-000000000012', 'Picker Two');
+
+insert into public.pool_memberships (pool_id, user_id)
+select pool.id, fixture.user_id
+from public.pools as pool
+cross join (
+  values
+    ('00000000-0000-0000-0000-000000000011'::uuid),
+    ('00000000-0000-0000-0000-000000000012'::uuid)
+) as fixture(user_id)
+where pool.slug = 'hppp';
+
+insert into public.pool_entries (id, season_id, user_id, entry_code)
+overriding system value
+select fixture.id, season.id, fixture.user_id, fixture.entry_code
+from public.seasons as season
+join public.pools as pool on pool.id = season.pool_id
+cross join (
+  values
+    (9001::bigint, '00000000-0000-0000-0000-000000000011'::uuid, 'ONE'),
+    (9002::bigint, '00000000-0000-0000-0000-000000000012'::uuid, 'TWO')
+) as fixture(id, user_id, entry_code)
+where pool.slug = 'hppp' and season.year = 2026;
+
+insert into public.teams (abbreviation, name)
+values ('AAA', 'Away Testers'), ('HHH', 'Home Testers');
+
+insert into public.pool_weeks (
+  id,
+  season_id,
+  week_number,
+  label,
+  lines_freeze_at
+)
+overriding system value
+select 9001, season.id, 1, 'Week 1', now() - interval '1 day'
+from public.seasons as season
+join public.pools as pool on pool.id = season.pool_id
+where pool.slug = 'hppp' and season.year = 2026;
+
+insert into public.games (
+  id,
+  week_id,
+  provider_event_id,
+  away_team,
+  home_team,
+  kickoff_at
+)
+overriding system value
+values
+  (9001, 9001, 'future-game', 'AAA', 'HHH', now() + interval '1 day'),
+  (9002, 9001, 'started-game', 'AAA', 'HHH', now() - interval '1 minute');
+
+insert into public.weekly_submissions (id, entry_id, week_id, revision)
+overriding system value
+values (9001, 9001, 9001, 1);
+
+insert into public.picks (submission_id, game_id, kind, team)
+values
+  (9001, 9001, 'ats', 'AAA'),
+  (9001, 9002, 'ats', 'HHH');
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000011","role":"authenticated"}',
+  true
+);
+
+select is(
+  (select count(*) from public.picks),
+  2::bigint,
+  'an entrant sees all of their own submitted picks'
+);
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000012","role":"authenticated"}',
+  true
+);
+
+select is(
+  (select count(*) from public.picks),
+  1::bigint,
+  'an opponent sees only picks for games that have kicked off'
 );
 
 select * from finish();
