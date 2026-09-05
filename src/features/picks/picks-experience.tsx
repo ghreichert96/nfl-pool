@@ -35,13 +35,13 @@ function resultClass(result?: "win" | "loss" | "tie") {
 
 function badgeColorClass(badge: string) {
   const normalized = badge.toUpperCase();
-  if (normalized === "TNF") return "bg-teal-400";
-  if (normalized === "INTL") return "bg-cyan-400";
-  if (normalized === "1 PM") return "bg-sky-400";
-  if (normalized === "4 PM") return "bg-orange-400";
-  if (normalized === "SNF") return "bg-violet-400";
-  if (normalized === "MNF") return "bg-fuchsia-400";
-  return "bg-amber-400";
+  if (normalized === "TNF") return "bg-teal-400 text-slate-950";
+  if (normalized === "INTL") return "bg-cyan-400 text-slate-950";
+  if (normalized === "1 PM") return "bg-sky-400 text-slate-950";
+  if (normalized === "4 PM") return "bg-orange-400 text-slate-950";
+  if (normalized === "SNF") return "bg-violet-400 text-slate-950";
+  if (normalized === "MNF") return "bg-fuchsia-400 text-slate-950";
+  return "bg-amber-800 text-amber-50";
 }
 
 function liveResultClass(result?: "win" | "loss" | "tie") {
@@ -279,7 +279,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
     >
       <div className="flex items-center gap-1">
         <span
-          className={`${badgeColorClass(game.badge)} rounded px-1.5 py-0.5 text-[9px] font-black text-slate-950`}
+          className={`${badgeColorClass(game.badge)} rounded px-1.5 py-0.5 text-[9px] font-black`}
         >
           {game.badge}
         </span>
