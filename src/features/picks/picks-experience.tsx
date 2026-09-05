@@ -146,7 +146,7 @@ function TeamToggle({
   const status = game.status ?? "upcoming";
   const selectedStateClass =
     status === "live"
-      ? `${liveResultClass(standingForTeam(game, team, "ats"))} shadow-[inset_0_3px_5px_rgb(0_0_0/0.5)] translate-y-0.5`
+      ? `${liveResultClass(standingForTeam(game, team, "ats"))} shadow-[inset_0_3px_5px_rgb(0_0_0/0.5)]`
       : status === "final"
         ? resultClass(teamResult(game, team, "ats"))
         : selectedClass;
@@ -279,11 +279,8 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
           <span className="whitespace-nowrap text-[11px] text-slate-300">
             O/U {game.total}
           </span>
-          <span className="whitespace-nowrap text-[10px] text-slate-400">
-            {game.kickoff}
-          </span>
-          <span className="max-w-full truncate text-[9px] text-slate-500">
-            {game.location}
+          <span className="max-w-full truncate whitespace-nowrap text-[9px] text-slate-400">
+            {game.kickoff} · {game.location}
           </span>
         </>
       )}
