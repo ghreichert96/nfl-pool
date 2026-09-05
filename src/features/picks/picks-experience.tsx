@@ -633,10 +633,10 @@ function Preview({
     <aside className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur">
       <div className="space-y-1 px-2 py-1.5">
         <div
-          className="flex items-center gap-1 overflow-x-auto"
+          className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
           aria-label="ATS picks"
         >
-          <span className="w-8 shrink-0 text-[10px] font-black text-slate-400">
+          <span className="text-center text-[10px] font-black text-slate-400">
             ATS
           </span>
           {Array.from({ length: 6 }, (_, index) => {
@@ -645,7 +645,7 @@ function Preview({
               return (
                 <span
                   key={index}
-                  className="size-9 shrink-0 rounded-full border border-dashed border-slate-700"
+                  className="size-9 justify-self-center rounded-full border border-dashed border-slate-700"
                 />
               );
             const bestBet =
@@ -662,10 +662,10 @@ function Preview({
                     bestBet: bestBet ? null : pick,
                   }))
                 }
-                className={`relative grid size-9 shrink-0 place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${bestBet ? "ring-2 ring-amber-300 ring-offset-1 ring-offset-slate-950" : ""}`}
+                className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${bestBet ? "ring-2 ring-inset ring-amber-300" : ""}`}
               >
                 {bestBet && (
-                  <span className="absolute -top-2 text-sm text-amber-300">
+                  <span className="absolute top-0 text-xs text-amber-300">
                     ♛
                   </span>
                 )}
@@ -674,7 +674,7 @@ function Preview({
             );
           })}
         </div>
-        <div className="grid grid-cols-[42px_42px_repeat(3,minmax(0,1fr))] gap-1 text-[9px] font-black">
+        <div className="grid grid-cols-[48px_48px_repeat(3,minmax(0,1fr))] gap-1 text-[9px] font-black">
           <span
             aria-label={
               picks.suddenDeath
@@ -701,7 +701,7 @@ function Preview({
               return (
                 <span
                   key={index}
-                  className="truncate rounded-full border border-dashed border-slate-700 px-1 py-1 text-center text-slate-600"
+                  className="truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600"
                 >
                   O/U
                 </span>
@@ -712,9 +712,9 @@ function Preview({
               <span
                 key={pick.gameId}
                 aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
-                className={`truncate rounded-full border px-1 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
+                className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
               >
-                {game?.away.abbreviation}-{game?.home.abbreviation}·
+                {game?.away.abbreviation} {game?.home.abbreviation}{" "}
                 {pick.direction === "over" ? "O" : "U"}
               </span>
             );
