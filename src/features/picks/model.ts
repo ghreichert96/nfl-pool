@@ -13,6 +13,11 @@ export type Game = {
   kickoff: string;
   location: string;
   locked?: boolean;
+  result?: {
+    atsWinner: string | null;
+    totalWinner: "over" | "under" | null;
+    winner: string | null;
+  };
 };
 
 export type TeamPick = {
@@ -103,6 +108,6 @@ export function validationMessage(picks: Picks) {
   ].filter(Boolean);
 
   return missing.length === 0
-    ? "Prototype picks are complete. Nothing was submitted."
+    ? "All required picks selected."
     : `Still needed: ${missing.join(", ")}.`;
 }

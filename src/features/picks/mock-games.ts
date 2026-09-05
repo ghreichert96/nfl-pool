@@ -10,6 +10,12 @@ export const MOCK_GAMES: Game[] = [
     badge: "TNF",
     kickoff: "Thu · 8:15 PM ET",
     location: "SoFi Stadium",
+    locked: true,
+    result: {
+      atsWinner: "SF",
+      totalWinner: "under",
+      winner: "LAR",
+    },
   },
   {
     id: "min-cle",
