@@ -40,6 +40,8 @@ describe("Home", () => {
     expect(screen.getByText(/SF 24/)).toBeInTheDocument();
     expect(screen.getByText("SD LAR")).toBeInTheDocument();
     expect(screen.getByText("O45.5")).toBeInTheDocument();
+    expect(screen.getByText("U45.5")).toBeInTheDocument();
+    expect(screen.getByText("UD SF")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Over 45.5" }),
     ).not.toBeInTheDocument();
@@ -47,6 +49,12 @@ describe("Home", () => {
     expect(screen.getByRole("button", { name: "SF +8.5" })).toHaveAttribute(
       "aria-pressed",
       "true",
+    );
+    expect(screen.getByRole("button", { name: "SF +8.5" })).toHaveClass(
+      "border-amber-400",
+    );
+    expect(screen.getByRole("button", { name: /^SF,/ })).toHaveClass(
+      "border-amber-400",
     );
   });
 });

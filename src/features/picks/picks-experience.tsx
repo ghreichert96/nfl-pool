@@ -34,6 +34,63 @@ function resultClass(result?: "win" | "loss" | "tie") {
   return idleClass;
 }
 
+function liveResultClass(result?: "win" | "loss" | "tie") {
+  if (result === "win")
+    return "border-amber-400 bg-emerald-900/80 text-emerald-100";
+  if (result === "loss") return "border-amber-400 bg-red-950/80 text-red-100";
+  return "border-amber-400 bg-amber-950/80 text-amber-100";
+}
+
+function lockedControlClass(
+  status: Game["status"],
+  selected: boolean,
+  result?: "win" | "loss" | "tie",
+) {
+  if (!selected) return "border-slate-700 bg-slate-900/70 text-slate-600";
+  return status === "final" ? resultClass(result) : liveResultClass(result);
+}
+
+function standingForTeam(
+  game: Game | undefined,
+  team: string,
+  kind: "ats" | "side",
+) {
+  if (!game) return undefined;
+  if (game.status === "final") return teamResult(game, team, kind);
+  if (game.status !== "live" || !game.score) return undefined;
+
+  const away =
+    kind === "ats" ? game.score.away + game.awaySpread : game.score.away;
+  const home = game.score.home;
+  const teamValue = team === game.away.abbreviation ? away : home;
+  const opponentValue = team === game.away.abbreviation ? home : away;
+  if (teamValue === opponentValue) return "tie" as const;
+  return teamValue > opponentValue ? ("win" as const) : ("loss" as const);
+}
+
+function standingForTotal(
+  game: Game | undefined,
+  direction: TotalPick["direction"],
+) {
+  if (!game) return undefined;
+  if (game.status === "final") return totalResult(game, direction);
+  if (game.status !== "live" || !game.score) return undefined;
+
+  const currentTotal = game.score.away + game.score.home;
+  if (currentTotal === game.total) return "tie" as const;
+  const over = currentTotal > game.total;
+  return (direction === "over") === over ? ("win" as const) : ("loss" as const);
+}
+
+function previewResultClass(
+  game: Game | undefined,
+  result?: "win" | "loss" | "tie",
+) {
+  if (game?.status === "live") return liveResultClass(result);
+  if (game?.status === "final") return resultClass(result);
+  return idleClass;
+}
+
 function Logo({ abbreviation }: { abbreviation: string }) {
   return (
     <span
@@ -89,7 +146,7 @@ function TeamToggle({
   const status = game.status ?? "upcoming";
   const selectedStateClass =
     status === "live"
-      ? "border-amber-500 bg-amber-900/70 text-amber-100 shadow-[inset_0_3px_5px_rgb(0_0_0/0.5)] translate-y-0.5"
+      ? `${liveResultClass(standingForTeam(game, team, "ats"))} shadow-[inset_0_3px_5px_rgb(0_0_0/0.5)] translate-y-0.5`
       : status === "final"
         ? resultClass(teamResult(game, team, "ats"))
         : selectedClass;
@@ -143,30 +200,45 @@ function SmallToggle({
 function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
   const status = game.status ?? "upcoming";
   const locked = status !== "upcoming";
+  const favorite = favoriteFor(game);
+  const underdog = underdogFor(game);
+  const awayIsFavorite = favorite === game.away.abbreviation;
   const total = picks.totals.find((pick) => pick.gameId === game.id);
-  const compactPicks = [
-    picks.suddenDeath?.gameId === game.id
-      ? {
-          label: `SD ${picks.suddenDeath.team}`,
-          result: teamResult(game, picks.suddenDeath.team, "side"),
-        }
-      : null,
-    total
-      ? {
-          label: `${total.direction === "over" ? "O" : "U"}${game.total}`,
-          result: totalResult(game, total.direction),
-        }
-      : null,
-    picks.underdog?.gameId === game.id
-      ? {
-          label: `UD ${picks.underdog.team}`,
-          result: teamResult(game, picks.underdog.team, "side"),
-        }
-      : null,
-  ].filter(Boolean) as Array<{
+  const sdSelected = picks.suddenDeath?.gameId === game.id;
+  const udSelected = picks.underdog?.gameId === game.id;
+  const sdTeam = sdSelected ? picks.suddenDeath!.team : favorite;
+  const lockedControls: Array<{
     label: string;
+    selected: boolean;
     result: "win" | "loss" | "tie" | undefined;
-  }>;
+  }> = [
+    {
+      label: `SD ${sdTeam}`,
+      selected: sdSelected,
+      result: standingForTeam(game, sdTeam, "side"),
+    },
+    {
+      label: `O${game.total}`,
+      selected: total?.direction === "over",
+      result: standingForTotal(game, "over"),
+    },
+    {
+      label: `U${game.total}`,
+      selected: total?.direction === "under",
+      result: standingForTotal(game, "under"),
+    },
+    {
+      label: `UD ${underdog}`,
+      selected: udSelected,
+      result: standingForTeam(game, underdog, "side"),
+    },
+  ];
+  if (!awayIsFavorite) {
+    [lockedControls[0], lockedControls[3]] = [
+      lockedControls[3],
+      lockedControls[0],
+    ];
+  }
 
   return (
     <div className="flex min-w-0 flex-col items-center text-center">
@@ -185,18 +257,16 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
           <span className="text-[9px] font-black uppercase text-amber-300">
             {status === "final" ? "Final" : game.score?.detail}
           </span>
-          {compactPicks.length > 0 && (
-            <div className="mt-1 flex max-w-full gap-0.5 overflow-hidden">
-              {compactPicks.map((pick) => (
-                <span
-                  key={pick.label}
-                  className={`rounded-sm border px-1 py-0.5 text-[8px] font-black ${status === "final" ? resultClass(pick.result) : "border-amber-700 bg-amber-950/70 text-amber-100"}`}
-                >
-                  {pick.label}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="mt-1 grid w-full grid-cols-4 gap-0.5">
+            {lockedControls.map((pick) => (
+              <span
+                key={pick.label}
+                className={`truncate rounded-sm border px-0.5 py-1 text-[8px] font-black ${lockedControlClass(status, pick.selected, pick.result)}`}
+              >
+                {pick.label}
+              </span>
+            ))}
+          </div>
         </>
       ) : (
         <>
@@ -384,7 +454,7 @@ function teamResult(
   team: string,
   kind: "ats" | "side",
 ) {
-  if (!game?.result) return undefined;
+  if (game?.status !== "final" || !game.result) return undefined;
   const winner = kind === "ats" ? game.result.atsWinner : game.result.winner;
   if (winner === null) return "tie" as const;
   return winner === team ? ("win" as const) : ("loss" as const);
@@ -394,7 +464,7 @@ function totalResult(
   game: Game | undefined,
   direction: TotalPick["direction"],
 ) {
-  if (!game?.result) return undefined;
+  if (game?.status !== "final" || !game.result) return undefined;
   if (game.result.totalWinner === null) return "tie" as const;
   return game.result.totalWinner === direction
     ? ("win" as const)
@@ -404,15 +474,17 @@ function totalResult(
 function Preview({
   picks,
   setPicks,
+  games,
 }: {
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
+  games: Game[];
 }) {
   const [message, setMessage] = useState("Draft saved on this device");
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(null);
-  const games = useMemo(
-    () => new Map(MOCK_GAMES.map((game) => [game.id, game])),
-    [],
+  const gameMap = useMemo(
+    () => new Map(games.map((game) => [game.id, game])),
+    [games],
   );
   const serializedDraft = JSON.stringify(picks);
   const complete =
@@ -454,7 +526,7 @@ function Preview({
                     bestBet: bestBet ? null : pick,
                   }))
                 }
-                className={`relative grid size-9 shrink-0 place-items-center rounded-full border text-[10px] font-black ${resultClass(teamResult(games.get(pick.gameId), pick.team, "ats"))} ${bestBet ? "ring-2 ring-amber-300 ring-offset-1 ring-offset-slate-950" : ""}`}
+                className={`relative grid size-9 shrink-0 place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${bestBet ? "ring-2 ring-amber-300 ring-offset-1 ring-offset-slate-950" : ""}`}
               >
                 {bestBet && (
                   <span className="absolute -top-2 text-sm text-amber-300">
@@ -469,23 +541,23 @@ function Preview({
         <div className="flex items-center gap-2 overflow-x-auto text-[10px] font-black">
           <span className="text-slate-400">SD</span>
           <span
-            className={`rounded-full border px-2 py-1 ${picks.suddenDeath ? resultClass(teamResult(games.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            className={`rounded-full border px-2 py-1 ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
           >
             {picks.suddenDeath?.team ?? "—"}
           </span>
           <span className="text-slate-400">UD</span>
           <span
-            className={`rounded-full border px-2 py-1 ${picks.underdog ? resultClass(teamResult(games.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            className={`rounded-full border px-2 py-1 ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
           >
             {picks.underdog?.team ?? "—"}
           </span>
           <span className="ml-1 text-slate-400">O/U</span>
           {picks.totals.map((pick) => {
-            const game = games.get(pick.gameId);
+            const game = gameMap.get(pick.gameId);
             return (
               <span
                 key={pick.gameId}
-                className={`whitespace-nowrap rounded-full border px-2 py-1 ${resultClass(totalResult(game, pick.direction))}`}
+                className={`whitespace-nowrap rounded-full border px-2 py-1 ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
               >
                 {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
                 {pick.direction === "over" ? "O" : "U"}
@@ -681,7 +753,7 @@ export function PicksExperience() {
               />
             ))}
           </section>
-          <Preview picks={picks} setPicks={setPicks} />
+          <Preview picks={picks} setPicks={setPicks} games={games} />
         </>
       )}
     </main>
