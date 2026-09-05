@@ -55,20 +55,17 @@ describe("Home", () => {
       "bg-amber-950",
     );
     expect(screen.getByText("Submitted")).toBeInTheDocument();
+    expect(screen.getByText("Submitted")).not.toHaveClass("border");
   });
 
-  it("offers an explicit fallback for switching the SD team", () => {
+  it("offers a keyboard equivalent for switching the SD team", () => {
     render(<Home />);
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Choose Sudden Death team for SF at LAR",
-      }),
-    );
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Use SF for Sudden Death, underdog",
-      }),
+    fireEvent.keyDown(
+      screen.getByRole("button", { name: "Sudden Death LAR" }),
+      {
+        key: "ArrowUp",
+      },
     );
 
     expect(

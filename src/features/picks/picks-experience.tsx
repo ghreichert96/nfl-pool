@@ -320,9 +320,12 @@ function GameRow({
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
 }) {
   const [sdUnderdog, setSdUnderdog] = useState(false);
-  const [showSdChoices, setShowSdChoices] = useState(false);
+  const [sdGestureActive, setSdGestureActive] = useState(false);
+  const [sdGestureOverAlternate, setSdGestureOverAlternate] = useState(false);
   const sdHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sdLongPressFired = useRef(false);
+  const sdGestureActiveRef = useRef(false);
+  const sdGestureOverAlternateRef = useRef(false);
   const locked = (game.status ?? "upcoming") !== "upcoming";
   const ats = picks.ats.find((pick) => pick.gameId === game.id);
   const total = picks.totals.find((pick) => pick.gameId === game.id);
@@ -371,28 +374,50 @@ function GameRow({
     }));
   }
 
-  function chooseSdTeam(team: string) {
+  function selectSdTeam(team: string) {
     setSdUnderdog(team === underdog);
-    setShowSdChoices(false);
-    setPicks((current) =>
-      current.suddenDeath?.gameId === game.id
-        ? { ...current, suddenDeath: { gameId: game.id, team } }
-        : current,
-    );
+    setPicks((current) => ({
+      ...current,
+      suddenDeath: { gameId: game.id, team },
+    }));
   }
 
-  function startSdHold() {
-    sdLongPressFired.current = false;
-    sdHoldTimer.current = setTimeout(() => {
-      chooseSdTeam(sdUnderdog ? favorite : underdog);
-      sdLongPressFired.current = true;
-      navigator.vibrate?.(20);
-    }, 550);
-  }
-
-  function cancelSdHold() {
+  function resetSdGesture() {
     if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
     sdHoldTimer.current = null;
+    sdGestureActiveRef.current = false;
+    sdGestureOverAlternateRef.current = false;
+    setSdGestureActive(false);
+    setSdGestureOverAlternate(false);
+  }
+
+  function startSdHold(event: React.PointerEvent<HTMLButtonElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    sdLongPressFired.current = false;
+    sdHoldTimer.current = setTimeout(() => {
+      sdGestureActiveRef.current = true;
+      setSdGestureActive(true);
+      sdLongPressFired.current = true;
+      navigator.vibrate?.(20);
+    }, 400);
+  }
+
+  function moveSdHold(event: React.PointerEvent<HTMLButtonElement>) {
+    if (!sdGestureActiveRef.current) return;
+    const overAlternate =
+      event.clientY < event.currentTarget.getBoundingClientRect().top;
+    sdGestureOverAlternateRef.current = overAlternate;
+    setSdGestureOverAlternate(overAlternate);
+  }
+
+  function finishSdHold() {
+    if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
+    sdHoldTimer.current = null;
+    if (!sdGestureActiveRef.current) return;
+
+    const alternate = sdUnderdog ? favorite : underdog;
+    selectSdTeam(sdGestureOverAlternateRef.current ? alternate : sdTeam);
+    resetSdGesture();
   }
 
   return (
@@ -473,7 +498,7 @@ function GameRow({
             ▼ U {game.total}
           </SmallToggle>
           <div
-            className={`relative grid min-h-9 grid-cols-[1fr_22px] rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+            className={`relative min-h-9 rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
           >
             <button
               type="button"
@@ -481,9 +506,16 @@ function GameRow({
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
               disabled={Boolean(locked || sdUnavailable)}
               onPointerDown={startSdHold}
-              onPointerUp={cancelSdHold}
-              onPointerCancel={cancelSdHold}
-              onPointerLeave={cancelSdHold}
+              onPointerMove={moveSdHold}
+              onPointerUp={finishSdHold}
+              onPointerCancel={resetSdGesture}
+              onContextMenu={(event) => event.preventDefault()}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  selectSdTeam(sdUnderdog ? favorite : underdog);
+                }
+              }}
               onClick={() => {
                 if (sdLongPressFired.current) {
                   sdLongPressFired.current = false;
@@ -500,33 +532,16 @@ function GameRow({
                     : { gameId: game.id, team: sdTeam },
                 }));
               }}
-              className="text-[10px] font-black disabled:opacity-30"
+              className="h-full min-h-9 w-full touch-none select-none text-[10px] font-black disabled:opacity-30"
             >
               SD · {sdTeam}
             </button>
-            <button
-              type="button"
-              aria-label={`Choose Sudden Death team for ${game.away.abbreviation} at ${game.home.abbreviation}`}
-              aria-expanded={showSdChoices}
-              disabled={Boolean(locked || sdUnavailable)}
-              onClick={() => setShowSdChoices((value) => !value)}
-              className="border-l border-current/25 text-[10px] font-black disabled:opacity-30"
-            >
-              ▾
-            </button>
-            {showSdChoices && (
-              <div className="absolute bottom-[calc(100%+4px)] left-0 z-20 grid w-full grid-cols-2 gap-1 rounded border border-fuchsia-300 bg-slate-950 p-1 shadow-xl">
-                {[favorite, underdog].map((team) => (
-                  <button
-                    key={team}
-                    type="button"
-                    aria-label={`Use ${team} for Sudden Death${team === favorite ? ", favorite" : ", underdog"}`}
-                    onClick={() => chooseSdTeam(team)}
-                    className={`rounded border px-1 py-1 text-[9px] font-black ${team === sdTeam ? selectedClass : idleClass}`}
-                  >
-                    {team} {team === favorite ? "★" : ""}
-                  </button>
-                ))}
+            {sdGestureActive && (
+              <div
+                aria-hidden="true"
+                className={`pointer-events-none absolute bottom-[calc(100%+5px)] left-0 z-20 grid w-full place-items-center rounded border px-1 py-2 text-[10px] font-black shadow-xl transition-colors ${sdGestureOverAlternate ? "border-amber-200 bg-amber-300 text-slate-950" : "border-fuchsia-300 bg-slate-950 text-slate-100"}`}
+              >
+                {sdUnderdog ? favorite : underdog}
               </div>
             )}
           </div>
@@ -712,7 +727,7 @@ function Preview({
             </span>
           ))}
           <span
-            className={`ml-auto flex min-w-16 flex-col justify-center self-stretch rounded px-1 text-center leading-none ${submitted ? "bg-white/8 text-emerald-50" : "border border-current"}`}
+            className={`ml-auto flex min-w-16 flex-col justify-center self-stretch px-1 text-center leading-none ${submitted ? "text-emerald-200" : modified ? "text-fuchsia-200" : complete ? "text-cyan-200" : "text-amber-200"}`}
           >
             <strong>{statusLabel}</strong>
             {submitted && picks.bestBet && (
@@ -859,8 +874,8 @@ export function PicksExperience() {
           <div className="mb-1 rounded border border-fuchsia-400 bg-slate-900 px-2 py-1.5 text-[10px] leading-4 text-slate-200">
             Pick 6 ATS and 3 totals. Use a crown or tap a preview logo to choose
             BB; if omitted, your first ATS becomes BB when submitted. Choose one
-            SD and one UD. Submit after every change. Each game locks at its
-            scheduled kickoff.
+            SD and one UD. Hold SD and slide up to switch its team. Submit after
+            every change. Each game locks at its scheduled kickoff.
           </div>
         )}
       </header>
