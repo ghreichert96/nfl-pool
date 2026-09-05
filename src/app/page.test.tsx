@@ -50,6 +50,12 @@ describe("Home", () => {
 
     expect(screen.getByRole("button", { name: "SAVED" })).toBeInTheDocument();
     expect(screen.getByText("(BB = SF)")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "LAR -8.5" }));
+    expect(screen.getByText("Modified")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "LAR, Best Bet" })).toHaveClass(
+      "pick-modified",
+    );
   });
 
   it("shows inline instructions and highlights incomplete submission status", () => {

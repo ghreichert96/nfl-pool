@@ -619,6 +619,10 @@ function Preview({
     () => new Map(games.map((game) => [game.id, game])),
     [games],
   );
+  const savedPicks = useMemo(
+    () => (submittedDraft ? (JSON.parse(submittedDraft) as Picks) : null),
+    [submittedDraft],
+  );
   const serializedDraft = JSON.stringify(picks);
   const complete =
     picks.ats.length === 6 &&
@@ -656,15 +660,28 @@ function Preview({
           </span>
           {Array.from({ length: 6 }, (_, index) => {
             const pick = picks.ats[index];
+            const removedPick = Boolean(
+              modified && !pick && savedPicks && index < savedPicks.ats.length,
+            );
             if (!pick)
               return (
                 <span
                   key={index}
-                  className="size-9 justify-self-center rounded-full border border-dashed border-slate-700"
+                  className={`size-9 justify-self-center rounded-full border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
                 />
               );
             const bestBet =
               picks.bestBet && pickKey(picks.bestBet) === pickKey(pick);
+            const savedAsAts = savedPicks?.ats.some(
+              (savedPick) => pickKey(savedPick) === pickKey(pick),
+            );
+            const savedAsBestBet = Boolean(
+              savedPicks?.bestBet &&
+              pickKey(savedPicks.bestBet) === pickKey(pick),
+            );
+            const pickModified = Boolean(
+              modified && (!savedAsAts || bestBet !== savedAsBestBet),
+            );
             return (
               <button
                 key={pickKey(pick)}
@@ -682,7 +699,7 @@ function Preview({
                     bestBet: bestBet ? null : pick,
                   }))
                 }
-                className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))}`}
+                className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
               >
                 {bestBet && (
                   <span className="absolute -top-1 text-xs text-amber-300">
@@ -701,7 +718,7 @@ function Preview({
                 ? `${picks.suddenDeath.team} Sudden Death`
                 : "Sudden Death not selected"
             }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && pickKey(picks.suddenDeath ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.suddenDeath ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
           >
             {picks.suddenDeath?.team ?? "—"}·SD
           </span>
@@ -711,28 +728,39 @@ function Preview({
                 ? `${picks.underdog.team} Underdog`
                 : "Underdog not selected"
             }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && pickKey(picks.underdog ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.underdog ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
           >
             {picks.underdog?.team ?? "—"}·UD
           </span>
           {Array.from({ length: 3 }, (_, index) => {
             const pick = picks.totals[index];
             if (!pick) {
+              const removedPick = Boolean(
+                modified && savedPicks && index < savedPicks.totals.length,
+              );
               return (
                 <span
                   key={index}
-                  className="truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600"
+                  className={`truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600 ${removedPick ? "pick-modified" : ""}`}
                 >
                   O/U
                 </span>
               );
             }
             const game = gameMap.get(pick.gameId);
+            const pickModified = Boolean(
+              modified &&
+              !savedPicks?.totals.some(
+                (savedPick) =>
+                  savedPick.gameId === pick.gameId &&
+                  savedPick.direction === pick.direction,
+              ),
+            );
             return (
               <span
                 key={pick.gameId}
                 aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
-                className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
+                className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))} ${pickModified ? "pick-modified" : ""}`}
               >
                 {game?.away.abbreviation} {game?.home.abbreviation}{" "}
                 {pick.direction === "over" ? "O" : "U"}
