@@ -7,7 +7,7 @@ describe("Home", () => {
   it("renders the consolidated mobile pick form", () => {
     render(<Home />);
 
-    expect(screen.getByRole("heading", { name: "Week 1" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Week" })).toHaveValue("1");
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Over 45.5" }),
