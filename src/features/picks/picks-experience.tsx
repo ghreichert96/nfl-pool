@@ -33,6 +33,17 @@ function resultClass(result?: "win" | "loss" | "tie") {
   return idleClass;
 }
 
+function badgeColorClass(badge: string) {
+  const normalized = badge.toUpperCase();
+  if (normalized === "TNF") return "bg-teal-400";
+  if (normalized === "INTL") return "bg-cyan-400";
+  if (normalized === "1 PM") return "bg-sky-400";
+  if (normalized === "4 PM") return "bg-orange-400";
+  if (normalized === "SNF") return "bg-violet-400";
+  if (normalized === "MNF") return "bg-fuchsia-400";
+  return "bg-amber-400";
+}
+
 function liveResultClass(result?: "win" | "loss" | "tie") {
   if (result === "win")
     return "border-amber-400 bg-emerald-900/80 text-emerald-100";
@@ -267,7 +278,9 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
       className={`flex h-full min-w-0 flex-col items-center text-center ${locked ? "" : "justify-between py-0.5"}`}
     >
       <div className="flex items-center gap-1">
-        <span className="game-badge rounded px-1.5 py-0.5 text-[9px] font-black text-slate-950">
+        <span
+          className={`${badgeColorClass(game.badge)} rounded px-1.5 py-0.5 text-[9px] font-black text-slate-950`}
+        >
           {game.badge}
         </span>
         <LockIcon locked={locked} />

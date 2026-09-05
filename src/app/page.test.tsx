@@ -16,6 +16,8 @@ describe("Home", () => {
       screen.getByRole("button", { name: "Over 45.5" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SUBMIT" })).toBeInTheDocument();
+    expect(screen.getByText("TNF")).toHaveClass("bg-teal-400");
+    expect(screen.getByText("INTL")).toHaveClass("bg-cyan-400");
   });
 
   it("switches themes without changing the pick form", () => {
