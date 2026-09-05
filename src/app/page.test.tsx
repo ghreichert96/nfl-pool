@@ -1,7 +1,15 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { MOCK_GAMES } from "../features/picks/mock-games";
+import { PicksExperience } from "../features/picks/picks-experience";
+
 import Home from "./page";
+
+const liveGames = () =>
+  MOCK_GAMES.map((game, index) =>
+    index === 0 ? { ...game, status: "live" as const } : game,
+  );
 
 describe("Home", () => {
   beforeEach(() => window.localStorage.clear());
@@ -21,20 +29,15 @@ describe("Home", () => {
     expect(screen.getAllByText("1 PM")[0]).toHaveClass("bg-blue-400");
   });
 
-  it("switches themes without changing the pick form", () => {
+  it("uses gunmetal and shows information and profile controls", () => {
     render(<Home />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Style: core" }));
-
+    expect(screen.getByRole("main")).toHaveClass("gunmetal");
     expect(
-      screen.getByRole("button", { name: "Style: retro" }),
+      screen.getByRole("button", { name: "Pool information" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Profile" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Style: retro" }));
-    expect(
-      screen.getByRole("button", { name: "Style: gunmetal" }),
-    ).toBeInTheDocument();
   });
 
   it("offers an in-row BB control and defaults BB only on submission", () => {
@@ -61,7 +64,7 @@ describe("Home", () => {
   it("shows inline instructions and highlights incomplete submission status", () => {
     render(<Home />);
 
-    fireEvent.click(screen.getByRole("button", { name: "How to make picks" }));
+    fireEvent.click(screen.getByRole("button", { name: "Pool information" }));
     expect(screen.getByText(/Pick 6 ATS and 3 totals/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
@@ -73,7 +76,7 @@ describe("Home", () => {
   });
 
   it("limits a removed BB highlight and gives live state visual priority", () => {
-    render(<Home />);
+    const { rerender } = render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
@@ -83,7 +86,7 @@ describe("Home", () => {
       screen.getByLabelText("ATS picks").querySelectorAll(".pick-modified"),
     ).toHaveLength(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "live" }));
+    rerender(<PicksExperience games={liveGames()} />);
 
     expect(
       screen.getByLabelText("ATS picks").querySelectorAll(".pick-modified"),
@@ -94,7 +97,7 @@ describe("Home", () => {
   });
 
   it("offers a keyboard equivalent for switching the SD team", () => {
-    render(<Home />);
+    render(<PicksExperience />);
 
     fireEvent.keyDown(
       screen.getByRole("button", { name: "Sudden Death LAR" }),
@@ -109,12 +112,12 @@ describe("Home", () => {
   });
 
   it("collapses a started game and retains only relevant selections", () => {
-    render(<Home />);
+    const { rerender } = render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     fireEvent.click(screen.getByRole("button", { name: "Over 45.5" }));
     fireEvent.click(screen.getByRole("button", { name: "Sudden Death LAR" }));
-    fireEvent.click(screen.getByRole("button", { name: "live" }));
+    rerender(<PicksExperience games={liveGames()} />);
 
     expect(screen.getByText(/SF 24/)).toBeInTheDocument();
     expect(screen.getAllByText("LAR·SD")).toHaveLength(2);

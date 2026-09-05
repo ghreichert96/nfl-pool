@@ -838,27 +838,11 @@ function Preview({
   );
 }
 
-export function PicksExperience() {
+export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
   const [picks, setPicks] = useState<Picks>(EMPTY_PICKS);
   const [view, setView] = useState<"picks" | "grid">("picks");
-  const [theme, setTheme] = useState<"core" | "retro" | "gunmetal">("core");
   const [showHelp, setShowHelp] = useState(false);
-  const [demoStatus, setDemoStatus] = useState<"upcoming" | "live" | "final">(
-    "upcoming",
-  );
   const [draftReady, setDraftReady] = useState(false);
-  const games = MOCK_GAMES.map((game, index) =>
-    index === 0
-      ? {
-          ...game,
-          status: demoStatus,
-          score:
-            demoStatus === "final"
-              ? { away: 31, home: 24, detail: "Final" }
-              : game.score,
-        }
-      : game,
-  );
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect -- restore external browser state after hydration */
@@ -881,9 +865,7 @@ export function PicksExperience() {
   }, [draftReady, picks]);
 
   return (
-    <main
-      className={`pick-shell ${theme} mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-[136px] text-slate-100`}
-    >
+    <main className="pick-shell gunmetal mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-[136px] text-slate-100">
       <header className="sticky top-0 z-30 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pt-1 backdrop-blur">
         <div className="mb-1 flex items-center justify-between">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-lime-300">
@@ -892,27 +874,29 @@ export function PicksExperience() {
           <div className="flex gap-1">
             <button
               type="button"
-              onClick={() =>
-                setTheme((value) =>
-                  value === "core"
-                    ? "retro"
-                    : value === "retro"
-                      ? "gunmetal"
-                      : "core",
-                )
-              }
-              className="control-raised rounded border px-2 py-0.5 text-[9px] font-black uppercase"
+              aria-label="Pool information"
+              aria-expanded={showHelp}
+              onClick={() => setShowHelp((value) => !value)}
+              className="control-raised grid size-6 place-items-center rounded-full border text-xs font-black"
             >
-              Style: {theme}
+              i
             </button>
             <button
               type="button"
-              aria-label="How to make picks"
-              aria-expanded={showHelp}
-              onClick={() => setShowHelp((value) => !value)}
-              className="control-raised grid size-5 place-items-center rounded-full border text-[11px] font-black"
+              aria-label="Profile"
+              className="control-raised grid size-6 place-items-center rounded-full border"
             >
-              ?
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="8" r="3.25" />
+                <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+              </svg>
             </button>
           </div>
         </div>
@@ -972,26 +956,7 @@ export function PicksExperience() {
         </section>
       ) : (
         <>
-          <div className="my-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-400">
-            <span>Demo lines · draft saved locally</span>
-            <div
-              className="flex rounded border border-slate-600"
-              aria-label="Demo game state"
-            >
-              {(["upcoming", "live", "final"] as const).map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  aria-pressed={demoStatus === status}
-                  onClick={() => setDemoStatus(status)}
-                  className={`px-1.5 py-1 font-black uppercase ${demoStatus === status ? "control-pressed" : ""}`}
-                >
-                  {status === "upcoming" ? "Pre" : status}
-                </button>
-              ))}
-            </div>
-          </div>
-          <section className="space-y-2" aria-label="Week 1 games">
+          <section className="mt-1.5 space-y-2" aria-label="Week 1 games">
             {games.map((game) => (
               <GameRow
                 key={game.id}
