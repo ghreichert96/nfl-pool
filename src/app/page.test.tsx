@@ -54,7 +54,26 @@ describe("Home", () => {
     expect(screen.getByLabelText("Submission saved")).toHaveClass(
       "bg-amber-950",
     );
-    expect(screen.getByText("SUBMITTED")).toBeInTheDocument();
+    expect(screen.getByText("Submitted")).toBeInTheDocument();
+  });
+
+  it("offers an explicit fallback for switching the SD team", () => {
+    render(<Home />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Choose Sudden Death team for SF at LAR",
+      }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Use SF for Sudden Death, underdog",
+      }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Sudden Death SF" }),
+    ).toHaveTextContent("SD · SF");
   });
 
   it("collapses a started game and retains only relevant selections", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MOCK_GAMES } from "./mock-games";
 import {
@@ -320,6 +320,9 @@ function GameRow({
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
 }) {
   const [sdUnderdog, setSdUnderdog] = useState(false);
+  const [showSdChoices, setShowSdChoices] = useState(false);
+  const sdHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sdLongPressFired = useRef(false);
   const locked = (game.status ?? "upcoming") !== "upcoming";
   const ats = picks.ats.find((pick) => pick.gameId === game.id);
   const total = picks.totals.find((pick) => pick.gameId === game.id);
@@ -366,6 +369,30 @@ function GameRow({
         3,
       ),
     }));
+  }
+
+  function chooseSdTeam(team: string) {
+    setSdUnderdog(team === underdog);
+    setShowSdChoices(false);
+    setPicks((current) =>
+      current.suddenDeath?.gameId === game.id
+        ? { ...current, suddenDeath: { gameId: game.id, team } }
+        : current,
+    );
+  }
+
+  function startSdHold() {
+    sdLongPressFired.current = false;
+    sdHoldTimer.current = setTimeout(() => {
+      chooseSdTeam(sdUnderdog ? favorite : underdog);
+      sdLongPressFired.current = true;
+      navigator.vibrate?.(20);
+    }, 550);
+  }
+
+  function cancelSdHold() {
+    if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
+    sdHoldTimer.current = null;
   }
 
   return (
@@ -446,30 +473,22 @@ function GameRow({
             ▼ U {game.total}
           </SmallToggle>
           <div
-            className={`grid min-h-9 grid-cols-[30px_1fr] overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+            className={`relative grid min-h-9 grid-cols-[1fr_22px] rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
           >
-            <button
-              type="button"
-              aria-label={`Change Sudden Death team from ${sdTeam}`}
-              disabled={Boolean(locked || sdUnavailable)}
-              onClick={() => {
-                setSdUnderdog((value) => !value);
-                setPicks((current) =>
-                  current.suddenDeath?.gameId === game.id
-                    ? { ...current, suddenDeath: null }
-                    : current,
-                );
-              }}
-              className="border-r border-current/30 text-[10px] font-black disabled:opacity-30"
-            >
-              {sdTeam}
-            </button>
             <button
               type="button"
               aria-label={`Sudden Death ${sdTeam}`}
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
               disabled={Boolean(locked || sdUnavailable)}
-              onClick={() =>
+              onPointerDown={startSdHold}
+              onPointerUp={cancelSdHold}
+              onPointerCancel={cancelSdHold}
+              onPointerLeave={cancelSdHold}
+              onClick={() => {
+                if (sdLongPressFired.current) {
+                  sdLongPressFired.current = false;
+                  return;
+                }
                 setPicks((current) => ({
                   ...current,
                   suddenDeath: isTeamSelected(
@@ -479,12 +498,37 @@ function GameRow({
                   )
                     ? null
                     : { gameId: game.id, team: sdTeam },
-                }))
-              }
+                }));
+              }}
               className="text-[10px] font-black disabled:opacity-30"
             >
-              SD
+              SD · {sdTeam}
             </button>
+            <button
+              type="button"
+              aria-label={`Choose Sudden Death team for ${game.away.abbreviation} at ${game.home.abbreviation}`}
+              aria-expanded={showSdChoices}
+              disabled={Boolean(locked || sdUnavailable)}
+              onClick={() => setShowSdChoices((value) => !value)}
+              className="border-l border-current/25 text-[10px] font-black disabled:opacity-30"
+            >
+              ▾
+            </button>
+            {showSdChoices && (
+              <div className="absolute bottom-[calc(100%+4px)] left-0 z-20 grid w-full grid-cols-2 gap-1 rounded border border-fuchsia-300 bg-slate-950 p-1 shadow-xl">
+                {[favorite, underdog].map((team) => (
+                  <button
+                    key={team}
+                    type="button"
+                    aria-label={`Use ${team} for Sudden Death${team === favorite ? ", favorite" : ", underdog"}`}
+                    onClick={() => chooseSdTeam(team)}
+                    className={`rounded border px-1 py-1 text-[9px] font-black ${team === sdTeam ? selectedClass : idleClass}`}
+                  >
+                    {team} {team === favorite ? "★" : ""}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <SmallToggle
             className={awayIsFavorite ? "order-4" : "order-1"}
@@ -553,12 +597,12 @@ function Preview({
   const submitted = submittedDraft === serializedDraft;
   const modified = submittedDraft !== null && !submitted;
   const statusLabel = submitted
-    ? "SUBMITTED"
+    ? "Submitted"
     : modified
-      ? "MODIFIED"
+      ? "Modified"
       : complete
-        ? "READY"
-        : "IN PROGRESS";
+        ? "Ready"
+        : "In progress";
   const statusItems = [
     { label: `ATS ${picks.ats.length}/6`, filled: picks.ats.length === 6 },
     {
@@ -662,12 +706,14 @@ function Preview({
           {statusItems.map((item) => (
             <span
               key={item.label}
-              className={`rounded border px-1 py-0.5 ${submitted && item.filled ? "border-emerald-300 bg-emerald-600 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
+              className={`rounded border px-1 py-0.5 ${submitted && item.filled ? "border-transparent bg-emerald-600/80 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
             >
               {item.label}
             </span>
           ))}
-          <span className="ml-auto flex min-w-16 flex-col justify-center self-stretch rounded border border-current px-1 text-center leading-none">
+          <span
+            className={`ml-auto flex min-w-16 flex-col justify-center self-stretch rounded px-1 text-center leading-none ${submitted ? "bg-white/8 text-emerald-50" : "border border-current"}`}
+          >
             <strong>{statusLabel}</strong>
             {submitted && picks.bestBet && (
               <small className="mt-0.5 text-[8px] font-medium">
