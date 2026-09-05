@@ -4,15 +4,14 @@ import { describe, expect, it } from "vitest";
 import Home from "./page";
 
 describe("Home", () => {
-  it("renders both production candidate pick layouts", () => {
+  it("renders the consolidated mobile pick form", () => {
     render(<Home />);
 
     expect(screen.getByRole("heading", { name: "Week 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "A · DIRECT GRID" }),
+      screen.getByRole("button", { name: "Over 45.5" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "B · TAP + CHOOSE" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "SUBMIT" })).toBeInTheDocument();
   });
 });
