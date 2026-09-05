@@ -30,6 +30,11 @@ describe("Home", () => {
       screen.getByRole("button", { name: "Style: retro" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Style: retro" }));
+    expect(
+      screen.getByRole("button", { name: "Style: gunmetal" }),
+    ).toBeInTheDocument();
   });
 
   it("offers an in-row BB control and defaults BB only on submission", () => {

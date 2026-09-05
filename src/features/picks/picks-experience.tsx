@@ -802,7 +802,7 @@ function Preview({
 export function PicksExperience() {
   const [picks, setPicks] = useState<Picks>(EMPTY_PICKS);
   const [view, setView] = useState<"picks" | "grid">("picks");
-  const [theme, setTheme] = useState<"core" | "retro">("core");
+  const [theme, setTheme] = useState<"core" | "retro" | "gunmetal">("core");
   const [showHelp, setShowHelp] = useState(false);
   const [demoStatus, setDemoStatus] = useState<"upcoming" | "live" | "final">(
     "upcoming",
@@ -843,7 +843,7 @@ export function PicksExperience() {
 
   return (
     <main
-      className={`pick-shell ${theme === "retro" ? "retro" : ""} mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-[136px] text-slate-100`}
+      className={`pick-shell ${theme} mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-[136px] text-slate-100`}
     >
       <header className="sticky top-0 z-30 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pt-1 backdrop-blur">
         <div className="mb-1 flex items-center justify-between">
@@ -854,7 +854,13 @@ export function PicksExperience() {
             <button
               type="button"
               onClick={() =>
-                setTheme((value) => (value === "core" ? "retro" : "core"))
+                setTheme((value) =>
+                  value === "core"
+                    ? "retro"
+                    : value === "retro"
+                      ? "gunmetal"
+                      : "core",
+                )
               }
               className="control-raised rounded border px-2 py-0.5 text-[9px] font-black uppercase"
             >
