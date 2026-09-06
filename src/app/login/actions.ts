@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { getAppOrigin } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 const emailSchema = z.string().trim().email().max(254);
@@ -13,7 +14,7 @@ export async function requestMagicLink(formData: FormData) {
   if (!parsed.success) redirect("/login?error=invalid-email");
 
   const requestHeaders = await headers();
-  const origin = requestHeaders.get("origin") ?? "http://127.0.0.1:3008";
+  const origin = getAppOrigin(requestHeaders.get("origin"));
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data,
