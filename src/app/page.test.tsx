@@ -36,7 +36,10 @@ describe("Home", () => {
     expect(
       screen.getByRole("button", { name: "Pool information" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Profile" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
+      "href",
+      "/account",
+    );
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
   });
 

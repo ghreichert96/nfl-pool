@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { MOCK_GAMES } from "./mock-games";
@@ -881,8 +882,8 @@ export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
             >
               i
             </button>
-            <button
-              type="button"
+            <Link
+              href="/account"
               aria-label="Profile"
               className="control-raised grid size-6 place-items-center rounded-full border"
             >
@@ -897,7 +898,7 @@ export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
                 <circle cx="12" cy="8" r="3.25" />
                 <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
               </svg>
-            </button>
+            </Link>
           </div>
         </div>
         <nav
