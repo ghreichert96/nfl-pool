@@ -24,11 +24,14 @@ Start and verify the local database:
 
 ```bash
 pnpm db:start
+pnpm db:migrate
 pnpm db:test
 pnpm db:lint
 ```
 
-The first migration creates five application tables: profiles, pools, pool memberships, seasons, and pool entries. Local seed data creates only HPPP and its 2026 season.
+`pnpm db:reset` is destructive: it recreates the local database and reapplies seed data. Use it only when you intentionally want a clean local fixture. For normal work, use `pnpm db:migrate`; use `pnpm db:restart` when Supabase configuration changes need a service restart.
+
+The first migration creates five application tables: profiles, pools, pool memberships, seasons, and pool entries. Local seed data creates HPPP, its 2026 season, and a commissioner fixture for local authentication.
 
 ## Development policy
 
