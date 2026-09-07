@@ -109,7 +109,7 @@ select set_config(
 
 select is(
   (select count(*) from public.profiles),
-  2::bigint,
+  3::bigint,
   'a commissioner sees profiles for members of their pool'
 );
 

@@ -1,3 +1,34 @@
+create schema if not exists legacy;
+
+do $$
+declare
+  legacy_table text;
+begin
+  foreach legacy_table in array array[
+    'entries',
+    'games',
+    'nfl_games',
+    'nfl_teams',
+    'pick_submissions',
+    'picks',
+    'results',
+    'spreads',
+    'standings',
+    'users',
+    'weekly_entries'
+  ]
+  loop
+    if to_regclass(format('public.%I', legacy_table)) is not null then
+      execute format('alter table public.%I set schema legacy', legacy_table);
+    end if;
+  end loop;
+end;
+$$;
+
+revoke all on schema legacy from public, anon, authenticated;
+revoke all on all tables in schema legacy from anon, authenticated;
+revoke all on all sequences in schema legacy from anon, authenticated;
+
 create schema if not exists private;
 
 revoke all on schema private from public;

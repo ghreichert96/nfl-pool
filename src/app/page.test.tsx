@@ -4,8 +4,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { MOCK_GAMES } from "../features/picks/mock-games";
 import { PicksExperience } from "../features/picks/picks-experience";
 
-import Home from "./page";
-
 const liveGames = () =>
   MOCK_GAMES.map((game, index) =>
     index === 0 ? { ...game, status: "live" as const } : game,
@@ -16,7 +14,7 @@ describe("Home", () => {
   afterEach(cleanup);
 
   it("renders the consolidated mobile pick form", () => {
-    render(<Home />);
+    render(<PicksExperience />);
 
     expect(screen.getByRole("combobox", { name: "Week" })).toHaveValue("1");
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
@@ -30,7 +28,7 @@ describe("Home", () => {
   });
 
   it("uses gunmetal and shows information and profile controls", () => {
-    render(<Home />);
+    render(<PicksExperience />);
 
     expect(screen.getByRole("main")).toHaveClass("gunmetal");
     expect(
@@ -44,7 +42,7 @@ describe("Home", () => {
   });
 
   it("offers an in-row BB control and defaults BB only on submission", () => {
-    render(<Home />);
+    render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
 
@@ -65,7 +63,7 @@ describe("Home", () => {
   });
 
   it("shows inline instructions and highlights incomplete submission status", () => {
-    render(<Home />);
+    render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "Pool information" }));
     expect(screen.getByText(/Pick 6 ATS and 3 totals/)).toBeInTheDocument();

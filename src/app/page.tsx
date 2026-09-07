@@ -1,5 +1,172 @@
-import { PicksExperience } from "../features/picks/picks-experience";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function Home() {
-  return <PicksExperience />;
+import type { Game } from "@/features/picks/model";
+import { PicksExperience } from "@/features/picks/picks-experience";
+import { picksSchema } from "@/features/picks/submission";
+import { createClient } from "@/lib/supabase/server";
+
+import { submitWeeklyPicks } from "./actions";
+
+export const dynamic = "force-dynamic";
+
+function gameBadge(gameType: string, kickoffAt: string) {
+  const named: Record<string, string> = {
+    international: "INTL",
+    tnf: "TNF",
+    snf: "SNF",
+    mnf: "MNF",
+  };
+  if (named[gameType]) return named[gameType];
+
+  const hour = Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      hour: "numeric",
+      hourCycle: "h23",
+    }).format(new Date(kickoffAt)),
+  );
+  return hour < 16 ? "1 PM" : "4 PM";
+}
+
+function EmptyState({ commissioner = false }: { commissioner?: boolean }) {
+  return (
+    <main className="pick-shell gunmetal mx-auto grid min-h-screen max-w-2xl place-items-center bg-slate-950 px-4 text-slate-100">
+      <section className="game-card w-full max-w-sm rounded-xl border p-5 text-center shadow-xl">
+        <h1 className="text-xl font-black">
+          {commissioner ? "Your entry is not enrolled" : "No pool entry yet"}
+        </h1>
+        <p className="mt-2 text-sm text-slate-400">
+          {commissioner
+            ? "Commissioner tools are ready. Add your entrant record before testing picks."
+            : "Use the invitation sent by the commissioner to join the 2026 pool."}
+        </p>
+        <Link
+          href={commissioner ? "/admin" : "/account"}
+          className="control-raised mt-5 grid min-h-11 place-items-center rounded-lg border text-sm font-black"
+        >
+          {commissioner ? "OPEN COMMISSIONER" : "OPEN ACCOUNT"}
+        </Link>
+      </section>
+    </main>
+  );
+}
+
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: claims } = await supabase.auth.getClaims();
+  const userId = claims?.claims?.sub;
+  if (!userId) redirect("/login");
+
+  const [{ data: entry }, { data: commissioner }] = await Promise.all([
+    supabase
+      .from("pool_entries")
+      .select("id, entry_code, season_id")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("pool_memberships")
+      .select("pool_id")
+      .eq("user_id", userId)
+      .eq("role", "commissioner")
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (!entry) return <EmptyState commissioner={Boolean(commissioner)} />;
+
+  const { data: week } = await supabase
+    .from("pool_weeks")
+    .select("id, week_number")
+    .eq("season_id", entry.season_id)
+    .order("week_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!week) return <EmptyState commissioner={Boolean(commissioner)} />;
+
+  const [{ data: gameRows }, { data: teams }, { data: draft }] =
+    await Promise.all([
+      supabase
+        .from("games")
+        .select(
+          "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread, total)",
+        )
+        .eq("week_id", week.id)
+        .order("kickoff_at"),
+      supabase.from("teams").select("abbreviation, name"),
+      supabase
+        .from("weekly_drafts")
+        .select("payload")
+        .eq("entry_id", entry.id)
+        .eq("week_id", week.id)
+        .maybeSingle(),
+    ]);
+
+  const teamNames = new Map(
+    (teams ?? []).map((team) => [team.abbreviation, team.name]),
+  );
+  // Request-time status is intentionally dynamic for kickoff locking.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const games: Game[] = (gameRows ?? []).flatMap((row) => {
+    const line = Array.isArray(row.pool_lines)
+      ? row.pool_lines[0]
+      : row.pool_lines;
+    if (!line) return [];
+
+    const kickoff = new Date(row.kickoff_at);
+    const status: Game["status"] =
+      row.status === "final"
+        ? "final"
+        : kickoff.getTime() <= now
+          ? "live"
+          : "upcoming";
+
+    return [
+      {
+        id: String(row.id),
+        away: {
+          abbreviation: row.away_team,
+          name: teamNames.get(row.away_team) ?? row.away_team,
+        },
+        home: {
+          abbreviation: row.home_team,
+          name: teamNames.get(row.home_team) ?? row.home_team,
+        },
+        awaySpread: Number(line.away_spread),
+        total: Number(line.total),
+        badge: gameBadge(row.game_type, row.kickoff_at),
+        kickoff: new Intl.DateTimeFormat("en-US", {
+          timeZone: "America/New_York",
+          weekday: "short",
+          hour: "numeric",
+          minute: "2-digit",
+          timeZoneName: "short",
+        }).format(kickoff),
+        location: row.venue ?? "",
+        status,
+        ...(row.away_score !== null && row.home_score !== null
+          ? {
+              score: {
+                away: row.away_score,
+                home: row.home_score,
+                detail: row.status_detail ?? status.toUpperCase(),
+              },
+            }
+          : {}),
+      },
+    ];
+  });
+  const parsedDraft = picksSchema.safeParse(draft?.payload);
+
+  return (
+    <PicksExperience
+      games={games}
+      initialPicks={parsedDraft.success ? parsedDraft.data : undefined}
+      draftTarget={{ entryId: entry.id, weekId: week.id }}
+      entryCode={entry.entry_code}
+      weekNumber={week.week_number}
+      submitAction={submitWeeklyPicks}
+    />
+  );
 }

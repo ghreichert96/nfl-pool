@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { createClient } from "../../lib/supabase/client";
+
 import { MOCK_GAMES } from "./mock-games";
 import {
   EMPTY_PICKS,
@@ -609,13 +611,23 @@ function Preview({
   picks,
   setPicks,
   games,
+  draftTarget,
+  submitAction,
 }: {
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
   games: Game[];
+  draftTarget?: { entryId: number; weekId: number };
+  submitAction?: (
+    target: { entryId: number; weekId: number },
+    picks: Picks,
+  ) => Promise<{ ok: boolean; message: string }>;
 }) {
-  const [message, setMessage] = useState("Draft saved on this device");
+  const [message, setMessage] = useState(
+    draftTarget ? "Draft saved" : "Draft saved on this device",
+  );
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -821,31 +833,61 @@ function Preview({
         </div>
         <button
           type="button"
-          onClick={() => {
+          disabled={submitting}
+          onClick={async () => {
             const nextPicks =
               !picks.bestBet && picks.ats[0]
                 ? { ...picks, bestBet: picks.ats[0] }
                 : picks;
             setPicks(nextPicks);
+
+            if (draftTarget && submitAction) {
+              setSubmitting(true);
+              const result = await submitAction(draftTarget, nextPicks);
+              setSubmitting(false);
+              setMessage(result.message);
+              if (!result.ok) return;
+            }
+
             setSubmittedDraft(JSON.stringify(nextPicks));
-            setMessage("Demo submission recorded");
+            if (!draftTarget) setMessage("Demo submission recorded");
           }}
-          className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)]"
+          className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)] disabled:opacity-60"
         >
-          {submitted ? "SAVED" : "SUBMIT"}
+          {submitting ? "SAVING" : submitted ? "SAVED" : "SUBMIT"}
         </button>
       </div>
     </aside>
   );
 }
 
-export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
-  const [picks, setPicks] = useState<Picks>(EMPTY_PICKS);
+type PicksExperienceProps = {
+  games?: Game[];
+  initialPicks?: Picks;
+  draftTarget?: { entryId: number; weekId: number };
+  entryCode?: string;
+  weekNumber?: number;
+  submitAction?: (
+    target: { entryId: number; weekId: number },
+    picks: Picks,
+  ) => Promise<{ ok: boolean; message: string }>;
+};
+
+export function PicksExperience({
+  games = MOCK_GAMES,
+  initialPicks = EMPTY_PICKS,
+  draftTarget,
+  entryCode = "HARR",
+  weekNumber = 1,
+  submitAction,
+}: PicksExperienceProps) {
+  const [picks, setPicks] = useState<Picks>(initialPicks);
   const [view, setView] = useState<"picks" | "grid">("picks");
   const [showHelp, setShowHelp] = useState(false);
-  const [draftReady, setDraftReady] = useState(false);
+  const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
 
   useEffect(() => {
+    if (draftTarget) return;
     /* eslint-disable react-hooks/set-state-in-effect -- restore external browser state after hydration */
     const savedDraft = window.localStorage.getItem(draftStorageKey);
     if (savedDraft) {
@@ -857,20 +899,37 @@ export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
     }
     setDraftReady(true);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
+  }, [draftTarget]);
 
   useEffect(() => {
-    if (draftReady) {
+    if (!draftReady) return;
+    if (!draftTarget) {
       window.localStorage.setItem(draftStorageKey, JSON.stringify(picks));
+      return;
     }
-  }, [draftReady, picks]);
+
+    const timer = window.setTimeout(async () => {
+      const { error } = await createClient().from("weekly_drafts").upsert(
+        {
+          entry_id: draftTarget.entryId,
+          week_id: draftTarget.weekId,
+          payload: picks,
+          schema_version: 1,
+        },
+        { onConflict: "entry_id,week_id" },
+      );
+      if (error) console.error("Draft save failed", error.message);
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [draftReady, draftTarget, picks]);
 
   return (
     <main className="pick-shell gunmetal mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-[136px] text-slate-100">
       <header className="sticky top-0 z-30 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pt-1 backdrop-blur">
         <div className="mb-1 flex items-center justify-between">
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-lime-300">
-            HPPP · 2026 · HARR
+            HPPP · 2026 · {entryCode}
           </p>
           <div className="flex gap-1">
             <button
@@ -905,18 +964,25 @@ export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
           className="grid grid-cols-3 border-b border-slate-600"
           aria-label="Primary"
         >
-          {[
-            ["HOME", true],
-            ["STANDINGS", false],
-            ["RULES", false],
-          ].map(([label, active]) => (
-            <button
-              key={String(label)}
-              className={`min-h-7 border-x border-t border-slate-600 text-[10px] font-black ${active ? "bg-slate-100 text-slate-950" : "bg-slate-900 text-slate-400"}`}
-            >
-              {label}
-            </button>
-          ))}
+          <Link
+            href="/"
+            aria-current="page"
+            className="grid min-h-7 place-items-center border-x border-t border-slate-600 bg-slate-100 text-[10px] font-black text-slate-950"
+          >
+            HOME
+          </Link>
+          <Link
+            href="/standings"
+            className="grid min-h-7 place-items-center border-x border-t border-slate-600 bg-slate-900 text-[10px] font-black text-slate-400"
+          >
+            STANDINGS
+          </Link>
+          <Link
+            href="/rules"
+            className="grid min-h-7 place-items-center border-x border-t border-slate-600 bg-slate-900 text-[10px] font-black text-slate-400"
+          >
+            RULES
+          </Link>
         </nav>
         <div className="flex items-center justify-between gap-1 py-1">
           <div className="grid flex-1 grid-cols-2 rounded-lg border border-slate-600 bg-slate-900 p-0.5">
@@ -934,9 +1000,9 @@ export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
           <select
             aria-label="Week"
             className="min-h-7 rounded border border-slate-600 bg-slate-950 px-2 text-[10px] font-black"
-            defaultValue="1"
+            defaultValue={String(weekNumber)}
           >
-            <option value="1">Week 1</option>
+            <option value={String(weekNumber)}>Week {weekNumber}</option>
           </select>
         </div>
         {showHelp && (
@@ -957,7 +1023,10 @@ export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
         </section>
       ) : (
         <>
-          <section className="mt-1.5 space-y-2" aria-label="Week 1 games">
+          <section
+            className="mt-1.5 space-y-2"
+            aria-label={`Week ${weekNumber} games`}
+          >
             {games.map((game) => (
               <GameRow
                 key={game.id}
@@ -967,7 +1036,13 @@ export function PicksExperience({ games = MOCK_GAMES }: { games?: Game[] }) {
               />
             ))}
           </section>
-          <Preview picks={picks} setPicks={setPicks} games={games} />
+          <Preview
+            picks={picks}
+            setPicks={setPicks}
+            games={games}
+            draftTarget={draftTarget}
+            submitAction={submitAction}
+          />
         </>
       )}
     </main>

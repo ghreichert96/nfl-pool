@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(18);
+select plan(22);
 
 select has_table('public', 'teams', 'teams table exists');
 select has_table('public', 'pool_weeks', 'pool weeks table exists');
@@ -145,6 +145,42 @@ select is(
   (select count(*) from public.picks),
   2::bigint,
   'an entrant sees all of their own submitted picks'
+);
+
+select lives_ok(
+  $$select public.submit_weekly_picks(
+    9001,
+    9001,
+    '[{"game_id":9001,"kind":"ats","team":"HHH","total_direction":null,"is_best_bet":true}]'::jsonb
+  )$$,
+  'an entrant can submit a new revision'
+);
+select is(
+  (select max(revision) from public.weekly_submissions where entry_id = 9001),
+  2,
+  'submission creates the next revision'
+);
+select is(
+  (
+    select pick.team
+    from public.picks as pick
+    join public.weekly_submissions as submission on submission.id = pick.submission_id
+    where submission.entry_id = 9001 and submission.revision = 2
+      and pick.game_id = 9002 and pick.kind = 'ats'
+  ),
+  'HHH',
+  'submission preserves a pick after its game locks'
+);
+select is(
+  (
+    select pick.team
+    from public.picks as pick
+    join public.weekly_submissions as submission on submission.id = pick.submission_id
+    where submission.entry_id = 9001 and submission.revision = 2
+      and pick.game_id = 9001 and pick.kind = 'ats'
+  ),
+  'HHH',
+  'submission replaces an unlocked pick'
 );
 
 select set_config(
