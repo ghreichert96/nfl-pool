@@ -20,7 +20,7 @@ export async function requestMagicLink(formData: FormData) {
     email: parsed.data,
     options: {
       emailRedirectTo: `${origin}/auth/confirm?next=/`,
-      shouldCreateUser: false,
+      shouldCreateUser: true,
     },
   });
 
