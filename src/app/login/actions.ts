@@ -42,6 +42,13 @@ export async function requestMagicLink(formData: FormData) {
     },
   });
 
-  if (error) redirect("/login?error=unavailable");
+  if (error) {
+    console.error("Magic-link request failed", {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+    });
+    redirect("/login?error=unavailable");
+  }
   redirect("/login?sent=1");
 }
