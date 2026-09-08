@@ -6,7 +6,7 @@ import { PicksExperience } from "@/features/picks/picks-experience";
 import { picksSchema } from "@/features/picks/submission";
 import { createClient } from "@/lib/supabase/server";
 
-import { submitWeeklyPicks } from "./actions";
+import { saveWeeklyComment, submitWeeklyPicks } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -84,23 +84,58 @@ export default async function Home() {
     .maybeSingle();
   if (!week) return <EmptyState commissioner={Boolean(commissioner)} />;
 
-  const [{ data: gameRows }, { data: teams }, { data: draft }] =
-    await Promise.all([
-      supabase
-        .from("games")
-        .select(
-          "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread, total)",
-        )
-        .eq("week_id", week.id)
-        .order("kickoff_at"),
-      supabase.from("teams").select("abbreviation, name"),
-      supabase
-        .from("weekly_drafts")
-        .select("payload")
+  const [
+    { data: gameRows },
+    { data: teams },
+    { data: draft },
+    { data: comment },
+  ] = await Promise.all([
+    supabase
+      .from("games")
+      .select(
+        "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread, total)",
+      )
+      .eq("week_id", week.id)
+      .order("kickoff_at"),
+    supabase.from("teams").select("abbreviation, name"),
+    supabase
+      .from("weekly_drafts")
+      .select("payload")
+      .eq("entry_id", entry.id)
+      .eq("week_id", week.id)
+      .maybeSingle(),
+    supabase
+      .from("weekly_comments")
+      .select("body")
+      .eq("entry_id", entry.id)
+      .eq("week_id", week.id)
+      .maybeSingle(),
+  ]);
+  const { data: priorWeeks } = await supabase
+    .from("pool_weeks")
+    .select("id")
+    .eq("season_id", entry.season_id)
+    .lt("week_number", week.week_number);
+  const priorWeekIds = (priorWeeks ?? []).map((item) => item.id);
+  const { data: priorSubmissions } = priorWeekIds.length
+    ? await supabase
+        .from("weekly_submissions")
+        .select("id, week_id, revision")
         .eq("entry_id", entry.id)
-        .eq("week_id", week.id)
-        .maybeSingle(),
-    ]);
+        .in("week_id", priorWeekIds)
+        .order("revision", { ascending: false })
+    : { data: [] };
+  const latestPrior = new Map<number, number>();
+  for (const submission of priorSubmissions ?? [])
+    if (!latestPrior.has(submission.week_id))
+      latestPrior.set(submission.week_id, submission.id);
+  const { data: priorSdRows } = latestPrior.size
+    ? await supabase
+        .from("picks")
+        .select("team")
+        .in("submission_id", [...latestPrior.values()])
+        .eq("kind", "sudden_death")
+    : { data: [] };
 
   const teamNames = new Map(
     (teams ?? []).map((team) => [team.abbreviation, team.name]),
@@ -167,6 +202,14 @@ export default async function Home() {
       entryCode={entry.entry_code}
       weekNumber={week.week_number}
       submitAction={submitWeeklyPicks}
+      commentAction={saveWeeklyComment}
+      initialComment={comment?.body ?? ""}
+      commentLocked={
+        games.length > 0 && games.every((game) => game.status !== "upcoming")
+      }
+      usedSuddenDeathTeams={(priorSdRows ?? []).flatMap((pick) =>
+        pick.team ? [pick.team] : [],
+      )}
     />
   );
 }

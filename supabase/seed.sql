@@ -21,6 +21,8 @@ insert into auth.users (
   role,
   raw_app_meta_data,
   raw_user_meta_data,
+  created_at,
+  updated_at,
   confirmation_token,
   recovery_token,
   email_change_token_new,
@@ -39,6 +41,8 @@ values (
   'authenticated',
   '{"provider":"email","providers":["email"]}',
   '{"email_verified":true}',
+  now(),
+  now(),
   '',
   '',
   '',
@@ -49,12 +53,16 @@ values (
 )
 on conflict (id) do nothing;
 
-insert into auth.identities (provider_id, user_id, identity_data, provider)
+insert into auth.identities (
+  provider_id, user_id, identity_data, provider, created_at, updated_at
+)
 values (
   '00000000-0000-0000-0000-000000000010',
   '00000000-0000-0000-0000-000000000010',
   '{"sub":"00000000-0000-0000-0000-000000000010","email":"harr@example.test","email_verified":true}'::jsonb,
-  'email'
+  'email',
+  now(),
+  now()
 )
 on conflict (provider_id, provider) do nothing;
 

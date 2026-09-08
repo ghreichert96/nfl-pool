@@ -2,7 +2,14 @@ import { PageHeading, PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-import { sendMagicLink, sendPasswordReset } from "./actions";
+import {
+  resendInvitation,
+  sendMagicLink,
+  sendPasswordReset,
+  updateEntrantCode,
+} from "./actions";
+import { revokeInvitation } from "../actions";
+import { RecoveryLinkButton } from "./recovery-link-button";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +33,13 @@ export default async function EntrantsPage({
         .select("id, entry_code, user_id")
         .eq("season_id", season.id)
         .order("entry_code")
+    : { data: [] };
+  const { data: invitations } = season
+    ? await supabase
+        .from("pool_invitations")
+        .select("id, email, phone_e164, status, expires_at")
+        .eq("season_id", season.id)
+        .order("created_at", { ascending: false })
     : { data: [] };
   const admin = createAdminClient();
   const { data: usersPage } = await admin.auth.admin.listUsers({
@@ -56,6 +70,51 @@ export default async function EntrantsPage({
           Email action failed. Check the auth email logs.
         </p>
       )}
+      {(invitations ?? []).some((item) => item.status === "pending") && (
+        <section className="mb-5 rounded-xl border border-slate-800 p-4">
+          <h2 className="font-black">Pending invitations</h2>
+          <div className="mt-3 grid gap-2">
+            {invitations!
+              .filter((item) => item.status === "pending")
+              .map((item) => (
+                <div
+                  key={item.id}
+                  className="game-card grid gap-2 rounded-lg border p-3 text-xs sm:grid-cols-[1fr_auto]"
+                >
+                  <div>
+                    <strong>{item.email}</strong>
+                    <span className="ml-2 text-slate-500">
+                      {item.phone_e164} · expires{" "}
+                      {new Date(item.expires_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <form action={resendInvitation}>
+                      <input
+                        type="hidden"
+                        name="invitation_id"
+                        value={item.id}
+                      />
+                      <button className="control-raised rounded border px-2 py-1 font-black">
+                        RESEND
+                      </button>
+                    </form>
+                    <form action={revokeInvitation}>
+                      <input
+                        type="hidden"
+                        name="invitation_id"
+                        value={item.id}
+                      />
+                      <button className="control-raised rounded border px-2 py-1 font-black">
+                        REVOKE
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </section>
+      )}
       <section className="overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-400">
@@ -72,7 +131,25 @@ export default async function EntrantsPage({
               const user = users.get(entry.user_id);
               return (
                 <tr key={entry.id} className="game-card">
-                  <td className="p-3 font-black">{entry.entry_code}</td>
+                  <td className="p-3">
+                    <form action={updateEntrantCode} className="flex gap-1">
+                      <input type="hidden" name="entry_id" value={entry.id} />
+                      <input
+                        name="entry_code"
+                        defaultValue={entry.entry_code}
+                        minLength={3}
+                        maxLength={4}
+                        pattern="[A-Za-z]{3,4}"
+                        className="control-raised w-16 rounded border px-2 py-1 font-black uppercase"
+                      />
+                      <button
+                        aria-label={`Save ${entry.entry_code} abbreviation`}
+                        className="control-raised rounded border px-2"
+                      >
+                        ✓
+                      </button>
+                    </form>
+                  </td>
                   <td className="p-3">{user?.email ?? "No auth account"}</td>
                   <td className="p-3 text-xs text-slate-400">
                     {user?.email_confirmed_at ? "Confirmed" : "Unconfirmed"}
@@ -99,6 +176,7 @@ export default async function EntrantsPage({
                             RESET PASSWORD
                           </button>
                         </form>
+                        <RecoveryLinkButton userId={user.id} />
                       </div>
                     )}
                   </td>

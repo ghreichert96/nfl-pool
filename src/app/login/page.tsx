@@ -1,6 +1,10 @@
 import Link from "next/link";
 
-import { requestMagicLink, signInWithPassword } from "./actions";
+import {
+  requestMagicLink,
+  requestPasswordReset,
+  signInWithPassword,
+} from "./actions";
 
 export default async function LoginPage({
   searchParams,
@@ -9,6 +13,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const sent = params.sent === "1";
+  const recoverySent = params.recovery_sent === "1";
   const error = typeof params.error === "string" ? params.error : null;
 
   return (
@@ -19,21 +24,22 @@ export default async function LoginPage({
         </p>
         <h1 className="mt-2 text-2xl font-black">Sign in</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Use your password, or request a one-time email link.
+          Use your email or entry abbreviation with your password, or request a
+          one-time email link.
         </p>
 
         <form action={signInWithPassword} className="mt-5 space-y-3">
           <label
-            htmlFor="password-email"
+            htmlFor="password-identifier"
             className="block text-xs font-black uppercase tracking-wide text-slate-300"
           >
-            Email address
+            Email or entry abbreviation
           </label>
           <input
-            id="password-email"
-            name="email"
-            type="email"
-            autoComplete="email"
+            id="password-identifier"
+            name="identifier"
+            type="text"
+            autoComplete="username"
             required
             className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
           />
@@ -48,7 +54,7 @@ export default async function LoginPage({
             name="password"
             type="password"
             autoComplete="current-password"
-            minLength={6}
+            minLength={12}
             required
             className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
           />
@@ -64,6 +70,33 @@ export default async function LoginPage({
             SIGN IN
           </button>
         </form>
+        <details className="mt-3 rounded-lg border border-slate-800 p-3">
+          <summary className="cursor-pointer text-center text-xs font-black text-slate-300">
+            FORGOT PASSWORD?
+          </summary>
+          <form action={requestPasswordReset} className="mt-3 space-y-3">
+            <label
+              htmlFor="recovery-email"
+              className="block text-xs font-black uppercase tracking-wide text-slate-300"
+            >
+              Email address
+            </label>
+            <input
+              id="recovery-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
+            />
+            <button
+              type="submit"
+              className="control-raised min-h-11 w-full rounded-lg border px-4 text-xs font-black"
+            >
+              EMAIL PASSWORD RESET
+            </button>
+          </form>
+        </details>
 
         <div className="my-6 flex items-center gap-3 text-xs font-black text-slate-500">
           <span className="h-px flex-1 bg-slate-700" />
@@ -71,12 +104,14 @@ export default async function LoginPage({
           <span className="h-px flex-1 bg-slate-700" />
         </div>
 
-        {sent ? (
+        {sent || recoverySent ? (
           <div
             role="status"
             className="rounded-lg border border-emerald-500 bg-emerald-950 p-3 text-sm text-emerald-100"
           >
-            Check your email. The sign-in link expires after 24 hours.
+            {recoverySent
+              ? "Check your email for a password-reset link."
+              : "Check your email. The sign-in link expires after 24 hours."}
           </div>
         ) : (
           <form action={requestMagicLink} className="space-y-3">

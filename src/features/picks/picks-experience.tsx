@@ -332,10 +332,12 @@ function GameRow({
   game,
   picks,
   setPicks,
+  usedSuddenDeathTeams,
 }: {
   game: Game;
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
+  usedSuddenDeathTeams: string[];
 }) {
   const [sdUnderdog, setSdUnderdog] = useState(false);
   const [sdGestureActive, setSdGestureActive] = useState(false);
@@ -356,6 +358,7 @@ function GameRow({
   const sdUnavailable = Boolean(
     picks.suddenDeath && picks.suddenDeath.gameId !== game.id,
   );
+  const sdTeamUsed = usedSuddenDeathTeams.includes(sdTeam);
   const udUnavailable = Boolean(
     picks.underdog && picks.underdog.gameId !== game.id,
   );
@@ -522,7 +525,7 @@ function GameRow({
               type="button"
               aria-label={`Sudden Death ${sdTeam}`}
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
-              disabled={Boolean(locked || sdUnavailable)}
+              disabled={Boolean(locked || sdUnavailable || sdTeamUsed)}
               onPointerDown={startSdHold}
               onPointerMove={moveSdHold}
               onPointerUp={finishSdHold}
@@ -552,7 +555,7 @@ function GameRow({
               }}
               className="h-full min-h-9 w-full touch-none select-none text-[11px] font-black disabled:opacity-30"
             >
-              {sdTeam} · SD
+              {sdTeam} · SD{sdTeamUsed ? " · USED" : ""}
             </button>
             {sdGestureActive && (
               <div
@@ -613,6 +616,9 @@ function Preview({
   games,
   draftTarget,
   submitAction,
+  initialComment,
+  commentLocked,
+  commentAction,
 }: {
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
@@ -622,12 +628,22 @@ function Preview({
     target: { entryId: number; weekId: number },
     picks: Picks,
   ) => Promise<{ ok: boolean; message: string }>;
+  initialComment: string;
+  commentLocked: boolean;
+  commentAction?: (
+    target: { entryId: number; weekId: number },
+    body: string,
+  ) => Promise<{ ok: boolean; message: string }>;
 }) {
   const [message, setMessage] = useState(
     draftTarget ? "Draft saved" : "Draft saved on this device",
   );
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showComment, setShowComment] = useState(false);
+  const [comment, setComment] = useState(initialComment);
+  const [savedComment, setSavedComment] = useState(initialComment);
+  const [commentStatus, setCommentStatus] = useState("");
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -663,6 +679,59 @@ function Preview({
 
   return (
     <aside className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur">
+      {showComment && (
+        <div className="border-b border-slate-800 p-2">
+          <label
+            className="text-[10px] font-black uppercase tracking-wider text-slate-400"
+            htmlFor="weekly-comment"
+          >
+            Weekly comment
+          </label>
+          <div className="mt-1 flex gap-1">
+            <input
+              id="weekly-comment"
+              value={comment}
+              onChange={(event) => setComment(event.target.value.slice(0, 40))}
+              disabled={commentLocked}
+              maxLength={40}
+              placeholder="Talk a little trash…"
+              className="control-raised min-h-10 min-w-0 flex-1 rounded-md border px-2 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setComment(savedComment);
+                setShowComment(false);
+              }}
+              className="control-raised rounded-md border px-2 text-[10px] font-black"
+            >
+              CANCEL
+            </button>
+            <button
+              type="button"
+              disabled={commentLocked || !draftTarget || !commentAction}
+              onClick={async () => {
+                if (!draftTarget || !commentAction) return;
+                const result = await commentAction(draftTarget, comment);
+                setCommentStatus(result.message);
+                if (result.ok) {
+                  setSavedComment(comment.trim());
+                  setShowComment(false);
+                }
+              }}
+              className="control-pressed rounded-md border px-3 text-[10px] font-black"
+            >
+              SAVE
+            </button>
+          </div>
+          <div className="mt-1 flex justify-between text-[9px] text-slate-500">
+            <span role="status">
+              {commentLocked ? "Comments locked" : commentStatus}
+            </span>
+            <span>{comment.length}/40</span>
+          </div>
+        </div>
+      )}
       <div className="space-y-1 px-2 py-1.5">
         <div
           className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
@@ -794,17 +863,37 @@ function Preview({
         </div>
       </div>
       <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
-        <button
-          type="button"
-          onClick={() => {
-            setPicks(EMPTY_PICKS);
-            setSubmittedDraft(null);
-            setMessage("Draft cleared");
-          }}
-          className="min-h-12 border-r border-slate-800 text-[11px] font-bold text-slate-300 underline"
-        >
-          Clear
-        </button>
+        <div className="grid grid-rows-2 border-r border-slate-800">
+          <button
+            type="button"
+            aria-label="Edit weekly comment"
+            aria-expanded={showComment}
+            onClick={() => setShowComment((value) => !value)}
+            className={`grid place-items-center border-b border-slate-800 ${savedComment ? "text-cyan-300" : "text-slate-400"}`}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              className="size-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M5 5h14v10H9l-4 4V5Z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setPicks(EMPTY_PICKS);
+              setSubmittedDraft(null);
+              setMessage("Draft cleared");
+            }}
+            className="text-[10px] font-bold text-slate-300 underline"
+          >
+            Clear
+          </button>
+        </div>
         <div
           aria-label={submitted ? "Submission saved" : "Submission status"}
           className={`flex flex-wrap content-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors ${submitted && complete ? "bg-emerald-800" : submitted ? "bg-amber-950" : modified ? "bg-fuchsia-950" : "bg-slate-900"}`}
@@ -871,6 +960,13 @@ type PicksExperienceProps = {
     target: { entryId: number; weekId: number },
     picks: Picks,
   ) => Promise<{ ok: boolean; message: string }>;
+  initialComment?: string;
+  commentLocked?: boolean;
+  commentAction?: (
+    target: { entryId: number; weekId: number },
+    body: string,
+  ) => Promise<{ ok: boolean; message: string }>;
+  usedSuddenDeathTeams?: string[];
 };
 
 export function PicksExperience({
@@ -880,9 +976,12 @@ export function PicksExperience({
   entryCode = "HARR",
   weekNumber = 1,
   submitAction,
+  initialComment = "",
+  commentLocked = false,
+  commentAction,
+  usedSuddenDeathTeams = [],
 }: PicksExperienceProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
-  const [view, setView] = useState<"picks" | "grid">("picks");
   const [showHelp, setShowHelp] = useState(false);
   const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
 
@@ -986,16 +1085,15 @@ export function PicksExperience({
         </nav>
         <div className="flex items-center justify-between gap-1 py-1">
           <div className="grid flex-1 grid-cols-2 rounded-lg border border-slate-600 bg-slate-900 p-0.5">
-            {(["picks", "grid"] as const).map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => setView(option)}
-                className={`min-h-6 rounded text-[10px] font-black uppercase ${view === option ? "control-pressed" : "text-slate-400"}`}
-              >
-                {option}
-              </button>
-            ))}
+            <span className="control-pressed grid min-h-6 place-items-center rounded text-[10px] font-black uppercase">
+              Picks
+            </span>
+            <Link
+              href="/grid"
+              className="grid min-h-6 place-items-center rounded text-[10px] font-black uppercase text-slate-400"
+            >
+              Grid
+            </Link>
           </div>
           <select
             aria-label="Week"
@@ -1014,37 +1112,32 @@ export function PicksExperience({
           </div>
         )}
       </header>
-      {view === "grid" ? (
-        <section className="mt-3 rounded-xl border border-slate-800 bg-slate-900 p-6 text-center">
-          <h2 className="text-lg font-black">Weekly grid</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Picks appear here game-by-game at kickoff.
-          </p>
+      <>
+        <section
+          className="mt-1.5 space-y-2"
+          aria-label={`Week ${weekNumber} games`}
+        >
+          {games.map((game) => (
+            <GameRow
+              key={game.id}
+              game={game}
+              picks={picks}
+              setPicks={setPicks}
+              usedSuddenDeathTeams={usedSuddenDeathTeams}
+            />
+          ))}
         </section>
-      ) : (
-        <>
-          <section
-            className="mt-1.5 space-y-2"
-            aria-label={`Week ${weekNumber} games`}
-          >
-            {games.map((game) => (
-              <GameRow
-                key={game.id}
-                game={game}
-                picks={picks}
-                setPicks={setPicks}
-              />
-            ))}
-          </section>
-          <Preview
-            picks={picks}
-            setPicks={setPicks}
-            games={games}
-            draftTarget={draftTarget}
-            submitAction={submitAction}
-          />
-        </>
-      )}
+        <Preview
+          picks={picks}
+          setPicks={setPicks}
+          games={games}
+          draftTarget={draftTarget}
+          submitAction={submitAction}
+          initialComment={initialComment}
+          commentLocked={commentLocked}
+          commentAction={commentAction}
+        />
+      </>
     </main>
   );
 }
