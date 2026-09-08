@@ -17,17 +17,21 @@ export async function POST(request: Request) {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: weeks, error } = await admin
     .from("pool_weeks")
-    .select("id, lines_frozen_at, seasons!inner(status)")
+    .select("id, lines_frozen_at")
     .gte("lines_freeze_at", cutoff)
     .is("lines_frozen_at", null)
-    .in("seasons.status", ["setup", "open", "active"])
     .order("lines_freeze_at")
     .limit(2);
-  if (error)
+  if (error) {
+    console.error("Could not select active odds weeks", {
+      code: error.code,
+      message: error.message,
+    });
     return NextResponse.json(
       { error: "Could not select active weeks" },
       { status: 500 },
     );
+  }
   const results = [];
   for (const week of weeks ?? [])
     results.push(
