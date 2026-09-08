@@ -211,6 +211,8 @@ function gameType(kickoff: string) {
   }).formatToParts(new Date(kickoff));
   const weekday = parts.find((part) => part.type === "weekday")?.value;
   const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  if (weekday === "Wed" || weekday === "Fri" || weekday === "Sat")
+    return "special";
   if (weekday === "Thu") return "tnf";
   if (weekday === "Mon") return "mnf";
   if (weekday === "Sun" && hour >= 19) return "snf";
