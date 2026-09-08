@@ -73,7 +73,9 @@ export async function ingestOdds({
     const { events, quota } = await fetchNflOdds(apiKey, {
       // Opening-week and holiday games can precede Thursday. Keep the pull
       // centered on the pool's freeze while covering the full weekly slate.
-      from: new Date(freezeAt - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      from: new Date(
+        Math.max(Date.now(), freezeAt - 3 * 24 * 60 * 60 * 1000),
+      ).toISOString(),
       to: new Date(freezeAt + 5 * 24 * 60 * 60 * 1000).toISOString(),
     });
     let snapshotsWritten = 0;

@@ -48,7 +48,12 @@ export async function fetchNflOdds(
     headers: { accept: "application/json" },
     cache: "no-store",
   });
-  if (!response.ok) throw new Error(`Odds API returned ${response.status}`);
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 300);
+    throw new Error(
+      `Odds API returned ${response.status}${detail ? `: ${detail}` : ""}`,
+    );
+  }
   return {
     events: responseSchema.parse(await response.json()),
     quota: {
