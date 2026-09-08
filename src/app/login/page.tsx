@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requestMagicLink } from "./actions";
+import { requestMagicLink, signInWithPassword } from "./actions";
 
 export default async function LoginPage({
   searchParams,
@@ -9,7 +9,7 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const sent = params.sent === "1";
-  const error = typeof params.error === "string";
+  const error = typeof params.error === "string" ? params.error : null;
 
   return (
     <main className="pick-shell gunmetal mx-auto grid min-h-screen max-w-2xl place-items-center bg-slate-950 px-4 text-slate-100">
@@ -19,19 +19,67 @@ export default async function LoginPage({
         </p>
         <h1 className="mt-2 text-2xl font-black">Sign in</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Enter the email address tied to your pool invitation. We’ll send a
-          one-time sign-in link.
+          Use your password, or request a one-time email link.
         </p>
+
+        <form action={signInWithPassword} className="mt-5 space-y-3">
+          <label
+            htmlFor="password-email"
+            className="block text-xs font-black uppercase tracking-wide text-slate-300"
+          >
+            Email address
+          </label>
+          <input
+            id="password-email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
+          />
+          <label
+            htmlFor="password"
+            className="block text-xs font-black uppercase tracking-wide text-slate-300"
+          >
+            Password
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            minLength={6}
+            required
+            className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
+          />
+          {error === "invalid-credentials" && (
+            <p role="alert" className="text-sm text-amber-300">
+              That email and password combination was not recognized.
+            </p>
+          )}
+          <button
+            type="submit"
+            className="control-pressed min-h-12 w-full rounded-lg border px-4 font-black"
+          >
+            SIGN IN
+          </button>
+        </form>
+
+        <div className="my-6 flex items-center gap-3 text-xs font-black text-slate-500">
+          <span className="h-px flex-1 bg-slate-700" />
+          OR
+          <span className="h-px flex-1 bg-slate-700" />
+        </div>
 
         {sent ? (
           <div
             role="status"
-            className="mt-5 rounded-lg border border-emerald-500 bg-emerald-950 p-3 text-sm text-emerald-100"
+            className="rounded-lg border border-emerald-500 bg-emerald-950 p-3 text-sm text-emerald-100"
           >
             Check your email. The sign-in link expires after 24 hours.
           </div>
         ) : (
-          <form action={requestMagicLink} className="mt-5 space-y-3">
+          <form action={requestMagicLink} className="space-y-3">
             <label
               htmlFor="email"
               className="block text-xs font-black uppercase tracking-wide text-slate-300"
@@ -46,7 +94,7 @@ export default async function LoginPage({
               required
               className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
             />
-            {error && (
+            {error && error !== "invalid-credentials" && (
               <p role="alert" className="text-sm text-amber-300">
                 We couldn’t send a link. Check the address or try again shortly.
               </p>
