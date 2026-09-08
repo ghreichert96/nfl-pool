@@ -139,6 +139,7 @@ export async function resetTestLab() {
       week_number: 22,
       label: "Test Lab",
       lines_freeze_at: new Date(Date.now() + 86_400_000).toISOString(),
+      published_at: new Date().toISOString(),
     })
     .select("id")
     .single();
@@ -148,7 +149,7 @@ export async function resetTestLab() {
     provider_event_id: `hppp-lab-${index + 1}`,
     away_team: away,
     home_team: home,
-    kickoff_at: new Date(Date.now() + (index + 1) * 3_600_000).toISOString(),
+    kickoff_at: new Date(Date.now() + (index + 2) * 3_600_000).toISOString(),
     venue: "Test Stadium",
     game_type: index === 0 ? "tnf" : index === 7 ? "mnf" : "sunday",
   }));
