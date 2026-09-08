@@ -33,14 +33,51 @@ export async function POST(request: Request) {
     );
   }
   const results = [];
-  for (const week of weeks ?? [])
-    results.push(
-      await ingestOdds({
-        admin,
-        apiKey,
-        weekId: week.id,
-        triggerSource: "scheduled",
-      }),
-    );
-  return NextResponse.json({ ok: true, results });
+  const shouldFreeze = isThursdayFreezeWindow(new Date());
+  for (const week of weeks ?? []) {
+    const result = await ingestOdds({
+      admin,
+      apiKey,
+      weekId: week.id,
+      triggerSource: "scheduled",
+    });
+    results.push(result);
+    if (shouldFreeze) {
+      const frozenAt = new Date().toISOString();
+      const { data: frozenWeek, error: freezeError } = await admin
+        .from("pool_weeks")
+        .update({ lines_frozen_at: frozenAt, lines_frozen_by: null })
+        .eq("id", week.id)
+        .is("lines_frozen_at", null)
+        .select("id")
+        .maybeSingle();
+      if (freezeError) throw freezeError;
+      if (frozenWeek) {
+        const { error: auditError } = await admin
+          .from("line_audit_events")
+          .insert({
+            week_id: week.id,
+            event_type: "freeze",
+            source: "system",
+            was_frozen: false,
+            note: "Automatic freeze after Thursday 8 PM ET odds pull",
+          });
+        if (auditError) throw auditError;
+      }
+    }
+  }
+  return NextResponse.json({ ok: true, froze: shouldFreeze, results });
+}
+
+function isThursdayFreezeWindow(now: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  return (
+    parts.find((part) => part.type === "weekday")?.value === "Thu" &&
+    parts.find((part) => part.type === "hour")?.value === "20"
+  );
 }
