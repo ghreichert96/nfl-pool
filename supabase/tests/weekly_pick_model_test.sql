@@ -2,7 +2,7 @@ begin;
 
 create extension if not exists pgtap with schema extensions;
 
-select plan(22);
+select plan(28);
 
 select has_table('public', 'teams', 'teams table exists');
 select has_table('public', 'pool_weeks', 'pool weeks table exists');
@@ -49,6 +49,8 @@ select col_type_is(
   'timestamp with time zone',
   'kickoff is timezone-aware'
 );
+select has_column('public', 'pool_weeks', 'published_at', 'weeks have an explicit publication timestamp');
+select has_column('public', 'games', 'line_lock_at', 'games have an effective line deadline');
 select col_type_is(
   'public',
   'pool_lines',
@@ -125,6 +127,23 @@ values
   (9001, 9001, 'future-game', 'AAA', 'HHH', now() + interval '1 day'),
   (9002, 9001, 'started-game', 'AAA', 'HHH', now() - interval '1 minute');
 
+insert into public.pool_weeks (id, season_id, week_number, label, lines_freeze_at)
+overriding system value
+select 9002, season.id, 2, 'Week 2', now() + interval '3 days'
+from public.seasons as season
+join public.pools as pool on pool.id = season.pool_id
+where pool.slug = 'hppp' and season.year = 2026;
+
+insert into public.games (id, week_id, provider_event_id, away_team, home_team, kickoff_at)
+overriding system value
+values (9003, 9002, 'early-game', 'AAA', 'HHH', now() + interval '2 hours');
+
+select is(
+  (select line_lock_at from public.games where id = 9003),
+  (select kickoff_at - interval '1 hour' from public.games where id = 9003),
+  'a non-standard early game freezes one hour before kickoff'
+);
+
 insert into public.weekly_submissions (id, entry_id, week_id, revision)
 overriding system value
 values (9001, 9001, 9001, 1);
@@ -145,6 +164,41 @@ select is(
   (select count(*) from public.picks),
   2::bigint,
   'an entrant sees all of their own submitted picks'
+);
+
+select is(
+  (select count(*) from public.week_submission_presence(9001) where has_submission),
+  1::bigint,
+  'members can see submission presence without receiving hidden picks'
+);
+
+reset role;
+update public.pool_memberships
+set role = 'commissioner'
+where user_id = '00000000-0000-0000-0000-000000000012';
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000012","role":"authenticated"}',
+  true
+);
+
+select is(
+  (select count(*) from public.picks),
+  1::bigint,
+  'commissioner Grid reads remain kickoff-gated'
+);
+
+select is(
+  (select line_lock_at from public.games where id = 9001),
+  (select lines_freeze_at from public.pool_weeks where id = 9001),
+  'a game line locks at the earlier weekly deadline'
+);
+
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000011","role":"authenticated"}',
+  true
 );
 
 select lives_ok(

@@ -104,7 +104,7 @@ export async function ingestOdds({
           },
           { onConflict: "provider_event_id" },
         )
-        .select("id")
+        .select("id, line_lock_at")
         .single();
       if (gameError || !game) continue;
       const snapshots = event.bookmakers.flatMap((book) =>
@@ -127,7 +127,10 @@ export async function ingestOdds({
         const { error } = await admin.from("odds_snapshots").insert(snapshots);
         if (!error) snapshotsWritten += snapshots.length;
       }
-      if (!week?.lines_frozen_at) {
+      if (
+        !week?.lines_frozen_at &&
+        new Date(game.line_lock_at).getTime() > Date.now()
+      ) {
         const consensus = consensusLine({
           spreads: event.bookmakers.flatMap((book) =>
             book.markets
@@ -180,6 +183,12 @@ export async function ingestOdds({
         quota_remaining: quota.remaining,
       })
       .eq("id", run.id);
+    if (events.length > 0 && snapshotsWritten > 0)
+      await admin
+        .from("pool_weeks")
+        .update({ published_at: new Date().toISOString() })
+        .eq("id", weekId)
+        .is("published_at", null);
     return {
       runId: run.id,
       events: events.length,

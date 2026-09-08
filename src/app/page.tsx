@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { PageShell } from "@/components/page-shell";
 import type { Game } from "@/features/picks/model";
+import type { Picks } from "@/features/picks/model";
 import { PicksExperience } from "@/features/picks/picks-experience";
 import { picksSchema } from "@/features/picks/submission";
 import { createClient } from "@/lib/supabase/server";
@@ -52,7 +54,11 @@ function EmptyState({ commissioner = false }: { commissioner?: boolean }) {
   );
 }
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
   const supabase = await createClient();
   const { data: claims } = await supabase.auth.getClaims();
   const userId = claims?.claims?.sub;
@@ -75,13 +81,17 @@ export default async function Home() {
   ]);
   if (!entry) return <EmptyState commissioner={Boolean(commissioner)} />;
 
-  const { data: week } = await supabase
+  const { data: availableWeeks } = await supabase
     .from("pool_weeks")
-    .select("id, week_number")
+    .select("id, week_number, label, lines_frozen_at")
     .eq("season_id", entry.season_id)
-    .order("week_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .not("published_at", "is", null)
+    .order("week_number");
+  const requestedWeek = Number((await searchParams).week);
+  const week =
+    (availableWeeks ?? []).find((item) => item.week_number === requestedWeek) ??
+    availableWeeks?.at(-1) ??
+    null;
   if (!week) return <EmptyState commissioner={Boolean(commissioner)} />;
 
   const [
@@ -89,15 +99,16 @@ export default async function Home() {
     { data: teams },
     { data: draft },
     { data: comment },
+    { data: latestSubmission },
   ] = await Promise.all([
     supabase
       .from("games")
       .select(
-        "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread, total)",
+        "id, away_team, home_team, kickoff_at, line_lock_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread, total)",
       )
       .eq("week_id", week.id)
       .order("kickoff_at"),
-    supabase.from("teams").select("abbreviation, name"),
+    supabase.from("teams").select("abbreviation, name, logo_url"),
     supabase
       .from("weekly_drafts")
       .select("payload")
@@ -110,7 +121,21 @@ export default async function Home() {
       .eq("entry_id", entry.id)
       .eq("week_id", week.id)
       .maybeSingle(),
+    supabase
+      .from("weekly_submissions")
+      .select("id, revision")
+      .eq("entry_id", entry.id)
+      .eq("week_id", week.id)
+      .order("revision", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+  const { data: submittedRows } = latestSubmission
+    ? await supabase
+        .from("picks")
+        .select("game_id, kind, team, total_direction, is_best_bet")
+        .eq("submission_id", latestSubmission.id)
+    : { data: [] };
   const { data: priorWeeks } = await supabase
     .from("pool_weeks")
     .select("id")
@@ -140,6 +165,9 @@ export default async function Home() {
   const teamNames = new Map(
     (teams ?? []).map((team) => [team.abbreviation, team.name]),
   );
+  const teamLogos = new Map(
+    (teams ?? []).map((team) => [team.abbreviation, team.logo_url]),
+  );
   // Request-time status is intentionally dynamic for kickoff locking.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
@@ -163,10 +191,12 @@ export default async function Home() {
         away: {
           abbreviation: row.away_team,
           name: teamNames.get(row.away_team) ?? row.away_team,
+          logoUrl: teamLogos.get(row.away_team),
         },
         home: {
           abbreviation: row.home_team,
           name: teamNames.get(row.home_team) ?? row.home_team,
+          logoUrl: teamLogos.get(row.home_team),
         },
         awaySpread: Number(line.away_spread),
         total: Number(line.total),
@@ -180,6 +210,9 @@ export default async function Home() {
         }).format(kickoff),
         location: row.venue ?? "",
         status,
+        lineFrozen:
+          new Date(row.line_lock_at).getTime() <= now ||
+          Boolean(week.lines_frozen_at),
         ...(row.away_score !== null && row.home_score !== null
           ? {
               score: {
@@ -193,23 +226,78 @@ export default async function Home() {
     ];
   });
   const parsedDraft = picksSchema.safeParse(draft?.payload);
+  const submittedPicks: Picks | undefined = latestSubmission
+    ? {
+        ats: (submittedRows ?? [])
+          .filter((pick) => pick.kind === "ats")
+          .map((pick) => ({ gameId: String(pick.game_id), team: pick.team! })),
+        totals: (submittedRows ?? [])
+          .filter((pick) => pick.kind === "total")
+          .map((pick) => ({
+            gameId: String(pick.game_id),
+            direction: pick.total_direction as "over" | "under",
+          })),
+        bestBet: (() => {
+          const pick = (submittedRows ?? []).find(
+            (item) => item.kind === "ats" && item.is_best_bet,
+          );
+          return pick
+            ? { gameId: String(pick.game_id), team: pick.team! }
+            : null;
+        })(),
+        suddenDeath: (() => {
+          const pick = (submittedRows ?? []).find(
+            (item) => item.kind === "sudden_death",
+          );
+          return pick
+            ? { gameId: String(pick.game_id), team: pick.team! }
+            : null;
+        })(),
+        underdog: (() => {
+          const pick = (submittedRows ?? []).find(
+            (item) => item.kind === "underdog",
+          );
+          return pick
+            ? { gameId: String(pick.game_id), team: pick.team! }
+            : null;
+        })(),
+      }
+    : undefined;
 
   return (
-    <PicksExperience
-      games={games}
-      initialPicks={parsedDraft.success ? parsedDraft.data : undefined}
-      draftTarget={{ entryId: entry.id, weekId: week.id }}
+    <PageShell
       entryCode={entry.entry_code}
-      weekNumber={week.week_number}
-      submitAction={submitWeeklyPicks}
-      commentAction={saveWeeklyComment}
-      initialComment={comment?.body ?? ""}
-      commentLocked={
-        games.length > 0 && games.every((game) => game.status !== "upcoming")
-      }
-      usedSuddenDeathTeams={(priorSdRows ?? []).flatMap((pick) =>
-        pick.team ? [pick.team] : [],
-      )}
-    />
+      isCommissioner={Boolean(commissioner)}
+    >
+      <PicksExperience
+        games={games}
+        initialPicks={parsedDraft.success ? parsedDraft.data : submittedPicks}
+        initialSubmittedPicks={submittedPicks}
+        draftTarget={{ entryId: entry.id, weekId: week.id }}
+        entryCode={entry.entry_code}
+        weekNumber={week.week_number}
+        submitAction={submitWeeklyPicks}
+        commentAction={saveWeeklyComment}
+        initialComment={comment?.body ?? ""}
+        commentLocked={
+          games.length > 0 && games.every((game) => game.status !== "upcoming")
+        }
+        usedSuddenDeathTeams={(priorSdRows ?? []).flatMap((pick) =>
+          pick.team ? [pick.team] : [],
+        )}
+        weeks={(availableWeeks ?? []).map(({ week_number, label }) => ({
+          week_number,
+          label,
+        }))}
+        linesFrozen={
+          Boolean(week.lines_frozen_at) ||
+          (gameRows?.length
+            ? gameRows.every(
+                (game) => new Date(game.line_lock_at).getTime() <= now,
+              )
+            : false)
+        }
+      />
+    </PageShell>
   );
 }

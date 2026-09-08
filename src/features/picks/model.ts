@@ -1,6 +1,7 @@
 export type Team = {
   abbreviation: string;
   name: string;
+  logoUrl?: string | null;
 };
 
 export type Game = {
@@ -13,6 +14,7 @@ export type Game = {
   kickoff: string;
   location: string;
   status?: "upcoming" | "live" | "final";
+  lineFrozen?: boolean;
   score?: {
     away: number;
     home: number;
