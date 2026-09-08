@@ -8,10 +8,10 @@ describe("fetchNflOdds", () => {
       expect(String(input)).toContain("regions=us%2Cus2");
       expect(String(input)).toContain("markets=spreads%2Ctotals");
       expect(String(input)).toContain(
-        "commenceTimeFrom=2026-09-10T00%3A00%3A00.000Z",
+        "commenceTimeFrom=2026-09-10T00%3A00%3A00Z",
       );
       expect(String(input)).toContain(
-        "commenceTimeTo=2026-09-15T00%3A00%3A00.000Z",
+        "commenceTimeTo=2026-09-15T00%3A00%3A00Z",
       );
       return new Response("[]", {
         status: 200,

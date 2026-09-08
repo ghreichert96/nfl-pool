@@ -41,8 +41,8 @@ export async function fetchNflOdds(
   url.searchParams.set("oddsFormat", "american");
   url.searchParams.set("dateFormat", "iso");
   if (window) {
-    url.searchParams.set("commenceTimeFrom", window.from);
-    url.searchParams.set("commenceTimeTo", window.to);
+    url.searchParams.set("commenceTimeFrom", wholeSecondIso(window.from));
+    url.searchParams.set("commenceTimeTo", wholeSecondIso(window.to));
   }
   const response = await fetcher(url, {
     headers: { accept: "application/json" },
@@ -62,6 +62,10 @@ export async function fetchNflOdds(
       last: numberHeader(response.headers.get("x-requests-last")),
     },
   };
+}
+
+function wholeSecondIso(value: string) {
+  return new Date(value).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
 function numberHeader(value: string | null) {
