@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 
 const settingsSchema = z.object({
@@ -31,6 +32,11 @@ export async function updateSettings(formData: FormData) {
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) redirect("/login");
+  const { data: currentEntry } = await supabase
+    .from("pool_entries")
+    .select("id, entry_code, seasons!inner(pool_id)")
+    .eq("user_id", userId)
+    .maybeSingle();
   const [{ error: profileError }, { error: entryError }, { error: authError }] =
     await Promise.all([
       supabase.from("profiles").upsert({
@@ -45,6 +51,21 @@ export async function updateSettings(formData: FormData) {
       supabase.auth.updateUser({ email: parsed.data.email }),
     ]);
   if (profileError || entryError || authError) redirect("/settings?error=save");
+  if (currentEntry && currentEntry.entry_code !== parsed.data.entryCode) {
+    const season = Array.isArray(currentEntry.seasons)
+      ? currentEntry.seasons[0]
+      : currentEntry.seasons;
+    await createAdminClient()
+      .from("commissioner_audit_events")
+      .insert({
+        pool_id: season.pool_id,
+        actor_id: userId,
+        action: "entrant_code_changed",
+        entity_type: "pool_entry",
+        entity_id: String(currentEntry.id),
+        details: { from: currentEntry.entry_code, to: parsed.data.entryCode },
+      });
+  }
   redirect("/settings?saved=1");
 }
 
