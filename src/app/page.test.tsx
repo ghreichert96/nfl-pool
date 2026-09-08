@@ -27,17 +27,11 @@ describe("Home", () => {
     expect(screen.getAllByText("1 PM")[0]).toHaveClass("bg-blue-400");
   });
 
-  it("uses gunmetal and shows information and profile controls", () => {
+  it("shows inline line and submission status", () => {
     render(<PicksExperience />);
 
-    expect(screen.getByRole("main")).toHaveClass("gunmetal");
-    expect(
-      screen.getByRole("button", { name: "Pool information" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute(
-      "href",
-      "/account",
-    );
+    expect(screen.getByText(/Lines · Unfrozen/)).toBeInTheDocument();
+    expect(screen.getByText(/Picks · Not Submitted/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
   });
 
@@ -62,11 +56,16 @@ describe("Home", () => {
     );
   });
 
-  it("shows inline instructions and highlights incomplete submission status", () => {
+  it("opens the comment editor and highlights incomplete submission status", () => {
     render(<PicksExperience />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Pool information" }));
-    expect(screen.getByText(/Pick 6 ATS and 3 totals/)).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit weekly comment" }),
+    );
+    expect(screen.getByLabelText("Weekly comment")).toHaveAttribute(
+      "maxlength",
+      "40",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
     expect(screen.getByLabelText("Submission saved")).toHaveClass(
@@ -84,13 +83,13 @@ describe("Home", () => {
     fireEvent.click(screen.getByRole("button", { name: "SF, Best Bet" }));
 
     expect(
-      screen.getByLabelText("ATS picks").querySelectorAll(".pick-modified"),
+      screen.getByLabelText("Main picks").querySelectorAll(".pick-modified"),
     ).toHaveLength(1);
 
     rerender(<PicksExperience games={liveGames()} />);
 
     expect(
-      screen.getByLabelText("ATS picks").querySelectorAll(".pick-modified"),
+      screen.getByLabelText("Main picks").querySelectorAll(".pick-modified"),
     ).toHaveLength(0);
     expect(
       screen.getByRole("button", { name: "SF, mark Best Bet" }),

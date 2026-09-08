@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { PageHeading, PageShell } from "@/components/page-shell";
+import { WeekSelector } from "@/components/week-selector";
 import { loadCompetition } from "@/features/competition/data";
 import {
   gamesBack,
@@ -15,11 +16,32 @@ export const dynamic = "force-dynamic";
 export default async function StandingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; week?: string }>;
 }) {
   const { supabase, entry, isCommissioner } = await getPoolContext();
-  const view = (await searchParams).view ?? "overall";
-  const data = entry ? await loadCompetition(supabase, entry.season_id) : null;
+  const params = await searchParams;
+  const view = params.view ?? "overall";
+  const { data: availableWeeks } = entry
+    ? await supabase
+        .from("pool_weeks")
+        .select("id, week_number, label")
+        .eq("season_id", entry.season_id)
+        .not("published_at", "is", null)
+        .order("week_number")
+    : { data: [] };
+  const requestedWeek = Number(params.week);
+  const selectedWeek =
+    (availableWeeks ?? []).find((week) => week.week_number === requestedWeek) ??
+    availableWeeks?.at(-1) ??
+    null;
+  const data =
+    entry && selectedWeek
+      ? await loadCompetition(
+          supabase,
+          entry.season_id,
+          selectedWeek.week_number,
+        )
+      : null;
   const entryMap = new Map(data?.entries.map((item) => [item.id, item]));
   const gameMap = new Map(data?.games.map((game) => [game.id, game]));
   const logoMap = new Map(
@@ -41,6 +63,15 @@ export default async function StandingsPage({
         eyebrow="2026 regular season"
         title="Standings"
         description="Main pool rank and detailed side-pool performance."
+        action={
+          selectedWeek ? (
+            <WeekSelector
+              weeks={availableWeeks ?? []}
+              selected={selectedWeek.week_number}
+              preserve={{ view }}
+            />
+          ) : undefined
+        }
       />
       <nav
         aria-label="Standings views"
@@ -53,7 +84,7 @@ export default async function StandingsPage({
         ].map(([key, label]) => (
           <Link
             key={key}
-            href={`/standings?view=${key}`}
+            href={`/standings?view=${key}${selectedWeek ? `&week=${selectedWeek.week_number}` : ""}`}
             aria-current={view === key ? "page" : undefined}
             className={`grid min-h-10 place-items-center rounded-md text-[10px] font-black uppercase ${view === key ? "control-pressed" : "text-slate-400"}`}
           >

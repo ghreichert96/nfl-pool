@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     # Paired UTC hours cover EDT and EST. The ET gate below allows one run.
-    - cron: "0 13,14 * * 2"
+    - cron: "0 6,7 * * 2"
     - cron: "0 0,1 * * 4,5"
 
 permissions:
@@ -29,7 +29,7 @@ jobs:
           fi
           slot=$(TZ=America/New_York date '+%u-%H')
           case "$slot" in
-            2-09|3-20|4-20) echo "run=true" >> "$GITHUB_OUTPUT" ;;
+            2-02|3-20|4-20) echo "run=true" >> "$GITHUB_OUTPUT" ;;
             *) echo "run=false" >> "$GITHUB_OUTPUT" ;;
           esac
       - name: Refresh NFL odds

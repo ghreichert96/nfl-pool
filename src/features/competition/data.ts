@@ -12,6 +12,7 @@ import {
 export async function loadCompetition(
   supabase: SupabaseClient,
   seasonId: number,
+  throughWeekNumber?: number,
 ) {
   const [
     { data: entries },
@@ -24,11 +25,16 @@ export async function loadCompetition(
       .select("id, entry_code, user_id")
       .eq("season_id", seasonId)
       .order("entry_code"),
-    supabase
-      .from("pool_weeks")
-      .select("id, week_number, label")
-      .eq("season_id", seasonId)
-      .order("week_number"),
+    (() => {
+      let query = supabase
+        .from("pool_weeks")
+        .select("id, week_number, label")
+        .eq("season_id", seasonId)
+        .not("published_at", "is", null);
+      if (throughWeekNumber !== undefined)
+        query = query.lte("week_number", throughWeekNumber);
+      return query.order("week_number");
+    })(),
     supabase
       .from("payout_schedules")
       .select("rank, amount, locked_at")

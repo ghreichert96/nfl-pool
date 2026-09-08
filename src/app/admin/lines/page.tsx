@@ -38,7 +38,7 @@ export default async function LinesPage({
         supabase
           .from("games")
           .select(
-            "id, away_team, home_team, kickoff_at, game_type, pool_lines(id, away_spread, total, source, updated_at)",
+            "id, away_team, home_team, kickoff_at, line_lock_at, game_type, pool_lines(id, away_spread, total, source, updated_at)",
           )
           .eq("week_id", activeWeek.id)
           .order("kickoff_at"),
@@ -69,6 +69,9 @@ export default async function LinesPage({
           ? "Lines unfrozen."
           : null;
   const error = typeof params.error === "string" ? params.error : null;
+  // Request-time deadline state is intentionally dynamic.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
 
   return (
     <PageShell isCommissioner>
@@ -170,6 +173,13 @@ export default async function LinesPage({
                         ? "SPE"
                         : game.game_type.toUpperCase()}{" "}
                       · {line.source}
+                    </small>
+                    <small
+                      className={`mt-1 block font-black uppercase ${new Date(game.line_lock_at).getTime() <= now ? "text-amber-300" : "text-cyan-300"}`}
+                    >
+                      {new Date(game.line_lock_at).getTime() <= now
+                        ? "Line frozen"
+                        : `Line open until ${new Date(game.line_lock_at).toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" })} ET`}
                     </small>
                   </div>
                   <label className="grid gap-1 text-xs font-bold">

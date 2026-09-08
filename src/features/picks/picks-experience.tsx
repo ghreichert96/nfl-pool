@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { WeekSelector } from "@/components/week-selector";
 import { createClient } from "../../lib/supabase/client";
 
 import { MOCK_GAMES } from "./mock-games";
@@ -104,13 +105,30 @@ function previewResultClass(
   return idleClass;
 }
 
-function Logo({ abbreviation }: { abbreviation: string }) {
+function Logo({
+  abbreviation,
+  logoUrl,
+}: {
+  abbreviation: string;
+  logoUrl?: string | null;
+}) {
   return (
     <span
       aria-hidden="true"
       className="grid size-10 place-items-center rounded-full border-2 border-current text-[11px] font-black"
     >
-      {abbreviation}
+      {logoUrl ? (
+        <Image
+          src={logoUrl}
+          alt=""
+          width={32}
+          height={32}
+          unoptimized
+          className="size-8 object-contain"
+        />
+      ) : (
+        abbreviation
+      )}
     </span>
   );
 }
@@ -180,7 +198,12 @@ function TeamToggle({
         onClick={onClick}
         className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
       >
-        <Logo abbreviation={team} />
+        <Logo
+          abbreviation={team}
+          logoUrl={
+            (team === game.away.abbreviation ? game.away : game.home).logoUrl
+          }
+        />
         <span className="mt-1 leading-none">
           {formatSpread(spreadFor(game, team))}
         </span>
@@ -287,6 +310,11 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
           {game.badge}
         </span>
         <LockIcon locked={locked} />
+        {!locked && game.lineFrozen && (
+          <span className="text-[8px] font-black uppercase text-amber-300">
+            Line frozen
+          </span>
+        )}
         {locked && (
           <span className="whitespace-nowrap text-[10px] font-black uppercase text-amber-300">
             {status === "final" ? "Final" : game.score?.detail}
@@ -619,6 +647,8 @@ function Preview({
   initialComment,
   commentLocked,
   commentAction,
+  submittedDraft,
+  setSubmittedDraft,
 }: {
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
@@ -634,11 +664,12 @@ function Preview({
     target: { entryId: number; weekId: number },
     body: string,
   ) => Promise<{ ok: boolean; message: string }>;
+  submittedDraft: string | null;
+  setSubmittedDraft: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
   const [message, setMessage] = useState(
     draftTarget ? "Draft saved" : "Draft saved on this device",
   );
-  const [submittedDraft, setSubmittedDraft] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showComment, setShowComment] = useState(false);
   const [comment, setComment] = useState(initialComment);
@@ -663,9 +694,7 @@ function Preview({
     ? "Submitted"
     : modified
       ? "Modified"
-      : complete
-        ? "Ready"
-        : "In progress";
+      : "Not Submitted";
   const statusItems = [
     { label: `ATS ${picks.ats.length}/6`, filled: picks.ats.length === 6 },
     {
@@ -678,7 +707,7 @@ function Preview({
   ];
 
   return (
-    <aside className="fixed inset-x-0 bottom-0 z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur">
+    <aside className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur sm:bottom-0">
       {showComment && (
         <div className="border-b border-slate-800 p-2">
           <label
@@ -735,10 +764,10 @@ function Preview({
       <div className="space-y-1 px-2 py-1.5">
         <div
           className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
-          aria-label="ATS picks"
+          aria-label="Main picks"
         >
           <span className="text-center text-[10px] font-black text-slate-400">
-            ATS
+            MAIN
           </span>
           {Array.from({ length: 6 }, (_, index) => {
             const pick = picks.ats[index];
@@ -791,26 +820,47 @@ function Preview({
                 className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
               >
                 {bestBet && (
-                  <span className="absolute -top-1 text-xs text-amber-300">
+                  <span className="absolute -top-2 text-xs text-amber-300">
                     ♛
                   </span>
                 )}
-                {pick.team}
+                <Logo
+                  abbreviation={pick.team}
+                  logoUrl={
+                    (pick.team === gameMap.get(pick.gameId)?.away.abbreviation
+                      ? gameMap.get(pick.gameId)?.away
+                      : gameMap.get(pick.gameId)?.home
+                    )?.logoUrl
+                  }
+                />
               </button>
             );
           })}
         </div>
-        <div className="grid grid-cols-[48px_48px_repeat(3,minmax(0,1fr))] gap-1 text-[9px] font-black">
-          <span
-            aria-label={
-              picks.suddenDeath
-                ? `${picks.suddenDeath.team} Sudden Death`
-                : "Sudden Death not selected"
-            }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && (gameMap.get(picks.suddenDeath?.gameId ?? savedPicks?.suddenDeath?.gameId ?? "")?.status ?? "upcoming") === "upcoming" && pickKey(picks.suddenDeath ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.suddenDeath ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
-          >
-            {picks.suddenDeath?.team ?? "—"}·SD
-          </span>
+        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_48px_48px_36px] gap-1 text-[9px] font-black">
+          {Array.from({ length: 3 }, (_, index) => {
+            const pick = picks.totals[index];
+            if (!pick)
+              return (
+                <span
+                  key={index}
+                  className="truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600"
+                >
+                  OU{index + 1}
+                </span>
+              );
+            const game = gameMap.get(pick.gameId);
+            return (
+              <span
+                key={pick.gameId}
+                aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
+                className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
+              >
+                {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
+                {pick.direction === "over" ? "O" : "U"}
+              </span>
+            );
+          })}
           <span
             aria-label={
               picks.underdog
@@ -821,55 +871,22 @@ function Preview({
           >
             {picks.underdog?.team ?? "—"}·UD
           </span>
-          {Array.from({ length: 3 }, (_, index) => {
-            const pick = picks.totals[index];
-            if (!pick) {
-              const removedPick = Boolean(
-                modified &&
-                savedPicks?.totals[index] &&
-                (gameMap.get(savedPicks.totals[index].gameId)?.status ??
-                  "upcoming") === "upcoming",
-              );
-              return (
-                <span
-                  key={index}
-                  className={`truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600 ${removedPick ? "pick-modified" : ""}`}
-                >
-                  O/U
-                </span>
-              );
+          <span
+            aria-label={
+              picks.suddenDeath
+                ? `${picks.suddenDeath.team} Sudden Death`
+                : "Sudden Death not selected"
             }
-            const game = gameMap.get(pick.gameId);
-            const pickModified = Boolean(
-              modified &&
-              (game?.status ?? "upcoming") === "upcoming" &&
-              !savedPicks?.totals.some(
-                (savedPick) =>
-                  savedPick.gameId === pick.gameId &&
-                  savedPick.direction === pick.direction,
-              ),
-            );
-            return (
-              <span
-                key={pick.gameId}
-                aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
-                className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))} ${pickModified ? "pick-modified" : ""}`}
-              >
-                {game?.away.abbreviation} {game?.home.abbreviation}{" "}
-                {pick.direction === "over" ? "O" : "U"}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-      <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
-        <div className="grid grid-rows-2 border-r border-slate-800">
+            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+          >
+            {picks.suddenDeath?.team ?? "—"}·SD
+          </span>
           <button
             type="button"
             aria-label="Edit weekly comment"
             aria-expanded={showComment}
             onClick={() => setShowComment((value) => !value)}
-            className={`grid place-items-center border-b border-slate-800 ${savedComment ? "text-cyan-300" : "text-slate-400"}`}
+            className={`grid place-items-center rounded-full border ${savedComment ? "border-cyan-500 text-cyan-300" : "border-slate-700 text-slate-400"}`}
           >
             <svg
               aria-hidden="true"
@@ -882,11 +899,14 @@ function Preview({
               <path d="M5 5h14v10H9l-4 4V5Z" />
             </svg>
           </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
+        <div className="grid border-r border-slate-800">
           <button
             type="button"
             onClick={() => {
               setPicks(EMPTY_PICKS);
-              setSubmittedDraft(null);
               setMessage("Draft cleared");
             }}
             className="text-[10px] font-bold text-slate-300 underline"
@@ -967,22 +987,29 @@ type PicksExperienceProps = {
     body: string,
   ) => Promise<{ ok: boolean; message: string }>;
   usedSuddenDeathTeams?: string[];
+  weeks?: { week_number: number; label: string }[];
+  linesFrozen?: boolean;
+  initialSubmittedPicks?: Picks;
 };
 
 export function PicksExperience({
   games = MOCK_GAMES,
   initialPicks = EMPTY_PICKS,
   draftTarget,
-  entryCode = "HARR",
   weekNumber = 1,
   submitAction,
   initialComment = "",
   commentLocked = false,
   commentAction,
   usedSuddenDeathTeams = [],
+  weeks = [{ week_number: weekNumber, label: `Week ${weekNumber}` }],
+  linesFrozen = false,
+  initialSubmittedPicks,
 }: PicksExperienceProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
-  const [showHelp, setShowHelp] = useState(false);
+  const [submittedDraft, setSubmittedDraft] = useState<string | null>(
+    initialSubmittedPicks ? JSON.stringify(initialSubmittedPicks) : null,
+  );
   const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
 
   useEffect(() => {
@@ -1023,121 +1050,56 @@ export function PicksExperience({
     return () => window.clearTimeout(timer);
   }, [draftReady, draftTarget, picks]);
 
+  const serializedDraft = JSON.stringify(picks);
+  const pickStatus =
+    submittedDraft === null
+      ? "Not Submitted"
+      : submittedDraft === serializedDraft
+        ? "Submitted"
+        : "Modified";
   return (
-    <main className="pick-shell gunmetal mx-auto min-h-screen max-w-2xl bg-slate-950 px-2 pb-[136px] text-slate-100">
-      <header className="sticky top-0 z-30 -mx-2 border-b border-slate-700 bg-slate-950/95 px-2 pt-1 backdrop-blur">
-        <div className="mb-1 flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-lime-300">
-            HPPP · 2026 · {entryCode}
-          </p>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              aria-label="Pool information"
-              aria-expanded={showHelp}
-              onClick={() => setShowHelp((value) => !value)}
-              className="control-raised grid size-6 place-items-center rounded-full border text-xs font-black"
-            >
-              i
-            </button>
-            <Link
-              href="/account"
-              aria-label="Profile"
-              className="control-raised grid size-6 place-items-center rounded-full border"
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                className="size-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <circle cx="12" cy="8" r="3.25" />
-                <path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
-              </svg>
-            </Link>
-          </div>
+    <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
+      <div className="sticky top-[49px] z-30 -mx-2 flex items-center justify-between gap-2 border-b border-slate-700 bg-slate-950/95 px-2 py-1.5 backdrop-blur sm:top-[57px]">
+        <div className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
+          <span
+            className={`rounded border px-1.5 py-1 ${linesFrozen ? "border-amber-600 text-amber-300" : "border-cyan-700 text-cyan-300"}`}
+          >
+            Lines · {linesFrozen ? "Frozen" : "Unfrozen"}
+          </span>
+          <span
+            className={`rounded border px-1.5 py-1 ${pickStatus === "Submitted" ? "border-emerald-700 text-emerald-300" : pickStatus === "Modified" ? "border-fuchsia-700 text-fuchsia-300" : "border-slate-700 text-slate-300"}`}
+          >
+            Picks · {pickStatus}
+          </span>
         </div>
-        <nav
-          className="grid grid-cols-3 border-b border-slate-600"
-          aria-label="Primary"
-        >
-          <Link
-            href="/"
-            aria-current="page"
-            className="grid min-h-7 place-items-center border-x border-t border-slate-600 bg-slate-100 text-[10px] font-black text-slate-950"
-          >
-            HOME
-          </Link>
-          <Link
-            href="/standings"
-            className="grid min-h-7 place-items-center border-x border-t border-slate-600 bg-slate-900 text-[10px] font-black text-slate-400"
-          >
-            STANDINGS
-          </Link>
-          <Link
-            href="/rules"
-            className="grid min-h-7 place-items-center border-x border-t border-slate-600 bg-slate-900 text-[10px] font-black text-slate-400"
-          >
-            RULES
-          </Link>
-        </nav>
-        <div className="flex items-center justify-between gap-1 py-1">
-          <div className="grid flex-1 grid-cols-2 rounded-lg border border-slate-600 bg-slate-900 p-0.5">
-            <span className="control-pressed grid min-h-6 place-items-center rounded text-[10px] font-black uppercase">
-              Picks
-            </span>
-            <Link
-              href="/grid"
-              className="grid min-h-6 place-items-center rounded text-[10px] font-black uppercase text-slate-400"
-            >
-              Grid
-            </Link>
-          </div>
-          <select
-            aria-label="Week"
-            className="min-h-7 rounded border border-slate-600 bg-slate-950 px-2 text-[10px] font-black"
-            defaultValue={String(weekNumber)}
-          >
-            <option value={String(weekNumber)}>Week {weekNumber}</option>
-          </select>
-        </div>
-        {showHelp && (
-          <div className="mb-1 rounded border border-fuchsia-400 bg-slate-900 px-2 py-1.5 text-[10px] leading-4 text-slate-200">
-            Pick 6 ATS and 3 totals. Use a crown or tap a preview logo to choose
-            BB; if omitted, your first ATS becomes BB when submitted. Choose one
-            SD and one UD. Hold SD and slide up to switch its team. Submit after
-            every change. Each game locks at its scheduled kickoff.
-          </div>
-        )}
-      </header>
-      <>
-        <section
-          className="mt-1.5 space-y-2"
-          aria-label={`Week ${weekNumber} games`}
-        >
-          {games.map((game) => (
-            <GameRow
-              key={game.id}
-              game={game}
-              picks={picks}
-              setPicks={setPicks}
-              usedSuddenDeathTeams={usedSuddenDeathTeams}
-            />
-          ))}
-        </section>
-        <Preview
-          picks={picks}
-          setPicks={setPicks}
-          games={games}
-          draftTarget={draftTarget}
-          submitAction={submitAction}
-          initialComment={initialComment}
-          commentLocked={commentLocked}
-          commentAction={commentAction}
-        />
-      </>
-    </main>
+        <WeekSelector weeks={weeks} selected={weekNumber} />
+      </div>
+      <section
+        className="mt-1.5 space-y-2"
+        aria-label={`Week ${weekNumber} games`}
+      >
+        {games.map((game) => (
+          <GameRow
+            key={game.id}
+            game={game}
+            picks={picks}
+            setPicks={setPicks}
+            usedSuddenDeathTeams={usedSuddenDeathTeams}
+          />
+        ))}
+      </section>
+      <Preview
+        picks={picks}
+        setPicks={setPicks}
+        games={games}
+        draftTarget={draftTarget}
+        submitAction={submitAction}
+        initialComment={initialComment}
+        commentLocked={commentLocked}
+        commentAction={commentAction}
+        submittedDraft={submittedDraft}
+        setSubmittedDraft={setSubmittedDraft}
+      />
+    </div>
   );
 }

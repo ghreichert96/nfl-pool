@@ -1,4 +1,5 @@
 import { PageHeading, PageShell } from "@/components/page-shell";
+import { WeekSelector } from "@/components/week-selector";
 import Image from "next/image";
 import {
   pickOutcome,
@@ -57,17 +58,25 @@ function leaders(values: string[]) {
   return [...counts.entries()].filter(([, count]) => count === max && max > 0);
 }
 
-export default async function GridPage() {
+export default async function GridPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ week?: string }>;
+}) {
   const { supabase, entry, isCommissioner } = await getPoolContext();
-  const { data: week } = entry
+  const { data: weeks } = entry
     ? await supabase
         .from("pool_weeks")
         .select("id, label, week_number")
         .eq("season_id", entry.season_id)
-        .order("week_number", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
+        .not("published_at", "is", null)
+        .order("week_number")
+    : { data: [] };
+  const requestedWeek = Number((await searchParams).week);
+  const week =
+    (weeks ?? []).find((item) => item.week_number === requestedWeek) ??
+    weeks?.at(-1) ??
+    null;
   const [
     { data: gameRows },
     { data: entries },
@@ -142,13 +151,31 @@ export default async function GridPage() {
         )
         .in("submission_id", submissionIds)
     : { data: [] };
+  const { data: presenceRows } = week
+    ? await supabase.rpc("week_submission_presence", {
+        target_week_id: week.id,
+      })
+    : { data: [] };
+  const submittedEntries = new Set(
+    (presenceRows ?? [])
+      .filter(
+        (item: { entry_id: number; has_submission: boolean }) =>
+          item.has_submission,
+      )
+      .map(
+        (item: { entry_id: number; has_submission: boolean }) => item.entry_id,
+      ),
+  );
   const entryBySubmission = new Map(
     [...latest].map(([entryId, submissionId]) => [submissionId, entryId]),
   );
+  // Grid visibility changes at request time as games kick off.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   const visiblePicks: GridPick[] = (pickRows ?? []).flatMap((pick) => {
     const entryId = entryBySubmission.get(pick.submission_id);
     const kickoff = kickoffMap.get(pick.game_id);
-    if (!entryId || !kickoff) return [];
+    if (!entryId || !kickoff || new Date(kickoff).getTime() > now) return [];
     return [
       {
         entryId,
@@ -191,63 +218,14 @@ export default async function GridPage() {
   return (
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
       <PageHeading
-        eyebrow="League board"
-        title="Weekly grid"
-        description="Only selections whose games have kicked off are visible."
+        eyebrow=""
+        title="Picks Grid"
         action={
-          <span className="control-raised rounded-md border px-3 py-2 text-xs font-black">
-            {week?.label ?? "No active week"}
-          </span>
+          week ? (
+            <WeekSelector weeks={weeks ?? []} selected={week.week_number} />
+          ) : undefined
         }
       />
-      <section
-        className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4"
-        aria-label="Most picked"
-      >
-        {(
-          [
-            ["ATS", most.ats],
-            ["O/U", most.totals],
-            ["UD", most.ud],
-            ["SD", most.sd],
-          ] as const
-        ).map(([label, items]) => (
-          <div key={label} className="game-card rounded-lg border p-3">
-            <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-              Most picked · {label}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {items.length ? (
-                items.map(([name, count]) => (
-                  <span
-                    key={name}
-                    className="rounded bg-slate-800 px-2 py-1 text-[10px] font-black"
-                  >
-                    {name} <em className="not-italic text-cyan-300">{count}</em>
-                    {label === "ATS" && (
-                      <small className="ml-1 text-amber-300">
-                        {
-                          visiblePicks.filter(
-                            (pick) =>
-                              pick.kind === "ats" &&
-                              pick.team === name &&
-                              pick.isBestBet,
-                          ).length
-                        }{" "}
-                        BB
-                      </small>
-                    )}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-slate-600">
-                  Waiting for kickoff
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-      </section>
       <section className="game-card overflow-hidden rounded-xl border shadow-xl">
         <div className="max-h-[65vh] overflow-auto">
           <table className="w-full min-w-[820px] border-separate border-spacing-0 text-xs">
@@ -346,9 +324,9 @@ export default async function GridPage() {
                               )}
                             />
                           )
-                        ) : (
+                        ) : submittedEntries.has(poolEntry.id) ? (
                           <span className="text-slate-700">—</span>
-                        )}
+                        ) : null}
                       </td>
                     ))}
                     <td className="max-w-52 border-b border-slate-800 px-3 py-2 text-[10px] leading-4 text-slate-400">
@@ -365,9 +343,73 @@ export default async function GridPage() {
           <span className="text-red-400">Red · loss</span>
           <span>Gray · tie</span>
           <span className="text-amber-300">Amber · live</span>
-          <span>— · hidden or unsubmitted</span>
+          <span>— · submitted selection hidden until kickoff</span>
         </div>
       </section>
+      <p className="mt-2 text-[10px] text-slate-500">
+        Selections and Most Picked totals appear only after each game kicks off.
+        Empty cells indicate no weekly submission.
+      </p>
+      <details className="game-card mt-4 rounded-xl border">
+        <summary className="cursor-pointer px-3 py-3 text-xs font-black uppercase">
+          Most Picked{" "}
+          <span className="ml-2 text-[10px] font-normal text-slate-500">
+            {[most.ats, most.totals, most.ud, most.sd]
+              .flatMap((items) => items.slice(0, 2).map(([name]) => name))
+              .slice(0, 4)
+              .join(" · ") || "Waiting for kickoff"}
+          </span>
+        </summary>
+        <section
+          className="grid grid-cols-2 gap-2 border-t border-slate-800 p-3 md:grid-cols-4"
+          aria-label="Most picked"
+        >
+          {(
+            [
+              ["MAIN", most.ats],
+              ["O/U", most.totals],
+              ["UD", most.ud],
+              ["SD", most.sd],
+            ] as const
+          ).map(([label, items]) => (
+            <div key={label}>
+              <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                {label}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {items.length ? (
+                  items.map(([name, count]) => (
+                    <span
+                      key={name}
+                      className="rounded bg-slate-800 px-2 py-1 text-[10px] font-black"
+                    >
+                      {name}{" "}
+                      <em className="not-italic text-cyan-300">{count}</em>
+                      {label === "MAIN" && (
+                        <small className="ml-1 text-amber-300">
+                          {
+                            visiblePicks.filter(
+                              (pick) =>
+                                pick.kind === "ats" &&
+                                pick.team === name &&
+                                pick.isBestBet,
+                            ).length
+                          }{" "}
+                          BB
+                        </small>
+                      )}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-xs text-slate-600">
+                    Waiting for kickoff
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      </details>
     </PageShell>
   );
 }
