@@ -38,3 +38,39 @@ The first migration creates five application tables: profiles, pools, pool membe
 - Database changes use versioned migrations.
 - The live Supabase project remains untouched until migrations, row-level security, and rollback procedures are verified locally.
 - Secrets belong in local or deployment environment variables and must never be committed.
+
+## Week simulator
+
+Commissioners can open `/admin/test-lab` during local development to generate 12
+dummy entries and an eight-game slate. The stage controls move games through
+pre-freeze, Thursday, Sunday, and final states using the real visibility and
+scoring behavior. Reset or delete the fixture from the same page. Production
+access requires the explicit `ENABLE_TEST_LAB=true` environment variable.
+
+## Odds intake
+
+Set `ODDS_API_KEY` in `.env.local` and in the Vercel project environment. The
+Admin pane can refresh the active week's NFL spreads and totals before its lines
+are frozen. Each refresh retains bookmaker snapshots, consensus lines, quota
+information, and an audit record.
+
+Scheduled refreshes use `.github/workflows/odds-ingestion.yml`. Configure these
+GitHub Actions secrets:
+
+- `ODDS_INGEST_URL`: the deployed Vercel origin, without a trailing slash
+- `CRON_SECRET`: a random bearer token
+
+Set the same `CRON_SECRET` in Vercel. The Odds API key remains only in Vercel;
+the scheduled request never sends it through GitHub Actions.
+
+## Entrant onboarding
+
+Commissioners invite entrants with an email address and E.164 phone number from
+`/admin`. Invitations remain pending for seven days and can be resent or revoked
+from `/admin/entrants`. Entrants choose their entry abbreviation and password
+after following the email invitation. Login accepts either email or the active
+entry abbreviation. SMS login is intentionally deferred; phone numbers remain
+private to the entrant and commissioner.
+
+Commissioners can edit public rule-section copy at `/admin/manage`. Scoring
+tables and scoring behavior remain code-controlled.

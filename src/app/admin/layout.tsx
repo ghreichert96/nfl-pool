@@ -8,7 +8,7 @@ const tabs = [
   ["Lines", "/admin/lines"],
   ["Entrants", "/admin/entrants"],
   ["Picks", "/admin/picks"],
-  ["Rules & messages", "/admin/manage"],
+  ["Rules", "/admin/manage"],
 ] as const;
 
 export default async function AdminLayout({

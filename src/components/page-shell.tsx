@@ -12,7 +12,7 @@ export function PageShell({
   isCommissioner?: boolean;
 }) {
   return (
-    <div className="pick-shell gunmetal min-h-screen bg-slate-950 text-slate-100">
+    <div className="pick-shell gunmetal min-h-screen bg-slate-950 pb-16 text-slate-100 sm:pb-0">
       <AppNav entryCode={entryCode} isCommissioner={isCommissioner} />
       <main className="mx-auto w-full max-w-6xl px-3 py-5 sm:px-5 sm:py-8">
         {children}
