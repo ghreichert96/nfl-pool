@@ -1,6 +1,7 @@
 import { PageHeading, PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 import { saveRuleSection } from "./actions";
+import { PublishButton } from "./publish-button";
 
 export default async function ManagePoolPage({
   searchParams,
@@ -82,9 +83,7 @@ export default async function ManagePoolPage({
                 className="control-raised rounded-lg border p-3 text-sm normal-case"
               />
             </label>
-            <button className="control-pressed min-h-11 rounded-lg border text-xs font-black">
-              PUBLISH SECTION
-            </button>
+            <PublishButton />
           </form>
         ))}
       </div>

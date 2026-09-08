@@ -233,6 +233,14 @@ export async function inviteEntry(formData: FormData) {
     });
 
   if (provisionError) redirect("/admin?error=provision");
+  await admin.from("commissioner_audit_events").insert({
+    pool_id: poolId,
+    actor_id: userId,
+    action: "entrant_invited",
+    entity_type: "pool_invitation",
+    entity_id: invitationId,
+    details: { delivery: "email" },
+  });
   redirect("/admin?sent=1");
 }
 
