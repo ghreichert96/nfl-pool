@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --background: #050607;
+  --foreground: #f4f7f5;
+  --muted: #a3b0aa;
+  --accent: #b8ff5a;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  min-height: 100%;
+}
+
+.pick-shell {
+  --panel: #0f172a;
+  --panel-raised: #172033;
+  --line: #475569;
+  --accent-ui: #b8ff5a;
+  --accent-ink: #07110d;
+  --badge: #38bdf8;
+}
+
+.pick-shell.retro {
+  --panel: #181526;
+  --panel-raised: #29223d;
+  --line: #74658c;
+  --accent-ui: #63d471;
+  --accent-ink: #101512;
+  --badge: #d95fd1;
+  background-color: #100e19;
+  background-image: linear-gradient(
+    rgb(255 255 255 / 0.025) 1px,
+    transparent 1px
+  );
+  background-size: 100% 4px;
+}
+
+.pick-shell.gunmetal {
+  --panel: #111417;
+  --panel-raised: #252b31;
+  --line: #68737d;
+  --accent-ui: #d7dde2;
+  --accent-ink: #111417;
+  background-color: #050607;
+  background-image: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.018),
+    transparent 28%
+  );
+}
+
+.gunmetal > header,
+.gunmetal aside {
+  border-color: #4f5962;
+  background-color: rgb(7 9 11 / 0.98);
+}
+
+.gunmetal > header p {
+  color: #d7dde2;
+}
+
+.game-card {
+  border-color: var(--line);
+  background: var(--panel);
+}
+
+.game-card-live {
+  border-color: #a88735;
+  background: #211e19;
+}
+
+.game-card-final {
+  border-color: #64748b;
+  background: #171b22;
+}
+
+.game-badge {
+  background: var(--badge);
+}
+
+.control-raised {
+  border-color: var(--line);
+  background: var(--panel-raised);
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.14),
+    0 3px 0 #05070b;
+}
+
+.control-pressed {
+  border-color: #d8ff9d;
+  background: var(--accent-ui);
+  color: var(--accent-ink);
+  box-shadow: inset 0 3px 5px rgb(0 0 0 / 0.48);
+}
+
+.retro .control-raised,
+.retro .control-pressed,
+.retro .game-card,
+.retro .game-card-live,
+.retro .game-card-final {
+  border-radius: 3px;
+}
+
+.retro .control-raised {
+  box-shadow:
+    inset 2px 2px 0 rgb(255 255 255 / 0.2),
+    inset -2px -2px 0 rgb(0 0 0 / 0.35),
+    0 3px 0 #050408;
+}
+
+.retro .control-pressed {
+  box-shadow:
+    inset 3px 3px 0 rgb(0 0 0 / 0.45),
+    inset -1px -1px 0 rgb(255 255 255 / 0.14);
+}
+
+.gunmetal .control-raised {
+  border-color: #68737d;
+  background: #252b31;
+  box-shadow:
+    inset 0 2px 0 rgb(255 255 255 / 0.2),
+    inset 0 -2px 0 rgb(0 0 0 / 0.28),
+    0 4px 0 #020303;
+}
+
+.gunmetal .control-pressed {
+  border-color: #f0f3f5;
+  background: #d7dde2;
+  color: #111417;
+  box-shadow:
+    inset 0 4px 7px rgb(0 0 0 / 0.55),
+    inset 0 -1px 0 rgb(255 255 255 / 0.4);
+}
+
+.pick-modified {
+  background-color: #4a044e !important;
+  color: #fae8ff !important;
+  box-shadow: inset 0 0 0 2px #e879f9 !important;
+}
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
