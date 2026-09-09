@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { AppNav } from "./app-nav";
+import { ThemeInitializer } from "./theme-controls";
 
 export function PageShell({
   children,
@@ -15,6 +16,7 @@ export function PageShell({
 }) {
   return (
     <div className="pick-shell gunmetal min-h-screen bg-slate-950 pb-[calc(4rem+env(safe-area-inset-bottom))] text-slate-100 sm:pb-0">
+      <ThemeInitializer />
       <AppNav entryCode={entryCode} isCommissioner={isCommissioner} />
       <main
         className={`mx-auto w-full max-w-6xl px-3 sm:px-5 ${compact ? "py-0" : "py-5 sm:py-8"}`}

@@ -56,15 +56,14 @@ describe("Home", () => {
     );
   });
 
-  it("opens the comment editor and highlights incomplete submission status", () => {
+  it("shows the comment editor below the games and highlights incomplete submission status", () => {
     render(<PicksExperience />);
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Edit weekly comment" }),
-    );
-    expect(screen.getByLabelText("Weekly comment")).toHaveAttribute(
-      "maxlength",
-      "40",
+    expect(
+      screen.getByRole("textbox", { name: "Weekly comment" }),
+    ).toHaveAttribute("maxlength", "40");
+    expect(screen.getByRole("textbox", { name: "Weekly comment" })).toHaveClass(
+      "text-base",
     );
 
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));

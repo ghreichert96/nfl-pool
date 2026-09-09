@@ -61,11 +61,7 @@ export default async function RulesPage() {
     : sections;
   return (
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
-      <PageHeading
-        eyebrow="HPPP field guide"
-        title="Rules"
-        description="The short version of how the 2026 regular-season pool works."
-      />
+      <PageHeading eyebrow="" title="Rules" />
       <div className="grid gap-3 md:grid-cols-2">
         {displayedSections.map((section) => (
           <details

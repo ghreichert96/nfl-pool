@@ -41,6 +41,8 @@ function badgeColorClass(badge: string) {
   const normalized = badge.toUpperCase();
   if (normalized === "TNF") return "bg-teal-400 text-slate-950";
   if (normalized === "INTL") return "bg-cyan-400 text-slate-950";
+  if (normalized === "SPE" || normalized === "HOL")
+    return "bg-amber-300 text-slate-950";
   if (normalized === "1 PM") return "bg-blue-400 text-slate-950";
   if (normalized === "4 PM") return "bg-orange-400 text-slate-950";
   if (normalized === "SNF") return "bg-violet-400 text-slate-950";
@@ -163,6 +165,19 @@ function LockIcon({ locked }: { locked: boolean }) {
   );
 }
 
+function CrownIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 18"
+      className={className}
+      fill="currentColor"
+    >
+      <path d="M2 4l5 5 5-8 5 8 5-5-2 12H4L2 4Z" />
+    </svg>
+  );
+}
+
 function TeamToggle({
   game,
   team,
@@ -220,9 +235,9 @@ function TeamToggle({
           }
           aria-pressed={bestBet}
           onClick={onBestBet}
-          className={`absolute top-1 z-10 grid size-5 place-items-center rounded-t-sm rounded-b-full border text-sm leading-none shadow-md ${side === "away" ? "-right-3.5" : "-left-3.5"} ${bestBet ? "border-amber-200 bg-amber-300 text-slate-950 shadow-[inset_0_2px_3px_rgb(0_0_0/0.35)]" : "control-raised text-slate-400"}`}
+          className={`absolute -top-1 z-10 grid size-6 place-items-center rounded-t-sm rounded-b-full border leading-none shadow-md ${side === "away" ? "-right-4" : "-left-4"} ${bestBet ? "border-amber-100 bg-amber-300 text-slate-950 shadow-[inset_0_2px_3px_rgb(0_0_0/0.35)]" : "control-raised text-slate-300"}`}
         >
-          ♛
+          <CrownIcon />
         </button>
       )}
     </div>
@@ -640,15 +655,85 @@ function totalResult(
     : ("loss" as const);
 }
 
+function WeeklyCommentEditor({
+  draftTarget,
+  initialComment,
+  locked,
+  action,
+}: {
+  draftTarget?: { entryId: number; weekId: number };
+  initialComment: string;
+  locked: boolean;
+  action?: (
+    target: { entryId: number; weekId: number },
+    body: string,
+  ) => Promise<{ ok: boolean; message: string }>;
+}) {
+  const [comment, setComment] = useState(initialComment);
+  const [savedComment, setSavedComment] = useState(initialComment);
+  const [status, setStatus] = useState("");
+  const [saving, setSaving] = useState(false);
+  const changed = comment.trim() !== savedComment;
+
+  return (
+    <section
+      className="game-card rounded-xl border p-3"
+      aria-label="Weekly comment"
+    >
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <label
+          htmlFor="weekly-comment"
+          className="text-xs font-black uppercase"
+        >
+          Weekly comment
+        </label>
+        <span className="text-[10px] text-slate-500">{comment.length}/40</span>
+      </div>
+      <textarea
+        id="weekly-comment"
+        value={comment}
+        onChange={(event) => setComment(event.target.value.slice(0, 40))}
+        disabled={locked}
+        maxLength={40}
+        rows={2}
+        placeholder="Talk a little trash…"
+        className={`control-raised block min-h-14 w-full resize-none rounded-lg border px-3 py-2 text-base ${savedComment ? "border-cyan-600" : ""}`}
+      />
+      <div className="mt-2 flex min-h-9 items-center justify-between gap-2">
+        <span role="status" className="text-[10px] text-slate-500">
+          {locked
+            ? "Comments locked after the final kickoff"
+            : status ||
+              (savedComment
+                ? "Comment saved"
+                : "Optional · visible immediately")}
+        </span>
+        <button
+          type="button"
+          disabled={locked || saving || !changed || !draftTarget || !action}
+          onClick={async () => {
+            if (!draftTarget || !action) return;
+            setSaving(true);
+            const result = await action(draftTarget, comment);
+            setSaving(false);
+            setStatus(result.message);
+            if (result.ok) setSavedComment(comment.trim());
+          }}
+          className="control-pressed min-h-9 rounded-md border px-4 text-[10px] font-black disabled:opacity-40"
+        >
+          {saving ? "SAVING" : changed ? "SAVE COMMENT" : "COMMENT SAVED"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function Preview({
   picks,
   setPicks,
   games,
   draftTarget,
   submitAction,
-  initialComment,
-  commentLocked,
-  commentAction,
   submittedDraft,
   setSubmittedDraft,
 }: {
@@ -660,12 +745,6 @@ function Preview({
     target: { entryId: number; weekId: number },
     picks: Picks,
   ) => Promise<{ ok: boolean; message: string }>;
-  initialComment: string;
-  commentLocked: boolean;
-  commentAction?: (
-    target: { entryId: number; weekId: number },
-    body: string,
-  ) => Promise<{ ok: boolean; message: string }>;
   submittedDraft: string | null;
   setSubmittedDraft: React.Dispatch<React.SetStateAction<string | null>>;
 }) {
@@ -673,10 +752,6 @@ function Preview({
     draftTarget ? "Draft saved" : "Draft saved on this device",
   );
   const [submitting, setSubmitting] = useState(false);
-  const [showComment, setShowComment] = useState(false);
-  const [comment, setComment] = useState(initialComment);
-  const [savedComment, setSavedComment] = useState(initialComment);
-  const [commentStatus, setCommentStatus] = useState("");
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -710,59 +785,6 @@ function Preview({
 
   return (
     <aside className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur sm:bottom-0">
-      {showComment && (
-        <div className="border-b border-slate-800 p-2">
-          <label
-            className="text-[10px] font-black uppercase tracking-wider text-slate-400"
-            htmlFor="weekly-comment"
-          >
-            Weekly comment
-          </label>
-          <div className="mt-1 flex gap-1">
-            <input
-              id="weekly-comment"
-              value={comment}
-              onChange={(event) => setComment(event.target.value.slice(0, 40))}
-              disabled={commentLocked}
-              maxLength={40}
-              placeholder="Talk a little trash…"
-              className="control-raised min-h-10 min-w-0 flex-1 rounded-md border px-2 text-sm"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setComment(savedComment);
-                setShowComment(false);
-              }}
-              className="control-raised rounded-md border px-2 text-[10px] font-black"
-            >
-              CANCEL
-            </button>
-            <button
-              type="button"
-              disabled={commentLocked || !draftTarget || !commentAction}
-              onClick={async () => {
-                if (!draftTarget || !commentAction) return;
-                const result = await commentAction(draftTarget, comment);
-                setCommentStatus(result.message);
-                if (result.ok) {
-                  setSavedComment(comment.trim());
-                  setShowComment(false);
-                }
-              }}
-              className="control-pressed rounded-md border px-3 text-[10px] font-black"
-            >
-              SAVE
-            </button>
-          </div>
-          <div className="mt-1 flex justify-between text-[9px] text-slate-500">
-            <span role="status">
-              {commentLocked ? "Comments locked" : commentStatus}
-            </span>
-            <span>{comment.length}/40</span>
-          </div>
-        </div>
-      )}
       <div className="space-y-1 px-2 py-1.5">
         <div
           className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
@@ -822,8 +844,8 @@ function Preview({
                 className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
               >
                 {bestBet && (
-                  <span className="absolute -top-2.5 z-10 text-xs text-amber-300">
-                    ♛
+                  <span className="absolute -top-2.5 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
+                    <CrownIcon className="h-3.5 w-5" />
                   </span>
                 )}
                 <Logo
@@ -840,7 +862,7 @@ function Preview({
             );
           })}
         </div>
-        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_48px_48px_36px] gap-1 text-[9px] font-black">
+        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_48px_48px] gap-1 text-[9px] font-black">
           {Array.from({ length: 3 }, (_, index) => {
             const pick = picks.totals[index];
             if (!pick)
@@ -884,24 +906,6 @@ function Preview({
           >
             {picks.suddenDeath?.team ?? "—"}·SD
           </span>
-          <button
-            type="button"
-            aria-label="Edit weekly comment"
-            aria-expanded={showComment}
-            onClick={() => setShowComment((value) => !value)}
-            className={`grid place-items-center rounded-full border ${savedComment ? "border-cyan-500 text-cyan-300" : "border-slate-700 text-slate-400"}`}
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              className="size-3.5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="M5 5h14v10H9l-4 4V5Z" />
-            </svg>
-          </button>
         </div>
       </div>
       <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
@@ -1090,6 +1094,12 @@ export function PicksExperience({
             usedSuddenDeathTeams={usedSuddenDeathTeams}
           />
         ))}
+        <WeeklyCommentEditor
+          draftTarget={draftTarget}
+          initialComment={initialComment}
+          locked={commentLocked}
+          action={commentAction}
+        />
       </section>
       <Preview
         picks={picks}
@@ -1097,9 +1107,6 @@ export function PicksExperience({
         games={games}
         draftTarget={draftTarget}
         submitAction={submitAction}
-        initialComment={initialComment}
-        commentLocked={commentLocked}
-        commentAction={commentAction}
         submittedDraft={submittedDraft}
         setSubmittedDraft={setSubmittedDraft}
       />

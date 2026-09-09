@@ -3,6 +3,7 @@ import { PageHeading, PageShell } from "@/components/page-shell";
 import { PhoneInput } from "@/components/phone-input";
 import { getPoolContext } from "@/lib/pool-context";
 import { updateSettings } from "@/app/account/actions";
+import { ThemeSelector } from "@/components/theme-controls";
 
 export default async function SettingsPage({
   searchParams,
@@ -19,11 +20,7 @@ export default async function SettingsPage({
     .maybeSingle();
   return (
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
-      <PageHeading
-        eyebrow="Account"
-        title="Settings"
-        description="Update your login identity and contact details."
-      />
+      <PageHeading eyebrow="" title="Settings" />
       <section className="game-card mx-auto max-w-lg rounded-xl border p-5">
         {params.saved && (
           <p
@@ -77,6 +74,8 @@ export default async function SettingsPage({
             SAVE SETTINGS
           </button>
         </form>
+        <div className="my-4 border-t border-slate-800" />
+        <ThemeSelector />
         <Link
           href="/account/password"
           className="control-raised mt-3 grid min-h-12 place-items-center rounded-lg border text-sm font-black"

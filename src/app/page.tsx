@@ -15,6 +15,8 @@ export const dynamic = "force-dynamic";
 function gameBadge(gameType: string, kickoffAt: string) {
   const named: Record<string, string> = {
     international: "INTL",
+    special: "SPE",
+    holiday: "HOL",
     tnf: "TNF",
     snf: "SNF",
     mnf: "MNF",
