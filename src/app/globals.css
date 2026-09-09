@@ -222,6 +222,28 @@ select {
   box-shadow: inset 0 0 0 2px #e879f9 !important;
 }
 
+@keyframes route-progress-loading {
+  0% {
+    width: 4%;
+  }
+  55% {
+    width: 68%;
+  }
+  100% {
+    width: 88%;
+  }
+}
+
+.route-progress-loading > span {
+  animation: route-progress-loading 2.8s cubic-bezier(0.2, 0.75, 0.35, 1)
+    forwards;
+}
+
+.route-progress-complete > span {
+  width: 100%;
+  transition: width 140ms ease-out;
+}
+
 @keyframes sd-card-flip {
   0% {
     transform: perspective(240px) rotateY(0deg);
@@ -239,8 +261,13 @@ select {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sd-card-flip {
+  .sd-card-flip,
+  .route-progress-loading > span {
     animation: none;
+  }
+
+  .route-progress-loading > span {
+    width: 75%;
   }
 }
 body {

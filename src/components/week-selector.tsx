@@ -1,5 +1,7 @@
 "use client";
 
+import { startNavigation } from "./navigation-progress";
+
 export function WeekSelector({
   weeks,
   selected,
@@ -18,7 +20,10 @@ export function WeekSelector({
         aria-label="Week"
         name="week"
         defaultValue={selected}
-        onChange={(event) => event.currentTarget.form?.requestSubmit()}
+        onChange={(event) => {
+          startNavigation();
+          event.currentTarget.form?.requestSubmit();
+        }}
         className="control-raised min-h-9 rounded-md border px-2 text-xs font-black"
       >
         {weeks.map((week) => (

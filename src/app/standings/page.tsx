@@ -1,8 +1,8 @@
-import Link from "next/link";
 import Image from "next/image";
 
 import { PageHeading, PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
+import { StandingsTabs } from "@/components/standings-tabs";
 import { loadCompetition } from "@/features/competition/data";
 import {
   gamesBack,
@@ -41,6 +41,11 @@ export default async function StandingsPage({
           supabase,
           entry.season_id,
           selectedWeek.week_number,
+          {
+            includeComments: false,
+            includePayouts: view === "overall",
+            includeTeams: view === "sd" || view === "ud",
+          },
         )
       : null;
   const entryMap = new Map(data?.entries.map((item) => [item.id, item]));
@@ -81,30 +86,11 @@ export default async function StandingsPage({
             ) : undefined
           }
         />
-        <nav
-          aria-label="Standings views"
-          className="mb-4 grid grid-cols-4 rounded-lg border border-slate-700 bg-slate-950 p-1"
-        >
-          {[
-            ["overall", "Overall"],
-            ["main", "Main"],
-            ["sd", "Sudden Death"],
-            ["ud", "Underdog"],
-          ].map(([key, label]) => (
-            <Link
-              key={key}
-              href={`/standings?view=${key}${selectedWeek ? `&week=${selectedWeek.week_number}` : ""}`}
-              aria-current={view === key ? "page" : undefined}
-              className={`grid min-h-10 place-items-center rounded-md text-[10px] font-black uppercase ${view === key ? "control-pressed" : "text-slate-400"}`}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <StandingsTabs view={view} weekNumber={selectedWeek?.week_number} />
         {view === "overall" ? (
           <section className="game-card overflow-hidden rounded-xl border shadow-xl">
             <div className="max-h-[68vh] overflow-auto">
-              <table className="w-full min-w-[500px] border-separate border-spacing-0 text-[10px]">
+              <table className="w-full border-separate border-spacing-0 text-[10px]">
                 <thead className="sticky top-0 z-20 bg-slate-950">
                   <tr>
                     {[
@@ -118,7 +104,7 @@ export default async function StandingsPage({
                     ].map((header, index) => (
                       <th
                         key={header}
-                        className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-right text-[8px] uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 z-30 w-10 bg-slate-950 text-left" : ""} ${index >= 4 ? "w-12" : ""}`}
+                        className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-left text-[8px] uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 z-30 w-10 bg-slate-950" : ""} ${index === 2 ? "w-12" : ""} ${index === 3 ? "w-7" : ""} ${index >= 4 ? "w-11" : ""}`}
                       >
                         {header}
                       </th>
@@ -133,22 +119,22 @@ export default async function StandingsPage({
                         standing.entryId === entry?.id ? "bg-slate-800/50" : ""
                       }
                     >
-                      <td className="w-7 border-b border-slate-800 px-1 py-2 text-right font-black text-slate-400">
+                      <td className="w-6 border-b border-slate-800 px-1 py-2 text-left font-black text-slate-400">
                         {ranks.get(standing.entryId)}
                       </td>
                       <th className="sticky left-0 w-10 border-b border-slate-800 bg-[#111417] px-1 py-2 text-left font-black">
                         {entryMap.get(standing.entryId)?.entry_code}
                       </th>
-                      <td className="border-b border-slate-800 px-1.5 py-2 text-right">
+                      <td className="w-12 border-b border-slate-800 px-1 py-2 text-left">
                         {standing.wins}-{standing.losses}-{standing.ties}
                       </td>
-                      <td className="border-b border-slate-800 px-1.5 py-2 text-right">
+                      <td className="w-7 border-b border-slate-800 px-1 py-2 text-left">
                         {gamesBack(standing, data.standings).toFixed(1)}
                       </td>
-                      <td className="border-b border-slate-800 px-1 py-2 text-right font-black text-fuchsia-300">
+                      <td className="w-11 border-b border-slate-800 px-1 py-2 text-left font-black text-fuchsia-300">
                         {standing.underdogPoints.toFixed(1)}
                       </td>
-                      <td className="border-b border-slate-800 px-1 py-2 text-right">
+                      <td className="w-11 border-b border-slate-800 px-1 py-2 text-left">
                         <span
                           className={
                             standing.eliminated
@@ -159,7 +145,7 @@ export default async function StandingsPage({
                           {standing.suddenDeathStrikes}/2
                         </span>
                       </td>
-                      <td className="border-b border-slate-800 px-1 py-2 text-right font-black">
+                      <td className="w-12 border-b border-slate-800 px-1 py-2 text-left font-black">
                         {formatMoney(
                           data.financials.get(standing.entryId)?.net ?? 0,
                         )}
@@ -205,14 +191,14 @@ function MainBreakdownTable({
   return (
     <section className="game-card overflow-hidden rounded-xl border">
       <div className="overflow-auto">
-        <table className="w-full min-w-[390px] border-separate border-spacing-0 text-[10px]">
+        <table className="w-full border-separate border-spacing-0 text-[10px]">
           <thead className="sticky top-0 z-20 bg-slate-950">
             <tr>
               {["RK", "TM", "W-L-T", "BB", "ATS", "O/U"].map(
                 (header, index) => (
                   <th
                     key={header}
-                    className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-right text-[8px] uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 w-10 bg-slate-950 text-left" : ""}`}
+                    className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-left text-[8px] uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 w-10 bg-slate-950" : ""} ${index >= 2 ? "w-12" : ""}`}
                   >
                     {header}
                   </th>
@@ -232,7 +218,7 @@ function MainBreakdownTable({
                     standing.entryId === entryId ? "bg-slate-800/50" : ""
                   }
                 >
-                  <td className="w-6 border-b border-slate-800 px-1 py-2 text-right text-slate-400">
+                  <td className="w-6 border-b border-slate-800 px-1 py-2 text-left text-slate-400">
                     {ranks.get(standing.entryId)}
                   </td>
                   <th className="sticky left-0 w-10 border-b border-slate-800 bg-[#111417] px-1 py-2 text-left">
@@ -241,10 +227,10 @@ function MainBreakdownTable({
                         ?.entry_code
                     }
                   </th>
-                  <td className="border-b border-slate-800 px-1.5 py-2 text-right font-black">
+                  <td className="w-12 border-b border-slate-800 px-1 py-2 text-left font-black">
                     {standing.wins}-{standing.losses}-{standing.ties}
                   </td>
-                  <td className="border-b border-slate-800 px-1.5 py-2 text-right">
+                  <td className="w-12 border-b border-slate-800 px-1 py-2 text-left">
                     {displayRecord(
                       recordForPicks(
                         data.games,
@@ -253,10 +239,10 @@ function MainBreakdownTable({
                       ),
                     )}
                   </td>
-                  <td className="border-b border-slate-800 px-1.5 py-2 text-right">
+                  <td className="w-12 border-b border-slate-800 px-1 py-2 text-left">
                     {displayRecord(recordForPicks(data.games, picks, ["ats"]))}
                   </td>
-                  <td className="border-b border-slate-800 px-1.5 py-2 text-right">
+                  <td className="w-12 border-b border-slate-800 px-1 py-2 text-left">
                     {displayRecord(
                       recordForPicks(data.games, picks, ["total"]),
                     )}
@@ -304,18 +290,14 @@ function SidePoolTable({
         <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">
           <thead className="bg-slate-950">
             <tr>
-              {kind === "underdog" && (
-                <th className="sticky left-0 z-30 w-7 min-w-7 bg-slate-950 px-1 py-2 text-left">
-                  RK
-                </th>
-              )}
-              <th
-                className={`sticky z-20 w-12 min-w-12 bg-slate-950 px-1.5 py-2 text-left ${kind === "underdog" ? "left-7" : "left-0"}`}
-              >
+              <th className="sticky left-0 z-30 w-7 min-w-7 bg-slate-950 px-1 py-2 text-left">
+                RK
+              </th>
+              <th className="sticky left-7 z-20 w-11 min-w-11 bg-slate-950 px-1 py-2 text-left">
                 TM
               </th>
               {data.weeks.map((week) => (
-                <th key={week.id} className="w-14 min-w-14 px-1 py-2 text-left">
+                <th key={week.id} className="w-12 min-w-12 px-1 py-2 text-left">
                   W{week.week_number}
                 </th>
               ))}
@@ -334,14 +316,10 @@ function SidePoolTable({
                   key={poolEntry.id}
                   className={standing?.eliminated ? "bg-red-950/35" : ""}
                 >
-                  {kind === "underdog" && (
-                    <td className="sticky left-0 z-20 w-7 min-w-7 border-t border-slate-800 bg-[#111417] px-1 py-2 text-slate-500">
-                      {entryIndex + 1}
-                    </td>
-                  )}
-                  <th
-                    className={`sticky z-10 w-12 min-w-12 border-t border-slate-800 bg-[#111417] px-1.5 py-2 text-left ${kind === "underdog" ? "left-7" : "left-0"}`}
-                  >
+                  <td className="sticky left-0 z-20 w-7 min-w-7 border-t border-slate-800 bg-[#111417] px-1 py-2 text-left text-slate-500">
+                    {entryIndex + 1}
+                  </td>
+                  <th className="sticky left-7 z-10 w-11 min-w-11 border-t border-slate-800 bg-[#111417] px-1 py-2 text-left">
                     {entryMap.get(poolEntry.id)?.entry_code}
                   </th>
                   {data.weeks.map((week) => {
@@ -365,7 +343,7 @@ function SidePoolTable({
                     return (
                       <td
                         key={week.id}
-                        className="w-14 min-w-14 border-t border-slate-800 px-1 py-1.5 text-left"
+                        className="w-12 min-w-12 border-t border-slate-800 px-1 py-1.5 text-left"
                       >
                         <span
                           className={`font-black ${outcome === "win" ? "text-emerald-400" : outcome === "loss" ? "text-red-400" : outcome === "tie" ? "text-slate-300" : "text-slate-600"}`}
@@ -376,7 +354,7 @@ function SidePoolTable({
                               alt=""
                               width={20}
                               height={20}
-                              className="mx-auto size-5 object-contain"
+                              className="size-5 object-contain object-left"
                             />
                           ) : null}
                           {pick?.team ?? "—"}
