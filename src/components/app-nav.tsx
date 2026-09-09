@@ -125,7 +125,13 @@ function pageHelp(pathname: string) {
   if (pathname.startsWith("/admin"))
     return "Commissioner tools manage entrants, lines, results, rules, payouts, and testing. Administrative changes are audited.";
   if (pathname.startsWith("/rules"))
-    return "These are the published pool rules. Commissioner prose edits are revisioned.";
+    return "The 2026 regular-season pool rules. Commissioner prose edits publish immediately and are revisioned.";
+  if (pathname.startsWith("/settings"))
+    return "Update your entry name, login email, phone number, password, and display theme.";
+  if (pathname.startsWith("/account"))
+    return "Your identity, competition summary, and current pool membership.";
+  if (pathname.startsWith("/about"))
+    return "Background, purpose, commissioner contact details, and app context.";
   return "Use the navigation to move through the pool. Account and support pages are available from Menu.";
 }
 
@@ -331,7 +337,7 @@ export function AppNav({
                 </Link>
               </div>
               <form action={signOut}>
-                <button className="w-full rounded-lg border border-red-900 px-3 py-3 text-xs font-black text-red-300">
+                <button className="mt-3 ml-auto block rounded-md px-2 py-1.5 text-[10px] font-bold text-slate-500 underline decoration-slate-700 underline-offset-2">
                   SIGN OUT
                 </button>
               </form>

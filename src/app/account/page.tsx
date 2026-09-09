@@ -36,11 +36,7 @@ export default async function AccountPage({
 
   return (
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
-      <PageHeading
-        eyebrow="Account"
-        title="Profile"
-        description="Your identity and current pool membership."
-      />
+      <PageHeading eyebrow="" title="Profile" />
       {standing && (
         <section className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
           {[

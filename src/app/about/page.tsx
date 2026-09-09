@@ -4,11 +4,7 @@ export default async function AboutPage() {
   const { entry, isCommissioner } = await getPoolContext();
   return (
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
-      <PageHeading
-        eyebrow="Est. Fall 2024"
-        title="About the pool"
-        description="An independent, commissioner-run football picks pool."
-      />
+      <PageHeading eyebrow="" title="About the pool" />
       <section className="game-card rounded-xl border p-5 text-sm leading-6 text-slate-300">
         <p>
           This pool is inspired by a spreads pool of Virginia dads, the Cville

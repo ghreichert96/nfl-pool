@@ -172,10 +172,10 @@ export default async function GridPage({
   // Grid visibility changes at request time as games kick off.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
-  const visiblePicks: GridPick[] = (pickRows ?? []).flatMap((pick) => {
+  const authorizedPicks: GridPick[] = (pickRows ?? []).flatMap((pick) => {
     const entryId = entryBySubmission.get(pick.submission_id);
     const kickoff = kickoffMap.get(pick.game_id);
-    if (!entryId || !kickoff || new Date(kickoff).getTime() > now) return [];
+    if (!entryId || !kickoff) return [];
     return [
       {
         entryId,
@@ -189,14 +189,21 @@ export default async function GridPage({
       },
     ];
   });
+  const visiblePicks = authorizedPicks.filter(
+    (pick) =>
+      pick.entryId === entry?.id || new Date(pick.kickoff).getTime() <= now,
+  );
+  const consensusPicks = authorizedPicks.filter(
+    (pick) => new Date(pick.kickoff).getTime() <= now,
+  );
   const most = {
     ats: leaders(
-      visiblePicks
+      consensusPicks
         .filter((pick) => pick.kind === "ats")
         .map((pick) => pick.team!),
     ),
     totals: leaders(
-      visiblePicks
+      consensusPicks
         .filter((pick) => pick.kind === "total")
         .map(
           (pick) =>
@@ -204,212 +211,220 @@ export default async function GridPage({
         ),
     ),
     ud: leaders(
-      visiblePicks
+      consensusPicks
         .filter((pick) => pick.kind === "underdog")
         .map((pick) => pick.team!),
     ),
     sd: leaders(
-      visiblePicks
+      consensusPicks
         .filter((pick) => pick.kind === "sudden_death")
         .map((pick) => pick.team!),
     ),
   };
 
   return (
-    <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
-      <PageHeading
-        eyebrow=""
-        title="Weekly Picks Grid"
-        action={
-          week ? (
-            <WeekSelector weeks={weeks ?? []} selected={week.week_number} />
-          ) : undefined
-        }
-      />
-      <section className="game-card overflow-hidden rounded-xl border shadow-xl">
-        <div className="max-h-[65vh] overflow-auto">
-          <table className="w-full min-w-[820px] border-separate border-spacing-0 text-xs">
-            <thead className="sticky top-0 z-20 bg-slate-950">
-              <tr>
-                {[
-                  "TM",
-                  "BB",
-                  "1",
-                  "2",
-                  "3",
-                  "4",
-                  "5",
-                  "OU1",
-                  "OU2",
-                  "OU3",
-                  "UD",
-                  "SD",
-                  "Comment",
-                ].map((label, index) => (
-                  <th
-                    key={label}
-                    className={`border-b border-r border-slate-800 px-2 py-3 text-[9px] font-black uppercase text-slate-400 ${index === 0 ? "sticky left-0 z-30 bg-slate-950" : ""}`}
-                  >
-                    {label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {(entries ?? []).map((poolEntry) => {
-                const picks = visiblePicks.filter(
-                  (pick) => pick.entryId === poolEntry.id,
-                );
-                const bb = picks.find(
-                  (pick) => pick.kind === "ats" && pick.isBestBet,
-                );
-                const ats = picks
-                  .filter((pick) => pick.kind === "ats" && !pick.isBestBet)
-                  .sort(
-                    (a, b) =>
-                      a.kickoff.localeCompare(b.kickoff) || a.gameId - b.gameId,
-                  );
-                const totals = picks
-                  .filter((pick) => pick.kind === "total")
-                  .sort(
-                    (a, b) =>
-                      a.kickoff.localeCompare(b.kickoff) || a.gameId - b.gameId,
-                  );
-                const ud = picks.find((pick) => pick.kind === "underdog");
-                const sd = picks.find((pick) => pick.kind === "sudden_death");
-                const cells = [
-                  bb,
-                  ...Array.from({ length: 5 }, (_, i) => ats[i]),
-                  ...Array.from({ length: 3 }, (_, i) => totals[i]),
-                  ud,
-                  sd,
-                ];
-                return (
-                  <tr
-                    key={poolEntry.id}
-                    className={
-                      poolEntry.id === entry?.id ? "bg-slate-800/40" : ""
-                    }
-                  >
-                    <th className="sticky left-0 z-10 border-b border-r border-slate-800 bg-[#111417] px-3 py-2 text-left font-black">
-                      {poolEntry.entry_code}
-                    </th>
-                    {cells.map((pick, index) => (
-                      <td
-                        key={index}
-                        className="h-12 min-w-12 border-b border-r border-slate-800 px-1 text-center"
-                      >
-                        {pick ? (
-                          pick.kind === "total" ? (
-                            <span
-                              title={`${gameMap.get(pick.gameId)?.away} at ${gameMap.get(pick.gameId)?.home}`}
-                              className="text-[9px] font-black"
-                            >
-                              {gameMap.get(pick.gameId)?.away}/
-                              {gameMap.get(pick.gameId)?.home}
-                              <br />
-                              <b className="text-cyan-300">
-                                {pick.totalDirection === "over"
-                                  ? "OVER"
-                                  : "UNDER"}
-                              </b>
-                            </span>
-                          ) : (
-                            <TeamMark
-                              team={pick.team!}
-                              logo={logoMap.get(pick.team!)}
-                              result={pickOutcome(
-                                gameMap.get(pick.gameId)!,
-                                pick,
-                              )}
-                            />
-                          )
-                        ) : submittedEntries.has(poolEntry.id) ? (
-                          <span className="text-slate-700">—</span>
-                        ) : null}
-                      </td>
-                    ))}
-                    <td className="max-w-52 border-b border-slate-800 px-3 py-2 text-[10px] leading-4 text-slate-400">
-                      {commentMap.get(poolEntry.id) ?? "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-[9px] font-bold text-slate-400">
-          <span className="text-emerald-400">Green · win</span>
-          <span className="text-red-400">Red · loss</span>
-          <span>Gray · tie</span>
-          <span className="text-amber-300">Amber · live</span>
-          <span>— · submitted selection hidden until kickoff</span>
-        </div>
-      </section>
-      <p className="mt-2 text-[10px] text-slate-500">
-        Selections and Most Picked totals appear only after each game kicks off.
-        Empty cells indicate no weekly submission.
-      </p>
-      <details className="game-card mt-4 rounded-xl border">
-        <summary className="cursor-pointer px-3 py-3 text-xs font-black uppercase">
-          Most Picked{" "}
-          <span className="ml-2 text-[10px] font-normal text-slate-500">
-            {[most.ats, most.totals, most.ud, most.sd]
-              .flatMap((items) => items.slice(0, 2).map(([name]) => name))
-              .slice(0, 4)
-              .join(" · ") || "Waiting for kickoff"}
-          </span>
-        </summary>
-        <section
-          className="grid grid-cols-2 gap-2 border-t border-slate-800 p-3 md:grid-cols-4"
-          aria-label="Most picked"
-        >
-          {(
-            [
-              ["MAIN", most.ats],
-              ["O/U", most.totals],
-              ["UD", most.ud],
-              ["SD", most.sd],
-            ] as const
-          ).map(([label, items]) => (
-            <div key={label}>
-              <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-                {label}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                {items.length ? (
-                  items.map(([name, count]) => (
-                    <span
-                      key={name}
-                      className="rounded bg-slate-800 px-2 py-1 text-[10px] font-black"
+    <PageShell
+      entryCode={entry?.entry_code}
+      isCommissioner={isCommissioner}
+      compact
+    >
+      <div className="py-3 sm:py-5">
+        <PageHeading
+          eyebrow=""
+          title="Weekly Picks Grid"
+          action={
+            week ? (
+              <WeekSelector weeks={weeks ?? []} selected={week.week_number} />
+            ) : undefined
+          }
+        />
+        <section className="game-card overflow-hidden rounded-xl border shadow-xl">
+          <div className="max-h-[68vh] overflow-auto">
+            <table className="w-full min-w-[720px] border-separate border-spacing-0 text-[11px]">
+              <thead className="sticky top-0 z-20 bg-slate-950">
+                <tr>
+                  {[
+                    "TM",
+                    "BB",
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "OU1",
+                    "OU2",
+                    "OU3",
+                    "UD",
+                    "SD",
+                    "Comment",
+                  ].map((label, index) => (
+                    <th
+                      key={label}
+                      className={`border-b border-r border-slate-800 px-1 py-2 text-[9px] font-black uppercase text-slate-400 ${index === 0 ? "sticky left-0 z-30 bg-slate-950" : ""}`}
                     >
-                      {name}{" "}
-                      <em className="not-italic text-cyan-300">{count}</em>
-                      {label === "MAIN" && (
-                        <small className="ml-1 text-amber-300">
-                          {
-                            visiblePicks.filter(
-                              (pick) =>
-                                pick.kind === "ats" &&
-                                pick.team === name &&
-                                pick.isBestBet,
-                            ).length
-                          }{" "}
-                          BB
-                        </small>
-                      )}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-slate-600">
-                    Waiting for kickoff
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+                      {label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(entries ?? []).map((poolEntry) => {
+                  const picks = visiblePicks.filter(
+                    (pick) => pick.entryId === poolEntry.id,
+                  );
+                  const bb = picks.find(
+                    (pick) => pick.kind === "ats" && pick.isBestBet,
+                  );
+                  const ats = picks
+                    .filter((pick) => pick.kind === "ats" && !pick.isBestBet)
+                    .sort(
+                      (a, b) =>
+                        a.kickoff.localeCompare(b.kickoff) ||
+                        a.gameId - b.gameId,
+                    );
+                  const totals = picks
+                    .filter((pick) => pick.kind === "total")
+                    .sort(
+                      (a, b) =>
+                        a.kickoff.localeCompare(b.kickoff) ||
+                        a.gameId - b.gameId,
+                    );
+                  const ud = picks.find((pick) => pick.kind === "underdog");
+                  const sd = picks.find((pick) => pick.kind === "sudden_death");
+                  const cells = [
+                    bb,
+                    ...Array.from({ length: 5 }, (_, i) => ats[i]),
+                    ...Array.from({ length: 3 }, (_, i) => totals[i]),
+                    ud,
+                    sd,
+                  ];
+                  return (
+                    <tr
+                      key={poolEntry.id}
+                      className={
+                        poolEntry.id === entry?.id ? "bg-slate-800/40" : ""
+                      }
+                    >
+                      <th className="sticky left-0 z-10 border-b border-r border-slate-800 bg-[#111417] px-2 py-1.5 text-left font-black">
+                        {poolEntry.entry_code}
+                      </th>
+                      {cells.map((pick, index) => (
+                        <td
+                          key={index}
+                          className="h-10 min-w-10 border-b border-r border-slate-800 px-0.5 text-center"
+                        >
+                          {pick ? (
+                            pick.kind === "total" ? (
+                              <span
+                                title={`${gameMap.get(pick.gameId)?.away} at ${gameMap.get(pick.gameId)?.home}`}
+                                className="text-[9px] font-black"
+                              >
+                                {gameMap.get(pick.gameId)?.away}/
+                                {gameMap.get(pick.gameId)?.home}
+                                <br />
+                                <b className="text-cyan-300">
+                                  {pick.totalDirection === "over"
+                                    ? "OVER"
+                                    : "UNDER"}
+                                </b>
+                              </span>
+                            ) : (
+                              <TeamMark
+                                team={pick.team!}
+                                logo={logoMap.get(pick.team!)}
+                                result={pickOutcome(
+                                  gameMap.get(pick.gameId)!,
+                                  pick,
+                                )}
+                              />
+                            )
+                          ) : submittedEntries.has(poolEntry.id) ? (
+                            <span className="text-slate-700">—</span>
+                          ) : null}
+                        </td>
+                      ))}
+                      <td className="max-w-52 border-b border-slate-800 px-3 py-2 text-[10px] leading-4 text-slate-400">
+                        {commentMap.get(poolEntry.id) ?? "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-[9px] font-bold text-slate-400">
+            <span className="text-emerald-400">Green · win</span>
+            <span className="text-red-400">Red · loss</span>
+            <span>Gray · tie</span>
+            <span className="text-amber-300">Amber · live</span>
+            <span>— · submitted selection hidden until kickoff</span>
+          </div>
         </section>
-      </details>
+        <p className="mt-2 text-[10px] text-slate-500">
+          Selections and Most Picked totals appear only after each game kicks
+          off. Empty cells indicate no weekly submission.
+        </p>
+        <details className="game-card mt-4 rounded-xl border">
+          <summary className="cursor-pointer px-3 py-3 text-xs font-black uppercase">
+            Most Picked{" "}
+            <span className="ml-2 text-[10px] font-normal text-slate-500">
+              {[most.ats, most.totals, most.ud, most.sd]
+                .flatMap((items) => items.slice(0, 2).map(([name]) => name))
+                .slice(0, 4)
+                .join(" · ") || "Waiting for kickoff"}
+            </span>
+          </summary>
+          <section
+            className="grid grid-cols-2 gap-2 border-t border-slate-800 p-3 md:grid-cols-4"
+            aria-label="Most picked"
+          >
+            {(
+              [
+                ["MAIN", most.ats],
+                ["O/U", most.totals],
+                ["UD", most.ud],
+                ["SD", most.sd],
+              ] as const
+            ).map(([label, items]) => (
+              <div key={label}>
+                <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+                  {label}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {items.length ? (
+                    items.map(([name, count]) => (
+                      <span
+                        key={name}
+                        className="rounded bg-slate-800 px-2 py-1 text-[10px] font-black"
+                      >
+                        {name}{" "}
+                        <em className="not-italic text-cyan-300">{count}</em>
+                        {label === "MAIN" && (
+                          <small className="ml-1 text-amber-300">
+                            {
+                              consensusPicks.filter(
+                                (pick) =>
+                                  pick.kind === "ats" &&
+                                  pick.team === name &&
+                                  pick.isBestBet,
+                              ).length
+                            }{" "}
+                            BB
+                          </small>
+                        )}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-600">
+                      Waiting for kickoff
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </section>
+        </details>
+      </div>
     </PageShell>
   );
 }
