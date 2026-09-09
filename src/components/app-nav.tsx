@@ -30,6 +30,12 @@ type IconName =
   | "admin"
   | "close";
 
+function ordinal(value: number) {
+  const mod100 = value % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${value}th`;
+  return `${value}${value % 10 === 1 ? "st" : value % 10 === 2 ? "nd" : value % 10 === 3 ? "rd" : "th"}`;
+}
+
 function Icon({ name }: { name: IconName }) {
   const common = {
     "aria-hidden": true,
@@ -49,8 +55,8 @@ function Icon({ name }: { name: IconName }) {
   if (name === "football")
     return (
       <svg {...common}>
-        <path d="M4.5 19.5c-2-2-1-7 2.5-10.5s8.5-4.5 10.5-2.5 1 7-2.5 10.5-8.5 4.5-10.5 2.5Z" />
-        <path d="m8 16 8-8M10 11l3 3m-1-5 3 3" />
+        <path d="M4.7 19.3C2.2 16.8 3.5 11 7.4 7.2s9.6-5 12-2.5 1.3 8.2-2.5 12-9.7 5.1-12.2 2.6Z" />
+        <path d="M7 17 17 7M9.5 11.5l3 3M11.5 9.5l3 3" />
       </svg>
     );
   if (name === "table")
@@ -77,7 +83,8 @@ function Icon({ name }: { name: IconName }) {
     return (
       <svg {...common}>
         <circle cx="12" cy="12" r="3" />
-        <path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1A8 8 0 0 0 15 6l-.3-2.5h-4L10.4 6A8 8 0 0 0 9 7.1l-2.4-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.4.9l.3 2.7h4l.3-2.7a8 8 0 0 0 1.5-.9l2.4 1 2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z" />
+        <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" />
+        <circle cx="12" cy="12" r="6.5" />
       </svg>
     );
   if (name === "history")
@@ -146,6 +153,12 @@ export function AppNav({
   const router = useRouter();
   const [panel, setPanel] = useState<"menu" | "help" | "profile" | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [summary, setSummary] = useState<{
+    count: number;
+    mainRank: number;
+    udRank: number;
+    sdRemaining: number;
+  } | null>(null);
   const routeMatches = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
   const effectivePendingHref =
@@ -170,8 +183,14 @@ export function AppNav({
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [panel]);
-  const toggle = (next: "menu" | "help" | "profile") =>
+  const toggle = (next: "menu" | "help" | "profile") => {
     setPanel((current) => (current === next ? null : next));
+    if (next === "profile" && !summary)
+      fetch("/api/profile-summary")
+        .then((response) => response.json())
+        .then((payload) => setSummary(payload.summary))
+        .catch(() => undefined);
+  };
   const menuItems = isCommissioner
     ? [...secondary, { href: "/admin", label: "Admin", icon: "admin" as const }]
     : secondary;
@@ -319,6 +338,26 @@ export function AppNav({
                 <strong className="text-lg">
                   {entryCode ?? (isCommissioner ? "Commissioner" : "Account")}
                 </strong>
+                {summary && (
+                  <dl className="mt-2 grid gap-1 border-t border-slate-800 pt-2 text-[11px] text-slate-300">
+                    <div className="flex justify-between">
+                      <dt>Main</dt>
+                      <dd>
+                        {ordinal(summary.mainRank)} of {summary.count}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt>SD</dt>
+                      <dd>{summary.sdRemaining} strikes remaining</dd>
+                    </div>
+                    <div className="flex justify-between">
+                      <dt>UD</dt>
+                      <dd>
+                        {ordinal(summary.udRank)} of {summary.count}
+                      </dd>
+                    </div>
+                  </dl>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <Link
@@ -337,7 +376,7 @@ export function AppNav({
                 </Link>
               </div>
               <form action={signOut}>
-                <button className="mt-3 ml-auto block rounded-md px-2 py-1.5 text-[10px] font-bold text-slate-500 underline decoration-slate-700 underline-offset-2">
+                <button className="mt-3 block rounded-md px-2 py-1.5 text-[10px] font-bold text-red-400 underline decoration-red-800 underline-offset-2">
                   SIGN OUT
                 </button>
               </form>

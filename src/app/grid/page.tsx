@@ -3,6 +3,7 @@ import { WeekSelector } from "@/components/week-selector";
 import Image from "next/image";
 import {
   pickOutcome,
+  recordForPicks,
   type ScoringGame,
   type ScoringPick,
 } from "@/features/competition/scoring";
@@ -221,6 +222,22 @@ export default async function GridPage({
         .map((pick) => pick.team!),
     ),
   };
+  const weeklyRows = (entries ?? [])
+    .map((poolEntry) => {
+      const picks = visiblePicks.filter(
+        (pick) => pick.entryId === poolEntry.id,
+      );
+      return {
+        poolEntry,
+        overall: recordForPicks(games, picks, ["ats", "total"], true),
+        ats: recordForPicks(games, picks, ["ats"]),
+        totals: recordForPicks(games, picks, ["total"]),
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.overall.wins - a.overall.wins || a.overall.losses - b.overall.losses,
+    );
 
   return (
     <PageShell
@@ -423,6 +440,56 @@ export default async function GridPage({
               </div>
             ))}
           </section>
+        </details>
+        <details className="game-card mt-3 rounded-xl border">
+          <summary className="cursor-pointer px-3 py-3 text-xs font-black uppercase">
+            Weekly Results Snapshot
+          </summary>
+          <div className="overflow-x-auto border-t border-slate-800">
+            <table className="w-full min-w-[330px] text-[10px]">
+              <thead className="bg-slate-950 text-slate-400">
+                <tr>
+                  {["RK", "TM", "OVR", "ATS", "O/U"].map((header) => (
+                    <th key={header} className="px-2 py-2 text-left">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {weeklyRows.map(
+                  ({ poolEntry, overall, ats, totals }, index) => {
+                    const show = (record: typeof overall) =>
+                      `${record.wins}-${record.losses}-${record.ties}`;
+                    return (
+                      <tr
+                        key={poolEntry.id}
+                        className={
+                          poolEntry.id === entry?.id ? "bg-slate-800/50" : ""
+                        }
+                      >
+                        <td className="border-t border-slate-800 px-2 py-2 text-slate-500">
+                          {index + 1}
+                        </td>
+                        <th className="border-t border-slate-800 px-2 py-2 text-left">
+                          {poolEntry.entry_code}
+                        </th>
+                        <td className="border-t border-slate-800 px-2 py-2">
+                          {show(overall)}
+                        </td>
+                        <td className="border-t border-slate-800 px-2 py-2">
+                          {show(ats)}
+                        </td>
+                        <td className="border-t border-slate-800 px-2 py-2">
+                          {show(totals)}
+                        </td>
+                      </tr>
+                    );
+                  },
+                )}
+              </tbody>
+            </table>
+          </div>
         </details>
       </div>
     </PageShell>

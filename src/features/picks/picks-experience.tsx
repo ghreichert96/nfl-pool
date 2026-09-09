@@ -689,27 +689,19 @@ function WeeklyCommentEditor({
         </label>
         <span className="text-[10px] text-slate-500">{comment.length}/40</span>
       </div>
-      <textarea
-        id="weekly-comment"
-        value={comment}
-        onChange={(event) => setComment(event.target.value.slice(0, 40))}
-        disabled={locked}
-        maxLength={40}
-        rows={2}
-        placeholder="Talk a little trash…"
-        className={`control-raised block min-h-14 w-full resize-none rounded-lg border px-3 py-2 text-base ${savedComment ? "border-cyan-600" : ""}`}
-      />
-      <div className="mt-2 flex min-h-9 items-center justify-between gap-2">
-        <span role="status" className="text-[10px] text-slate-500">
-          {locked
-            ? "Comments locked after the final kickoff"
-            : status ||
-              (savedComment
-                ? "Comment saved"
-                : "Optional · visible immediately")}
-        </span>
+      <div className="flex gap-2">
+        <input
+          id="weekly-comment"
+          value={comment}
+          onChange={(event) => setComment(event.target.value.slice(0, 40))}
+          disabled={locked}
+          maxLength={40}
+          placeholder="Talk a little trash…"
+          className={`control-raised min-h-11 min-w-0 flex-1 rounded-lg border px-3 text-base ${savedComment ? "border-emerald-600 bg-emerald-950/30" : ""}`}
+        />
         <button
           type="button"
+          aria-label="Save weekly comment"
           disabled={locked || saving || !changed || !draftTarget || !action}
           onClick={async () => {
             if (!draftTarget || !action) return;
@@ -719,10 +711,33 @@ function WeeklyCommentEditor({
             setStatus(result.message);
             if (result.ok) setSavedComment(comment.trim());
           }}
-          className="control-pressed min-h-9 rounded-md border px-4 text-[10px] font-black disabled:opacity-40"
+          className="control-pressed grid size-11 shrink-0 place-items-center rounded-lg border text-xl font-black disabled:opacity-40"
         >
-          {saving ? "SAVING" : changed ? "SAVE COMMENT" : "COMMENT SAVED"}
+          ✓
         </button>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <span role="status" className="text-[10px] text-slate-500">
+          {locked
+            ? "Comments locked after the final kickoff"
+            : status ||
+              (savedComment
+                ? "Comment saved"
+                : "Optional · visible immediately")}
+        </span>
+        <span
+          className={
+            savedComment
+              ? "text-[10px] text-emerald-400"
+              : "text-[10px] text-slate-500"
+          }
+        >
+          {saving
+            ? "Saving…"
+            : savedComment && !changed
+              ? "Comment saved."
+              : `${comment.length}/40`}
+        </span>
       </div>
     </section>
   );
@@ -752,6 +767,7 @@ function Preview({
     draftTarget ? "Draft saved" : "Draft saved on this device",
   );
   const [submitting, setSubmitting] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -785,129 +801,141 @@ function Preview({
 
   return (
     <aside className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur sm:bottom-0">
-      <div className="space-y-1 px-2 py-1.5">
-        <div
-          className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
-          aria-label="Main picks"
-        >
-          <span className="text-center text-[10px] font-black text-slate-400">
-            MAIN
-          </span>
-          {Array.from({ length: 6 }, (_, index) => {
-            const pick = picks.ats[index];
-            const removedGameId = savedPicks?.ats[index]?.gameId;
-            const removedPick = Boolean(
-              modified &&
-              !pick &&
-              removedGameId &&
-              (gameMap.get(removedGameId)?.status ?? "upcoming") === "upcoming",
-            );
-            if (!pick)
-              return (
-                <span
-                  key={index}
-                  className={`size-9 justify-self-center rounded-full border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
-                />
+      <button
+        type="button"
+        onClick={() => setMinimized((value) => !value)}
+        aria-expanded={!minimized}
+        className="absolute -top-7 right-2 rounded-t-md border border-b-0 border-slate-700 bg-slate-950 px-3 py-1 text-[10px] font-black text-slate-300"
+      >
+        {minimized ? "SHOW PICKS ▲" : "MINIMIZE ▼"}
+      </button>
+      {!minimized && (
+        <div className="space-y-1 px-2 py-1.5">
+          <div
+            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
+            aria-label="Main picks"
+          >
+            <span className="text-center text-[10px] font-black text-slate-400">
+              MAIN
+            </span>
+            {Array.from({ length: 6 }, (_, index) => {
+              const pick = picks.ats[index];
+              const removedGameId = savedPicks?.ats[index]?.gameId;
+              const removedPick = Boolean(
+                modified &&
+                !pick &&
+                removedGameId &&
+                (gameMap.get(removedGameId)?.status ?? "upcoming") ===
+                  "upcoming",
               );
-            const bestBet = Boolean(
-              picks.bestBet && pickKey(picks.bestBet) === pickKey(pick),
-            );
-            const savedAsAts = savedPicks?.ats.some(
-              (savedPick) => pickKey(savedPick) === pickKey(pick),
-            );
-            const savedAsBestBet = Boolean(
-              savedPicks?.bestBet &&
-              pickKey(savedPicks.bestBet) === pickKey(pick),
-            );
-            const pickModified = Boolean(
-              modified &&
-              (gameMap.get(pick.gameId)?.status ?? "upcoming") === "upcoming" &&
-              (!savedAsAts || bestBet !== savedAsBestBet),
-            );
-            return (
-              <button
-                key={pickKey(pick)}
-                type="button"
-                aria-label={`${pick.team}${bestBet ? ", Best Bet" : ", mark Best Bet"}`}
-                aria-pressed={Boolean(bestBet)}
-                style={
-                  bestBet
-                    ? { borderColor: "#fcd34d", borderWidth: "2px" }
-                    : undefined
-                }
-                onClick={() =>
-                  setPicks((current) => ({
-                    ...current,
-                    bestBet: bestBet ? null : pick,
-                  }))
-                }
-                className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
-              >
-                {bestBet && (
-                  <span className="absolute -top-2.5 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
-                    <CrownIcon className="h-3.5 w-5" />
-                  </span>
-                )}
-                <Logo
-                  abbreviation={pick.team}
-                  compact
-                  logoUrl={
-                    (pick.team === gameMap.get(pick.gameId)?.away.abbreviation
-                      ? gameMap.get(pick.gameId)?.away
-                      : gameMap.get(pick.gameId)?.home
-                    )?.logoUrl
+              if (!pick)
+                return (
+                  <span
+                    key={index}
+                    className={`size-9 justify-self-center rounded-full border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
+                  />
+                );
+              const bestBet = Boolean(
+                picks.bestBet && pickKey(picks.bestBet) === pickKey(pick),
+              );
+              const savedAsAts = savedPicks?.ats.some(
+                (savedPick) => pickKey(savedPick) === pickKey(pick),
+              );
+              const savedAsBestBet = Boolean(
+                savedPicks?.bestBet &&
+                pickKey(savedPicks.bestBet) === pickKey(pick),
+              );
+              const pickModified = Boolean(
+                modified &&
+                (gameMap.get(pick.gameId)?.status ?? "upcoming") ===
+                  "upcoming" &&
+                (!savedAsAts || bestBet !== savedAsBestBet),
+              );
+              return (
+                <button
+                  key={pickKey(pick)}
+                  type="button"
+                  aria-label={`${pick.team}${bestBet ? ", Best Bet" : ", mark Best Bet"}`}
+                  aria-pressed={Boolean(bestBet)}
+                  style={
+                    bestBet
+                      ? { borderColor: "#fcd34d", borderWidth: "2px" }
+                      : undefined
                   }
-                />
-              </button>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_48px_48px] gap-1 text-[9px] font-black">
-          {Array.from({ length: 3 }, (_, index) => {
-            const pick = picks.totals[index];
-            if (!pick)
+                  onClick={() =>
+                    setPicks((current) => ({
+                      ...current,
+                      bestBet: bestBet ? null : pick,
+                    }))
+                  }
+                  className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
+                >
+                  {bestBet && (
+                    <span className="absolute -top-2.5 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
+                      <CrownIcon className="h-3.5 w-5" />
+                    </span>
+                  )}
+                  <Logo
+                    abbreviation={pick.team}
+                    compact
+                    logoUrl={
+                      (pick.team === gameMap.get(pick.gameId)?.away.abbreviation
+                        ? gameMap.get(pick.gameId)?.away
+                        : gameMap.get(pick.gameId)?.home
+                      )?.logoUrl
+                    }
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_48px_48px] gap-1 text-[9px] font-black">
+            {Array.from({ length: 3 }, (_, index) => {
+              const pick = picks.totals[index];
+              if (!pick)
+                return (
+                  <span
+                    key={index}
+                    className="truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600"
+                  >
+                    OU{index + 1}
+                  </span>
+                );
+              const game = gameMap.get(pick.gameId);
               return (
                 <span
-                  key={index}
-                  className="truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600"
+                  key={pick.gameId}
+                  aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
+                  className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
                 >
-                  OU{index + 1}
+                  {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
+                  {pick.direction === "over" ? "O" : "U"}
                 </span>
               );
-            const game = gameMap.get(pick.gameId);
-            return (
-              <span
-                key={pick.gameId}
-                aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
-                className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
-              >
-                {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
-                {pick.direction === "over" ? "O" : "U"}
-              </span>
-            );
-          })}
-          <span
-            aria-label={
-              picks.underdog
-                ? `${picks.underdog.team} Underdog`
-                : "Underdog not selected"
-            }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && (gameMap.get(picks.underdog?.gameId ?? savedPicks?.underdog?.gameId ?? "")?.status ?? "upcoming") === "upcoming" && pickKey(picks.underdog ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.underdog ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
-          >
-            {picks.underdog?.team ?? "—"}·UD
-          </span>
-          <span
-            aria-label={
-              picks.suddenDeath
-                ? `${picks.suddenDeath.team} Sudden Death`
-                : "Sudden Death not selected"
-            }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
-          >
-            {picks.suddenDeath?.team ?? "—"}·SD
-          </span>
+            })}
+            <span
+              aria-label={
+                picks.underdog
+                  ? `${picks.underdog.team} Underdog`
+                  : "Underdog not selected"
+              }
+              className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && (gameMap.get(picks.underdog?.gameId ?? savedPicks?.underdog?.gameId ?? "")?.status ?? "upcoming") === "upcoming" && pickKey(picks.underdog ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.underdog ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
+            >
+              {picks.underdog?.team ?? "—"}·UD
+            </span>
+            <span
+              aria-label={
+                picks.suddenDeath
+                  ? `${picks.suddenDeath.team} Sudden Death`
+                  : "Sudden Death not selected"
+              }
+              className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            >
+              {picks.suddenDeath?.team ?? "—"}·SD
+            </span>
+          </div>
         </div>
-      </div>
+      )}
       <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
         <div className="grid border-r border-slate-800">
           <button
