@@ -842,7 +842,18 @@ function Preview({
           aria-label="Expand picks preview"
           className="absolute -top-7 left-2 z-10 grid h-6 w-9 place-items-center rounded-t-md border-x border-t border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-[0_-2px_5px_rgb(0_0_0/0.35)]"
         >
-          ⌃
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            className="size-4 translate-y-px"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m4 12 6-6 6 6" />
+          </svg>
         </button>
       )}
       {!minimized && (
@@ -851,9 +862,20 @@ function Preview({
             type="button"
             onClick={() => setMinimized(true)}
             aria-label="Minimize picks preview"
-            className="absolute -top-1.5 left-2 z-10 grid h-6 w-9 place-items-center rounded-b-md border-x border-b border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-md"
+            className="absolute -top-1 left-2 z-10 grid h-6 w-9 place-items-center rounded-b-md border-x border-b border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-md"
           >
-            ⌄
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              className="size-4 -translate-y-px"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m4 8 6 6 6-6" />
+            </svg>
           </button>
           <div
             className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"

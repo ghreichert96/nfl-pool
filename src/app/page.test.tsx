@@ -80,7 +80,7 @@ describe("Home", () => {
     const minimize = screen.getByRole("button", {
       name: "Minimize picks preview",
     });
-    expect(minimize).toHaveClass("rounded-b-md");
+    expect(minimize).toHaveClass("-top-1", "rounded-b-md");
     fireEvent.click(minimize);
 
     const expand = screen.getByRole("button", {
