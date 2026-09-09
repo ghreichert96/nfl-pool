@@ -26,6 +26,23 @@ const draftStorageKey = "hppp:2026:week-1:draft";
 const selectedClass = "control-pressed";
 const idleClass = "control-raised text-slate-100";
 
+function serializePicks(picks: Picks) {
+  return JSON.stringify({
+    ats: [...picks.ats].sort(
+      (a, b) =>
+        a.gameId.localeCompare(b.gameId) || a.team.localeCompare(b.team),
+    ),
+    totals: [...picks.totals].sort(
+      (a, b) =>
+        a.gameId.localeCompare(b.gameId) ||
+        a.direction.localeCompare(b.direction),
+    ),
+    bestBet: picks.bestBet,
+    suddenDeath: picks.suddenDeath,
+    underdog: picks.underdog,
+  });
+}
+
 function isTeamSelected(pick: TeamPick | null, gameId: string, team: string) {
   return pick?.gameId === gameId && pick.team === team;
 }
@@ -384,19 +401,21 @@ function GameRow({
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
   usedSuddenDeathTeams: string[];
 }) {
-  const [sdUnderdog, setSdUnderdog] = useState(false);
-  const [sdGestureActive, setSdGestureActive] = useState(false);
-  const [sdGestureOverAlternate, setSdGestureOverAlternate] = useState(false);
+  const [sdAlternateRevealed, setSdAlternateRevealed] = useState(false);
   const sdHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sdLongPressFired = useRef(false);
-  const sdGestureActiveRef = useRef(false);
-  const sdGestureOverAlternateRef = useRef(false);
   const locked = (game.status ?? "upcoming") !== "upcoming";
   const ats = picks.ats.find((pick) => pick.gameId === game.id);
   const total = picks.totals.find((pick) => pick.gameId === game.id);
   const favorite = favoriteFor(game);
   const underdog = underdogFor(game);
-  const sdTeam = sdUnderdog ? underdog : favorite;
+  const selectedSdTeam =
+    picks.suddenDeath?.gameId === game.id ? picks.suddenDeath.team : favorite;
+  const sdTeam = sdAlternateRevealed
+    ? selectedSdTeam === favorite
+      ? underdog
+      : favorite
+    : selectedSdTeam;
   const awayIsFavorite = favorite === game.away.abbreviation;
   const atsAtLimit = picks.ats.length >= 6 && !ats;
   const totalsAtLimit = picks.totals.length >= 3 && !total;
@@ -441,49 +460,26 @@ function GameRow({
   }
 
   function selectSdTeam(team: string) {
-    setSdUnderdog(team === underdog);
+    setSdAlternateRevealed(false);
     setPicks((current) => ({
       ...current,
       suddenDeath: { gameId: game.id, team },
     }));
   }
 
-  function resetSdGesture() {
+  function cancelSdHold() {
     if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
     sdHoldTimer.current = null;
-    sdGestureActiveRef.current = false;
-    sdGestureOverAlternateRef.current = false;
-    setSdGestureActive(false);
-    setSdGestureOverAlternate(false);
   }
 
   function startSdHold(event: React.PointerEvent<HTMLButtonElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
     sdLongPressFired.current = false;
     sdHoldTimer.current = setTimeout(() => {
-      sdGestureActiveRef.current = true;
-      setSdGestureActive(true);
+      setSdAlternateRevealed(true);
       sdLongPressFired.current = true;
       navigator.vibrate?.(20);
     }, 400);
-  }
-
-  function moveSdHold(event: React.PointerEvent<HTMLButtonElement>) {
-    if (!sdGestureActiveRef.current) return;
-    const overAlternate =
-      event.clientY < event.currentTarget.getBoundingClientRect().top;
-    sdGestureOverAlternateRef.current = overAlternate;
-    setSdGestureOverAlternate(overAlternate);
-  }
-
-  function finishSdHold() {
-    if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
-    sdHoldTimer.current = null;
-    if (!sdGestureActiveRef.current) return;
-
-    const alternate = sdUnderdog ? favorite : underdog;
-    selectSdTeam(sdGestureOverAlternateRef.current ? alternate : sdTeam);
-    resetSdGesture();
   }
 
   return (
@@ -572,14 +568,15 @@ function GameRow({
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
               disabled={Boolean(locked || sdUnavailable || sdTeamUsed)}
               onPointerDown={startSdHold}
-              onPointerMove={moveSdHold}
-              onPointerUp={finishSdHold}
-              onPointerCancel={resetSdGesture}
+              onPointerUp={cancelSdHold}
+              onPointerCancel={cancelSdHold}
               onContextMenu={(event) => event.preventDefault()}
               onKeyDown={(event) => {
                 if (event.key === "ArrowUp") {
                   event.preventDefault();
-                  selectSdTeam(sdUnderdog ? favorite : underdog);
+                  selectSdTeam(
+                    selectedSdTeam === favorite ? underdog : favorite,
+                  );
                 }
               }}
               onClick={() => {
@@ -587,29 +584,13 @@ function GameRow({
                   sdLongPressFired.current = false;
                   return;
                 }
-                setPicks((current) => ({
-                  ...current,
-                  suddenDeath: isTeamSelected(
-                    current.suddenDeath,
-                    game.id,
-                    sdTeam,
-                  )
-                    ? null
-                    : { gameId: game.id, team: sdTeam },
-                }));
+                selectSdTeam(sdTeam);
               }}
-              className="h-full min-h-9 w-full touch-none select-none text-[11px] font-black disabled:opacity-30"
+              className="h-full min-h-9 w-full touch-manipulation select-none text-[11px] font-black disabled:opacity-30"
             >
-              {sdTeam} · SD{sdTeamUsed ? " · USED" : ""}
+              {sdTeam} · SD
+              {sdAlternateRevealed ? " · TAP" : sdTeamUsed ? " · USED" : ""}
             </button>
-            {sdGestureActive && (
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute bottom-[calc(100%+5px)] left-0 z-20 grid w-full place-items-center rounded border px-1 py-2 text-[10px] font-black shadow-xl transition-colors ${sdGestureOverAlternate ? "border-amber-200 bg-amber-300 text-slate-950" : "border-fuchsia-300 bg-slate-950 text-slate-100"}`}
-              >
-                {sdUnderdog ? favorite : underdog}
-              </div>
-            )}
           </div>
           <SmallToggle
             className={awayIsFavorite ? "order-4" : "order-1"}
@@ -743,6 +724,22 @@ function WeeklyCommentEditor({
   );
 }
 
+function StatusBadge({
+  item,
+  submitted,
+}: {
+  item: { label: string; filled: boolean };
+  submitted: boolean;
+}) {
+  return (
+    <span
+      className={`rounded border px-1 py-0.5 ${submitted && item.filled ? "border-transparent bg-emerald-600/80 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
+    >
+      {item.label}
+    </span>
+  );
+}
+
 function Preview({
   picks,
   setPicks,
@@ -776,7 +773,7 @@ function Preview({
     () => (submittedDraft ? (JSON.parse(submittedDraft) as Picks) : null),
     [submittedDraft],
   );
-  const serializedDraft = JSON.stringify(picks);
+  const serializedDraft = serializePicks(picks);
   const complete =
     picks.ats.length === 6 &&
     picks.totals.length === 3 &&
@@ -788,15 +785,17 @@ function Preview({
     : modified
       ? "Modified"
       : "Not Submitted";
-  const statusItems = [
+  const mainStatusItems = [
     { label: `ATS ${picks.ats.length}/6`, filled: picks.ats.length === 6 },
     {
       label: `O/U ${picks.totals.length}/3`,
       filled: picks.totals.length === 3,
     },
     { label: "BB", filled: Boolean(picks.bestBet) },
-    { label: "SD", filled: Boolean(picks.suddenDeath) },
+  ];
+  const sideStatusItems = [
     { label: "UD", filled: Boolean(picks.underdog) },
+    { label: "SD", filled: Boolean(picks.suddenDeath) },
   ];
 
   return (
@@ -953,14 +952,26 @@ function Preview({
           aria-label={submitted ? "Submission saved" : "Submission status"}
           className={`flex flex-wrap content-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors ${submitted && complete ? "bg-emerald-800" : submitted ? "bg-amber-950" : modified ? "bg-fuchsia-950" : "bg-slate-900"}`}
         >
-          {statusItems.map((item) => (
-            <span
-              key={item.label}
-              className={`rounded border px-1 py-0.5 ${submitted && item.filled ? "border-transparent bg-emerald-600/80 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
-            >
-              {item.label}
-            </span>
-          ))}
+          <div className="grid gap-0.5">
+            <div className="flex gap-1">
+              {mainStatusItems.map((item) => (
+                <StatusBadge
+                  key={item.label}
+                  item={item}
+                  submitted={submitted}
+                />
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {sideStatusItems.map((item) => (
+                <StatusBadge
+                  key={item.label}
+                  item={item}
+                  submitted={submitted}
+                />
+              ))}
+            </div>
+          </div>
           <span
             className={`ml-auto flex min-w-16 flex-col justify-center self-stretch px-1 text-center leading-none ${submitted ? "text-emerald-200" : modified ? "text-fuchsia-200" : complete ? "text-cyan-200" : "text-amber-200"}`}
           >
@@ -993,7 +1004,7 @@ function Preview({
               if (!result.ok) return;
             }
 
-            setSubmittedDraft(JSON.stringify(nextPicks));
+            setSubmittedDraft(serializePicks(nextPicks));
             if (!draftTarget) setMessage("Demo submission recorded");
           }}
           className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)] disabled:opacity-60"
@@ -1043,7 +1054,7 @@ export function PicksExperience({
 }: PicksExperienceProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(
-    initialSubmittedPicks ? JSON.stringify(initialSubmittedPicks) : null,
+    initialSubmittedPicks ? serializePicks(initialSubmittedPicks) : null,
   );
   const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
 
@@ -1085,7 +1096,7 @@ export function PicksExperience({
     return () => window.clearTimeout(timer);
   }, [draftReady, draftTarget, picks]);
 
-  const serializedDraft = JSON.stringify(picks);
+  const serializedDraft = serializePicks(picks);
   const pickStatus =
     submittedDraft === null
       ? "Not Submitted"
