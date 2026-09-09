@@ -16,7 +16,6 @@ const primary = [
 const secondary = [
   { href: "/account", label: "Profile", icon: "profile" },
   { href: "/rules", label: "Rules", icon: "book" },
-  { href: "/settings", label: "Settings", icon: "settings" },
   { href: "/about", label: "About", icon: "info" },
 ] as const;
 const adminTabs = [
@@ -38,12 +37,6 @@ type IconName =
   | "info"
   | "admin"
   | "close";
-
-function ordinal(value: number) {
-  const mod100 = value % 100;
-  if (mod100 >= 11 && mod100 <= 13) return `${value}th`;
-  return `${value}${value % 10 === 1 ? "st" : value % 10 === 2 ? "nd" : value % 10 === 3 ? "rd" : "th"}`;
-}
 
 function Icon({ name }: { name: IconName }) {
   const common = {
@@ -140,11 +133,11 @@ function pageHelp(pathname: string) {
   if (pathname.startsWith("/admin"))
     return "Commissioner tools manage entrants, lines, results, rules, payouts, and testing. Administrative changes are audited.";
   if (pathname.startsWith("/rules"))
-    return "The 2026 regular-season pool rules. Commissioner prose edits publish immediately and are revisioned.";
+    return "Essential deadlines, weekly picks, side pools, and payouts. Open a section for its compact rule table.";
   if (pathname.startsWith("/settings"))
     return "Update your entry name, login email, phone number, password, and display theme.";
   if (pathname.startsWith("/account"))
-    return "Your identity, competition summary, and current pool membership.";
+    return "Use the Profile selector for entry performance, account settings, or a week-specific submission log.";
   if (pathname.startsWith("/about"))
     return "Background, purpose, commissioner contact details, and app context.";
   return "Use the navigation to move through the pool. Account and support pages are available from Menu.";
@@ -162,10 +155,12 @@ export function AppNav({
   const [panel, setPanel] = useState<"menu" | "help" | "profile" | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [summary, setSummary] = useState<{
-    count: number;
-    mainRank: number;
-    udRank: number;
-    sdRemaining: number;
+    record: string;
+    gamesBack: string;
+    underdogPoints: string;
+    suddenDeath: string;
+    mainDollars: string;
+    netDollars: string;
   } | null>(null);
   const routeMatches = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -188,6 +183,12 @@ export function AppNav({
     completeNavigation();
   }, [pathname]);
   useEffect(() => {
+    fetch("/api/profile-summary")
+      .then((response) => response.json())
+      .then((payload) => setSummary(payload.summary))
+      .catch(() => undefined);
+  }, []);
+  useEffect(() => {
     if (!panel) return;
     const close = (event: KeyboardEvent) =>
       event.key === "Escape" && setPanel(null);
@@ -196,11 +197,6 @@ export function AppNav({
   }, [panel]);
   const toggle = (next: "menu" | "help" | "profile") => {
     setPanel((current) => (current === next ? null : next));
-    if (next === "profile" && !summary)
-      fetch("/api/profile-summary")
-        .then((response) => response.json())
-        .then((payload) => setSummary(payload.summary))
-        .catch(() => undefined);
   };
   const menuItems = isCommissioner
     ? [...secondary, { href: "/admin", label: "Admin", icon: "admin" as const }]
@@ -410,23 +406,27 @@ export function AppNav({
                   {entryCode ?? (isCommissioner ? "Commissioner" : "Account")}
                 </strong>
                 {summary && (
-                  <dl className="mt-2 grid gap-1 border-t border-slate-800 pt-2 text-[11px] text-slate-300">
-                    <div className="flex justify-between">
-                      <dt>Main</dt>
-                      <dd>
-                        {ordinal(summary.mainRank)} of {summary.count}
-                      </dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt>SD</dt>
-                      <dd>{summary.sdRemaining} strikes remaining</dd>
-                    </div>
-                    <div className="flex justify-between">
-                      <dt>UD</dt>
-                      <dd>
-                        {ordinal(summary.udRank)} of {summary.count}
-                      </dd>
-                    </div>
+                  <dl className="mt-2 grid grid-cols-6 overflow-hidden rounded-md border border-slate-800 text-center">
+                    {[
+                      ["Record", summary.record],
+                      ["GB", summary.gamesBack],
+                      ["UD Pts", summary.underdogPoints],
+                      ["SD", summary.suddenDeath],
+                      ["Main $", summary.mainDollars],
+                      ["Net $", summary.netDollars],
+                    ].map(([label, value]) => (
+                      <div
+                        key={label}
+                        className="min-w-0 border-r border-slate-800 px-0.5 py-2 last:border-r-0"
+                      >
+                        <dt className="truncate text-[6px] font-black uppercase text-slate-500">
+                          {label}
+                        </dt>
+                        <dd className="mt-0.5 truncate text-[9px] font-black">
+                          {value}
+                        </dd>
+                      </div>
+                    ))}
                   </dl>
                 )}
               </div>
@@ -436,10 +436,10 @@ export function AppNav({
                   onClick={() => setPanel(null)}
                   className="control-raised grid min-h-11 place-items-center rounded-lg border text-xs font-black"
                 >
-                  PROFILE
+                  ENTRY
                 </Link>
                 <Link
-                  href="/settings"
+                  href="/account?section=settings"
                   onClick={() => setPanel(null)}
                   className="control-raised grid min-h-11 place-items-center rounded-lg border text-xs font-black"
                 >

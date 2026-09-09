@@ -28,5 +28,5 @@ export async function setPassword(formData: FormData) {
     redirect("/account/password?error=update");
   }
 
-  redirect("/account?password_saved=1");
+  redirect("/account?section=settings&password_saved=1");
 }

@@ -1,4 +1,4 @@
 import { redirect } from "next/navigation";
 export default function HistoryPage() {
-  redirect("/account#history");
+  redirect("/account?section=submissions");
 }

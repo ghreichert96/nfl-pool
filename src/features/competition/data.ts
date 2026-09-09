@@ -17,12 +17,14 @@ export async function loadCompetition(
     includeComments?: boolean;
     includePayouts?: boolean;
     includeTeams?: boolean;
+    onlyWeekNumber?: number;
   } = {},
 ) {
   const {
     includeComments = true,
     includePayouts = true,
     includeTeams = true,
+    onlyWeekNumber,
   } = options;
   const [
     { data: entries },
@@ -41,7 +43,9 @@ export async function loadCompetition(
         .select("id, week_number, label")
         .eq("season_id", seasonId)
         .not("published_at", "is", null);
-      if (throughWeekNumber !== undefined)
+      if (onlyWeekNumber !== undefined)
+        query = query.eq("week_number", onlyWeekNumber);
+      else if (throughWeekNumber !== undefined)
         query = query.lte("week_number", throughWeekNumber);
       return query.order("week_number");
     })(),

@@ -14,7 +14,11 @@ export default async function WeekDetailPage({
   const { supabase, entry, isCommissioner } = await getPoolContext();
   if (!entry) notFound();
   const number = Number((await params).weekNumber);
-  const data = await loadCompetition(supabase, entry.season_id);
+  const data = await loadCompetition(supabase, entry.season_id, number, {
+    includePayouts: false,
+    includeTeams: false,
+    onlyWeekNumber: number,
+  });
   const week = data.weeks.find((item) => item.week_number === number);
   if (!week) notFound();
   const gameMap = new Map(data.games.map((game) => [game.id, game]));
