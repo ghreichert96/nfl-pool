@@ -402,7 +402,10 @@ function GameRow({
   usedSuddenDeathTeams: string[];
 }) {
   const [sdAlternateRevealed, setSdAlternateRevealed] = useState(false);
+  const [sdFlipping, setSdFlipping] = useState(false);
   const sdHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sdFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sdLastTapAt = useRef(0);
   const sdLongPressFired = useRef(false);
   const locked = (game.status ?? "upcoming") !== "upcoming";
   const ats = picks.ats.find((pick) => pick.gameId === game.id);
@@ -467,6 +470,13 @@ function GameRow({
     }));
   }
 
+  function revealAlternateSdTeam() {
+    setSdAlternateRevealed(true);
+    setSdFlipping(true);
+    if (sdFlipTimer.current) clearTimeout(sdFlipTimer.current);
+    sdFlipTimer.current = setTimeout(() => setSdFlipping(false), 300);
+  }
+
   function cancelSdHold() {
     if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
     sdHoldTimer.current = null;
@@ -476,11 +486,19 @@ function GameRow({
     event.currentTarget.setPointerCapture(event.pointerId);
     sdLongPressFired.current = false;
     sdHoldTimer.current = setTimeout(() => {
-      setSdAlternateRevealed(true);
+      revealAlternateSdTeam();
       sdLongPressFired.current = true;
       navigator.vibrate?.(20);
     }, 400);
   }
+
+  useEffect(
+    () => () => {
+      if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
+      if (sdFlipTimer.current) clearTimeout(sdFlipTimer.current);
+    },
+    [],
+  );
 
   return (
     <article
@@ -565,6 +583,7 @@ function GameRow({
             <button
               type="button"
               aria-label={`Sudden Death ${sdTeam}`}
+              title="Double-tap or press and hold to show the other team"
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
               disabled={Boolean(locked || sdUnavailable || sdTeamUsed)}
               onPointerDown={startSdHold}
@@ -584,9 +603,24 @@ function GameRow({
                   sdLongPressFired.current = false;
                   return;
                 }
+                if (sdAlternateRevealed) {
+                  selectSdTeam(sdTeam);
+                  sdLastTapAt.current = 0;
+                  return;
+                }
+                const now = performance.now();
+                if (
+                  sdLastTapAt.current > 0 &&
+                  now - sdLastTapAt.current <= 240
+                ) {
+                  sdLastTapAt.current = 0;
+                  revealAlternateSdTeam();
+                  return;
+                }
+                sdLastTapAt.current = now;
                 selectSdTeam(sdTeam);
               }}
-              className="h-full min-h-9 w-full touch-manipulation select-none text-[11px] font-black disabled:opacity-30"
+              className={`h-full min-h-9 w-full touch-manipulation select-none text-[11px] font-black disabled:opacity-30 ${sdFlipping ? "sd-card-flip" : ""}`}
             >
               {sdTeam} · SD
               {sdAlternateRevealed ? " · TAP" : sdTeamUsed ? " · USED" : ""}
