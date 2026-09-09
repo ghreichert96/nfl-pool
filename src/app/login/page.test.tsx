@@ -38,7 +38,29 @@ describe("LoginPage", () => {
       }),
     );
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Check your email for a password-reset link.",
+      "Password reset sent.",
+    );
+  });
+
+  it("uses concise, specific email-link errors", async () => {
+    render(
+      await LoginPage({
+        searchParams: Promise.resolve({ error: "invalid-email" }),
+      }),
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter your email address.",
+    );
+  });
+
+  it("confirms entry creation on the sign-in page", async () => {
+    render(
+      await LoginPage({
+        searchParams: Promise.resolve({ created: "1" }),
+      }),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Entry created. Sign in.",
     );
   });
 });

@@ -31,7 +31,7 @@ export default async function PasswordPage({
           >
             {params.error === "invalid"
               ? "Use matching passwords of at least 6 characters."
-              : "The password could not be updated. Request a new recovery link and try again."}
+              : "Password update failed. Request a new link."}
           </p>
         )}
         <form action={setPassword} className="grid gap-4">
