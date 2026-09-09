@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getAppOrigin } from "@/lib/site-url";
+import { phoneSchema } from "@/features/auth/phone";
 import { ingestOdds } from "@/lib/odds/ingest";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -17,10 +18,7 @@ import {
 
 const inviteSchema = z.object({
   email: z.string().trim().email().max(254),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+[1-9][0-9]{7,14}$/),
+  phone: phoneSchema,
 });
 
 const gameSchema = z

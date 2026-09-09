@@ -30,7 +30,7 @@ export default async function PasswordPage({
             className="mb-4 rounded-lg border border-amber-800 bg-amber-950 p-3 text-sm text-amber-200"
           >
             {params.error === "invalid"
-              ? "Use matching passwords of at least 12 characters."
+              ? "Use matching passwords of at least 6 characters."
               : "The password could not be updated. Request a new recovery link and try again."}
           </p>
         )}
@@ -41,7 +41,7 @@ export default async function PasswordPage({
               name="password"
               type="password"
               autoComplete="new-password"
-              minLength={12}
+              minLength={6}
               maxLength={128}
               required
               className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case tracking-normal text-slate-100"
@@ -53,7 +53,7 @@ export default async function PasswordPage({
               name="confirmation"
               type="password"
               autoComplete="new-password"
-              minLength={12}
+              minLength={6}
               maxLength={128}
               required
               className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case tracking-normal text-slate-100"

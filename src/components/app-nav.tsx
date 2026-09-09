@@ -15,7 +15,6 @@ const secondary = [
   { href: "/account", label: "Profile", icon: "profile" },
   { href: "/rules", label: "Rules", icon: "book" },
   { href: "/settings", label: "Settings", icon: "settings" },
-  { href: "/account#history", label: "History", icon: "history" },
   { href: "/about", label: "About", icon: "info" },
 ] as const;
 type IconName =
@@ -92,7 +91,8 @@ function Icon({ name }: { name: IconName }) {
     return (
       <svg {...common}>
         <circle cx="12" cy="12" r="9" />
-        <path d="M12 11v6M12 7h.01" />
+        <path d="M12 11v6" />
+        <circle cx="12" cy="7.25" r="1" fill="currentColor" stroke="none" />
       </svg>
     );
   if (name === "admin")
@@ -162,19 +162,18 @@ export function AppNav({
             aria-label="HPPP Picks"
           >
             <span className="grid size-8 place-items-center rounded-md border border-slate-500 bg-slate-200 text-[10px] font-black text-slate-950">
-              HPPP
+              HP
             </span>
             <span>
               <strong className="block text-xs font-black uppercase tracking-[0.16em]">
-                NFL Pool
+                Picks Pool
               </strong>
               <small className="block text-[9px] font-bold uppercase text-slate-400">
                 2026
-                {entryCode
-                  ? ` · ${entryCode}`
-                  : isCommissioner
-                    ? " · ADMIN"
-                    : ""}
+                {entryCode ? " · " : isCommissioner ? " · ADMIN" : ""}
+                {entryCode && (
+                  <span className="text-amber-300">{entryCode}</span>
+                )}
               </small>
             </span>
           </Link>
@@ -243,7 +242,7 @@ export function AppNav({
                 ? "Page information"
                 : "Entry profile"
           }
-          className="fixed inset-x-2 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-[60] mx-auto max-w-md rounded-xl border border-slate-600 bg-slate-950 p-3 shadow-2xl sm:inset-x-auto sm:bottom-auto sm:right-5 sm:top-16 sm:w-80"
+          className="fixed inset-x-4 top-1/2 z-[60] mx-auto max-w-md -translate-y-1/2 rounded-xl border border-slate-600 bg-slate-950 p-3 shadow-2xl sm:inset-x-auto sm:right-5 sm:top-16 sm:w-80 sm:translate-y-0"
         >
           <div className="mb-3 flex items-center justify-between">
             <strong className="text-xs uppercase tracking-wider">
@@ -263,7 +262,7 @@ export function AppNav({
             </button>
           </div>
           {panel === "menu" && (
-            <nav className="grid grid-cols-2 gap-2" aria-label="Secondary">
+            <nav className="grid gap-2" aria-label="Secondary">
               {menuItems.map((item) => (
                 <Link
                   key={item.href}

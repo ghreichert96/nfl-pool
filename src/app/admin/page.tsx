@@ -2,8 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { PageHeading, PageShell } from "@/components/page-shell";
+import { PhoneInput } from "@/components/phone-input";
 import { createClient } from "@/lib/supabase/server";
 import { testLabEnabled } from "@/lib/test-lab";
+import { SignupLinkButton } from "./signup-link-button";
 
 import {
   generatePayoutSchedule,
@@ -358,9 +360,15 @@ export default async function AdminPage({
           </p>
           <h1 className="mt-2 text-xl font-black">Invite an entrant</h1>
           <p className="mt-2 text-sm text-slate-400">
-            The entrant receives an email invitation, then chooses an entry
-            abbreviation and private password.
+            Share the public signup link, or send a seven-day invitation to a
+            specific email address.
           </p>
+          <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950 p-3">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Self-enrollment
+            </p>
+            <SignupLinkButton />
+          </div>
           {params.sent ? (
             <p className="mt-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">
               Invitation sent.
@@ -386,16 +394,9 @@ export default async function AdminPage({
             </label>
             <label className="grid gap-1 text-sm font-bold">
               Phone number
-              <input
-                name="phone"
-                type="tel"
-                required
-                pattern="\+[1-9][0-9]{7,14}"
-                className="control-raised min-h-11 rounded-lg border bg-transparent px-3"
-                placeholder="+12125551212"
-              />
+              <PhoneInput className="control-raised min-h-11 rounded-lg border bg-transparent px-3" />
               <small className="font-normal text-slate-500">
-                Include country code.
+                U.S. numbers automatically receive +1.
               </small>
             </label>
             <button

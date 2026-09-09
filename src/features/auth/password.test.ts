@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import { passwordSchema } from "./password";
 
 describe("passwordSchema", () => {
-  it("accepts matching passwords with at least 12 characters", () => {
+  it("accepts matching passwords with at least 6 characters", () => {
     expect(
       passwordSchema.safeParse({
-        password: "long-enough-password",
-        confirmation: "long-enough-password",
+        password: "sixsix",
+        confirmation: "sixsix",
       }).success,
     ).toBe(true);
   });

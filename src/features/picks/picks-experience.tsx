@@ -108,23 +108,25 @@ function previewResultClass(
 function Logo({
   abbreviation,
   logoUrl,
+  compact = false,
 }: {
   abbreviation: string;
   logoUrl?: string | null;
+  compact?: boolean;
 }) {
   return (
     <span
       aria-hidden="true"
-      className="grid size-10 place-items-center rounded-full border-2 border-current text-[11px] font-black"
+      className={`team-logo grid shrink-0 place-items-center rounded-full border-2 text-[11px] font-black ${compact ? "size-8" : "size-10"}`}
     >
       {logoUrl ? (
         <Image
           src={logoUrl}
           alt=""
-          width={32}
-          height={32}
+          width={compact ? 26 : 32}
+          height={compact ? 26 : 32}
           unoptimized
-          className="size-8 object-contain"
+          className={`${compact ? "size-7" : "size-8"} object-contain`}
         />
       ) : (
         abbreviation
@@ -820,12 +822,13 @@ function Preview({
                 className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
               >
                 {bestBet && (
-                  <span className="absolute -top-2 text-xs text-amber-300">
+                  <span className="absolute -top-2.5 z-10 text-xs text-amber-300">
                     ♛
                   </span>
                 )}
                 <Logo
                   abbreviation={pick.team}
+                  compact
                   logoUrl={
                     (pick.team === gameMap.get(pick.gameId)?.away.abbreviation
                       ? gameMap.get(pick.gameId)?.away

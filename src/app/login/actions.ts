@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 const emailSchema = z.string().trim().email().max(254);
 const passwordLoginSchema = z.object({
   identifier: z.string().trim().min(3).max(254),
-  password: z.string().min(12).max(128),
+  password: z.string().min(6).max(128),
 });
 
 export async function signInWithPassword(formData: FormData) {
@@ -51,7 +51,7 @@ export async function signInWithPassword(formData: FormData) {
 }
 
 export async function requestMagicLink(formData: FormData) {
-  const parsed = emailSchema.safeParse(formData.get("email"));
+  const parsed = emailSchema.safeParse(formData.get("identifier"));
   if (!parsed.success) redirect("/login?error=invalid-email");
 
   const requestHeaders = await headers();
@@ -77,7 +77,7 @@ export async function requestMagicLink(formData: FormData) {
 }
 
 export async function requestPasswordReset(formData: FormData) {
-  const parsed = emailSchema.safeParse(formData.get("email"));
+  const parsed = emailSchema.safeParse(formData.get("identifier"));
   if (!parsed.success) redirect("/login?error=invalid-email");
 
   const requestHeaders = await headers();
