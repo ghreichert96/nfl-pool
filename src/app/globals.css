@@ -27,6 +27,11 @@ input {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+a {
+  touch-action: manipulation;
+}
+
 a:focus-visible,
 button:focus-visible,
 select:focus-visible,
