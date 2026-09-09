@@ -21,6 +21,11 @@ function gameBadge(gameType: string, kickoffAt: string) {
     snf: "SNF",
     mnf: "MNF",
   };
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  }).format(new Date(kickoffAt));
+  if (["Wed", "Fri", "Sat"].includes(weekday)) return "SPE";
   if (named[gameType]) return named[gameType];
 
   const hour = Number(

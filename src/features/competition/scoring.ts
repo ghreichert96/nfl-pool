@@ -32,6 +32,28 @@ export type EntryStanding = {
   eliminated: boolean;
 };
 
+export type RecordSummary = { wins: number; losses: number; ties: number };
+
+export function recordForPicks(
+  games: ScoringGame[],
+  picks: ScoringPick[],
+  kinds: Array<ScoringPick["kind"]>,
+  doubleBestBet = false,
+): RecordSummary {
+  const gameMap = new Map(games.map((game) => [game.id, game]));
+  const record = { wins: 0, losses: 0, ties: 0 };
+  for (const pick of picks) {
+    if (!kinds.includes(pick.kind)) continue;
+    const game = gameMap.get(pick.gameId);
+    if (!game) continue;
+    const outcome = pickOutcome(game, pick);
+    if (outcome === "pending") continue;
+    const weight = doubleBestBet && pick.isBestBet ? 2 : 1;
+    record[`${outcome}s` as "wins" | "losses" | "ties"] += weight;
+  }
+  return record;
+}
+
 export function teamOutcome(
   game: ScoringGame,
   team: string,

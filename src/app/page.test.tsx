@@ -110,6 +110,22 @@ describe("Home", () => {
     ).toHaveTextContent("SF · SD");
   });
 
+  it("reveals the alternate SD team on a quick double tap", () => {
+    render(<PicksExperience />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sudden Death LAR" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sudden Death LAR" }));
+
+    const alternate = screen.getByRole("button", { name: "Sudden Death SF" });
+    expect(alternate).toHaveTextContent("SF · SD · TAP");
+    expect(alternate).toHaveClass("sd-card-flip");
+
+    fireEvent.click(alternate);
+    expect(
+      screen.getByRole("button", { name: "Sudden Death SF" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("collapses a started game and retains only relevant selections", () => {
     const { rerender } = render(<PicksExperience />);
 

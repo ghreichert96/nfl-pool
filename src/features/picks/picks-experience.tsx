@@ -26,6 +26,23 @@ const draftStorageKey = "hppp:2026:week-1:draft";
 const selectedClass = "control-pressed";
 const idleClass = "control-raised text-slate-100";
 
+function serializePicks(picks: Picks) {
+  return JSON.stringify({
+    ats: [...picks.ats].sort(
+      (a, b) =>
+        a.gameId.localeCompare(b.gameId) || a.team.localeCompare(b.team),
+    ),
+    totals: [...picks.totals].sort(
+      (a, b) =>
+        a.gameId.localeCompare(b.gameId) ||
+        a.direction.localeCompare(b.direction),
+    ),
+    bestBet: picks.bestBet,
+    suddenDeath: picks.suddenDeath,
+    underdog: picks.underdog,
+  });
+}
+
 function isTeamSelected(pick: TeamPick | null, gameId: string, team: string) {
   return pick?.gameId === gameId && pick.team === team;
 }
@@ -365,7 +382,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
             O/U {game.total}
           </span>
           <span className="max-w-full truncate whitespace-nowrap text-[9px] text-slate-400">
-            {game.kickoff} · {game.location}
+            {game.kickoff}
           </span>
         </>
       )}
@@ -384,19 +401,24 @@ function GameRow({
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
   usedSuddenDeathTeams: string[];
 }) {
-  const [sdUnderdog, setSdUnderdog] = useState(false);
-  const [sdGestureActive, setSdGestureActive] = useState(false);
-  const [sdGestureOverAlternate, setSdGestureOverAlternate] = useState(false);
+  const [sdAlternateRevealed, setSdAlternateRevealed] = useState(false);
+  const [sdFlipping, setSdFlipping] = useState(false);
   const sdHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sdFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sdLastTapAt = useRef(0);
   const sdLongPressFired = useRef(false);
-  const sdGestureActiveRef = useRef(false);
-  const sdGestureOverAlternateRef = useRef(false);
   const locked = (game.status ?? "upcoming") !== "upcoming";
   const ats = picks.ats.find((pick) => pick.gameId === game.id);
   const total = picks.totals.find((pick) => pick.gameId === game.id);
   const favorite = favoriteFor(game);
   const underdog = underdogFor(game);
-  const sdTeam = sdUnderdog ? underdog : favorite;
+  const selectedSdTeam =
+    picks.suddenDeath?.gameId === game.id ? picks.suddenDeath.team : favorite;
+  const sdTeam = sdAlternateRevealed
+    ? selectedSdTeam === favorite
+      ? underdog
+      : favorite
+    : selectedSdTeam;
   const awayIsFavorite = favorite === game.away.abbreviation;
   const atsAtLimit = picks.ats.length >= 6 && !ats;
   const totalsAtLimit = picks.totals.length >= 3 && !total;
@@ -441,50 +463,42 @@ function GameRow({
   }
 
   function selectSdTeam(team: string) {
-    setSdUnderdog(team === underdog);
+    setSdAlternateRevealed(false);
     setPicks((current) => ({
       ...current,
       suddenDeath: { gameId: game.id, team },
     }));
   }
 
-  function resetSdGesture() {
+  function revealAlternateSdTeam() {
+    setSdAlternateRevealed(true);
+    setSdFlipping(true);
+    if (sdFlipTimer.current) clearTimeout(sdFlipTimer.current);
+    sdFlipTimer.current = setTimeout(() => setSdFlipping(false), 300);
+  }
+
+  function cancelSdHold() {
     if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
     sdHoldTimer.current = null;
-    sdGestureActiveRef.current = false;
-    sdGestureOverAlternateRef.current = false;
-    setSdGestureActive(false);
-    setSdGestureOverAlternate(false);
   }
 
   function startSdHold(event: React.PointerEvent<HTMLButtonElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
     sdLongPressFired.current = false;
     sdHoldTimer.current = setTimeout(() => {
-      sdGestureActiveRef.current = true;
-      setSdGestureActive(true);
+      revealAlternateSdTeam();
       sdLongPressFired.current = true;
       navigator.vibrate?.(20);
     }, 400);
   }
 
-  function moveSdHold(event: React.PointerEvent<HTMLButtonElement>) {
-    if (!sdGestureActiveRef.current) return;
-    const overAlternate =
-      event.clientY < event.currentTarget.getBoundingClientRect().top;
-    sdGestureOverAlternateRef.current = overAlternate;
-    setSdGestureOverAlternate(overAlternate);
-  }
-
-  function finishSdHold() {
-    if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
-    sdHoldTimer.current = null;
-    if (!sdGestureActiveRef.current) return;
-
-    const alternate = sdUnderdog ? favorite : underdog;
-    selectSdTeam(sdGestureOverAlternateRef.current ? alternate : sdTeam);
-    resetSdGesture();
-  }
+  useEffect(
+    () => () => {
+      if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
+      if (sdFlipTimer.current) clearTimeout(sdFlipTimer.current);
+    },
+    [],
+  );
 
   return (
     <article
@@ -569,17 +583,19 @@ function GameRow({
             <button
               type="button"
               aria-label={`Sudden Death ${sdTeam}`}
+              title="Double-tap or press and hold to show the other team"
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
               disabled={Boolean(locked || sdUnavailable || sdTeamUsed)}
               onPointerDown={startSdHold}
-              onPointerMove={moveSdHold}
-              onPointerUp={finishSdHold}
-              onPointerCancel={resetSdGesture}
+              onPointerUp={cancelSdHold}
+              onPointerCancel={cancelSdHold}
               onContextMenu={(event) => event.preventDefault()}
               onKeyDown={(event) => {
                 if (event.key === "ArrowUp") {
                   event.preventDefault();
-                  selectSdTeam(sdUnderdog ? favorite : underdog);
+                  selectSdTeam(
+                    selectedSdTeam === favorite ? underdog : favorite,
+                  );
                 }
               }}
               onClick={() => {
@@ -587,29 +603,28 @@ function GameRow({
                   sdLongPressFired.current = false;
                   return;
                 }
-                setPicks((current) => ({
-                  ...current,
-                  suddenDeath: isTeamSelected(
-                    current.suddenDeath,
-                    game.id,
-                    sdTeam,
-                  )
-                    ? null
-                    : { gameId: game.id, team: sdTeam },
-                }));
+                if (sdAlternateRevealed) {
+                  selectSdTeam(sdTeam);
+                  sdLastTapAt.current = 0;
+                  return;
+                }
+                const now = performance.now();
+                if (
+                  sdLastTapAt.current > 0 &&
+                  now - sdLastTapAt.current <= 240
+                ) {
+                  sdLastTapAt.current = 0;
+                  revealAlternateSdTeam();
+                  return;
+                }
+                sdLastTapAt.current = now;
+                selectSdTeam(sdTeam);
               }}
-              className="h-full min-h-9 w-full touch-none select-none text-[11px] font-black disabled:opacity-30"
+              className={`h-full min-h-9 w-full touch-manipulation select-none text-[11px] font-black disabled:opacity-30 ${sdFlipping ? "sd-card-flip" : ""}`}
             >
-              {sdTeam} · SD{sdTeamUsed ? " · USED" : ""}
+              {sdTeam} · SD
+              {sdAlternateRevealed ? " · TAP" : sdTeamUsed ? " · USED" : ""}
             </button>
-            {sdGestureActive && (
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute bottom-[calc(100%+5px)] left-0 z-20 grid w-full place-items-center rounded border px-1 py-2 text-[10px] font-black shadow-xl transition-colors ${sdGestureOverAlternate ? "border-amber-200 bg-amber-300 text-slate-950" : "border-fuchsia-300 bg-slate-950 text-slate-100"}`}
-              >
-                {sdUnderdog ? favorite : underdog}
-              </div>
-            )}
           </div>
           <SmallToggle
             className={awayIsFavorite ? "order-4" : "order-1"}
@@ -689,27 +704,19 @@ function WeeklyCommentEditor({
         </label>
         <span className="text-[10px] text-slate-500">{comment.length}/40</span>
       </div>
-      <textarea
-        id="weekly-comment"
-        value={comment}
-        onChange={(event) => setComment(event.target.value.slice(0, 40))}
-        disabled={locked}
-        maxLength={40}
-        rows={2}
-        placeholder="Talk a little trash…"
-        className={`control-raised block min-h-14 w-full resize-none rounded-lg border px-3 py-2 text-base ${savedComment ? "border-cyan-600" : ""}`}
-      />
-      <div className="mt-2 flex min-h-9 items-center justify-between gap-2">
-        <span role="status" className="text-[10px] text-slate-500">
-          {locked
-            ? "Comments locked after the final kickoff"
-            : status ||
-              (savedComment
-                ? "Comment saved"
-                : "Optional · visible immediately")}
-        </span>
+      <div className="flex gap-2">
+        <input
+          id="weekly-comment"
+          value={comment}
+          onChange={(event) => setComment(event.target.value.slice(0, 40))}
+          disabled={locked}
+          maxLength={40}
+          placeholder="Talk a little trash…"
+          className={`control-raised min-h-11 min-w-0 flex-1 rounded-lg border px-3 text-base ${savedComment ? "border-emerald-600 bg-emerald-950/30" : ""}`}
+        />
         <button
           type="button"
+          aria-label="Save weekly comment"
           disabled={locked || saving || !changed || !draftTarget || !action}
           onClick={async () => {
             if (!draftTarget || !action) return;
@@ -719,12 +726,51 @@ function WeeklyCommentEditor({
             setStatus(result.message);
             if (result.ok) setSavedComment(comment.trim());
           }}
-          className="control-pressed min-h-9 rounded-md border px-4 text-[10px] font-black disabled:opacity-40"
+          className="control-pressed grid size-11 shrink-0 place-items-center rounded-lg border text-xl font-black disabled:opacity-40"
         >
-          {saving ? "SAVING" : changed ? "SAVE COMMENT" : "COMMENT SAVED"}
+          ✓
         </button>
       </div>
+      <div className="mt-1 flex items-center justify-between gap-2">
+        <span role="status" className="text-[10px] text-slate-500">
+          {locked
+            ? "Comments locked after the final kickoff"
+            : status ||
+              (savedComment
+                ? "Comment saved"
+                : "Optional · visible immediately")}
+        </span>
+        <span
+          className={
+            savedComment
+              ? "text-[10px] text-emerald-400"
+              : "text-[10px] text-slate-500"
+          }
+        >
+          {saving
+            ? "Saving…"
+            : savedComment && !changed
+              ? "Comment saved."
+              : `${comment.length}/40`}
+        </span>
+      </div>
     </section>
+  );
+}
+
+function StatusBadge({
+  item,
+  submitted,
+}: {
+  item: { label: string; filled: boolean };
+  submitted: boolean;
+}) {
+  return (
+    <span
+      className={`rounded border px-1 py-0.5 ${submitted && item.filled ? "border-transparent bg-emerald-600/80 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
+    >
+      {item.label}
+    </span>
   );
 }
 
@@ -752,6 +798,7 @@ function Preview({
     draftTarget ? "Draft saved" : "Draft saved on this device",
   );
   const [submitting, setSubmitting] = useState(false);
+  const [minimized, setMinimized] = useState(false);
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -760,7 +807,7 @@ function Preview({
     () => (submittedDraft ? (JSON.parse(submittedDraft) as Picks) : null),
     [submittedDraft],
   );
-  const serializedDraft = JSON.stringify(picks);
+  const serializedDraft = serializePicks(picks);
   const complete =
     picks.ats.length === 6 &&
     picks.totals.length === 3 &&
@@ -772,142 +819,156 @@ function Preview({
     : modified
       ? "Modified"
       : "Not Submitted";
-  const statusItems = [
+  const mainStatusItems = [
     { label: `ATS ${picks.ats.length}/6`, filled: picks.ats.length === 6 },
     {
       label: `O/U ${picks.totals.length}/3`,
       filled: picks.totals.length === 3,
     },
     { label: "BB", filled: Boolean(picks.bestBet) },
-    { label: "SD", filled: Boolean(picks.suddenDeath) },
+  ];
+  const sideStatusItems = [
     { label: "UD", filled: Boolean(picks.underdog) },
+    { label: "SD", filled: Boolean(picks.suddenDeath) },
   ];
 
   return (
     <aside className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur sm:bottom-0">
-      <div className="space-y-1 px-2 py-1.5">
-        <div
-          className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
-          aria-label="Main picks"
-        >
-          <span className="text-center text-[10px] font-black text-slate-400">
-            MAIN
-          </span>
-          {Array.from({ length: 6 }, (_, index) => {
-            const pick = picks.ats[index];
-            const removedGameId = savedPicks?.ats[index]?.gameId;
-            const removedPick = Boolean(
-              modified &&
-              !pick &&
-              removedGameId &&
-              (gameMap.get(removedGameId)?.status ?? "upcoming") === "upcoming",
-            );
-            if (!pick)
-              return (
-                <span
-                  key={index}
-                  className={`size-9 justify-self-center rounded-full border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
-                />
+      <button
+        type="button"
+        onClick={() => setMinimized((value) => !value)}
+        aria-expanded={!minimized}
+        className="absolute -top-7 right-2 rounded-t-md border border-b-0 border-slate-700 bg-slate-950 px-3 py-1 text-[10px] font-black text-slate-300"
+      >
+        {minimized ? "SHOW PICKS ▲" : "MINIMIZE ▼"}
+      </button>
+      {!minimized && (
+        <div className="space-y-1 px-2 py-1.5">
+          <div
+            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
+            aria-label="Main picks"
+          >
+            <span className="text-center text-[10px] font-black text-slate-400">
+              MAIN
+            </span>
+            {Array.from({ length: 6 }, (_, index) => {
+              const pick = picks.ats[index];
+              const removedGameId = savedPicks?.ats[index]?.gameId;
+              const removedPick = Boolean(
+                modified &&
+                !pick &&
+                removedGameId &&
+                (gameMap.get(removedGameId)?.status ?? "upcoming") ===
+                  "upcoming",
               );
-            const bestBet = Boolean(
-              picks.bestBet && pickKey(picks.bestBet) === pickKey(pick),
-            );
-            const savedAsAts = savedPicks?.ats.some(
-              (savedPick) => pickKey(savedPick) === pickKey(pick),
-            );
-            const savedAsBestBet = Boolean(
-              savedPicks?.bestBet &&
-              pickKey(savedPicks.bestBet) === pickKey(pick),
-            );
-            const pickModified = Boolean(
-              modified &&
-              (gameMap.get(pick.gameId)?.status ?? "upcoming") === "upcoming" &&
-              (!savedAsAts || bestBet !== savedAsBestBet),
-            );
-            return (
-              <button
-                key={pickKey(pick)}
-                type="button"
-                aria-label={`${pick.team}${bestBet ? ", Best Bet" : ", mark Best Bet"}`}
-                aria-pressed={Boolean(bestBet)}
-                style={
-                  bestBet
-                    ? { borderColor: "#fcd34d", borderWidth: "2px" }
-                    : undefined
-                }
-                onClick={() =>
-                  setPicks((current) => ({
-                    ...current,
-                    bestBet: bestBet ? null : pick,
-                  }))
-                }
-                className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
-              >
-                {bestBet && (
-                  <span className="absolute -top-2.5 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
-                    <CrownIcon className="h-3.5 w-5" />
-                  </span>
-                )}
-                <Logo
-                  abbreviation={pick.team}
-                  compact
-                  logoUrl={
-                    (pick.team === gameMap.get(pick.gameId)?.away.abbreviation
-                      ? gameMap.get(pick.gameId)?.away
-                      : gameMap.get(pick.gameId)?.home
-                    )?.logoUrl
+              if (!pick)
+                return (
+                  <span
+                    key={index}
+                    className={`size-9 justify-self-center rounded-full border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
+                  />
+                );
+              const bestBet = Boolean(
+                picks.bestBet && pickKey(picks.bestBet) === pickKey(pick),
+              );
+              const savedAsAts = savedPicks?.ats.some(
+                (savedPick) => pickKey(savedPick) === pickKey(pick),
+              );
+              const savedAsBestBet = Boolean(
+                savedPicks?.bestBet &&
+                pickKey(savedPicks.bestBet) === pickKey(pick),
+              );
+              const pickModified = Boolean(
+                modified &&
+                (gameMap.get(pick.gameId)?.status ?? "upcoming") ===
+                  "upcoming" &&
+                (!savedAsAts || bestBet !== savedAsBestBet),
+              );
+              return (
+                <button
+                  key={pickKey(pick)}
+                  type="button"
+                  aria-label={`${pick.team}${bestBet ? ", Best Bet" : ", mark Best Bet"}`}
+                  aria-pressed={Boolean(bestBet)}
+                  style={
+                    bestBet
+                      ? { borderColor: "#fcd34d", borderWidth: "2px" }
+                      : undefined
                   }
-                />
-              </button>
-            );
-          })}
-        </div>
-        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_48px_48px] gap-1 text-[9px] font-black">
-          {Array.from({ length: 3 }, (_, index) => {
-            const pick = picks.totals[index];
-            if (!pick)
+                  onClick={() =>
+                    setPicks((current) => ({
+                      ...current,
+                      bestBet: bestBet ? null : pick,
+                    }))
+                  }
+                  className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
+                >
+                  {bestBet && (
+                    <span className="absolute -top-2.5 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
+                      <CrownIcon className="h-3.5 w-5" />
+                    </span>
+                  )}
+                  <Logo
+                    abbreviation={pick.team}
+                    compact
+                    logoUrl={
+                      (pick.team === gameMap.get(pick.gameId)?.away.abbreviation
+                        ? gameMap.get(pick.gameId)?.away
+                        : gameMap.get(pick.gameId)?.home
+                      )?.logoUrl
+                    }
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-[repeat(3,minmax(0,1fr))_48px_48px] gap-1 text-[9px] font-black">
+            {Array.from({ length: 3 }, (_, index) => {
+              const pick = picks.totals[index];
+              if (!pick)
+                return (
+                  <span
+                    key={index}
+                    className="truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600"
+                  >
+                    OU{index + 1}
+                  </span>
+                );
+              const game = gameMap.get(pick.gameId);
               return (
                 <span
-                  key={index}
-                  className="truncate rounded-full border border-dashed border-slate-700 px-0.5 py-1 text-center text-slate-600"
+                  key={pick.gameId}
+                  aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
+                  className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
                 >
-                  OU{index + 1}
+                  {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
+                  {pick.direction === "over" ? "O" : "U"}
                 </span>
               );
-            const game = gameMap.get(pick.gameId);
-            return (
-              <span
-                key={pick.gameId}
-                aria-label={`${game?.away.abbreviation} at ${game?.home.abbreviation}, ${pick.direction}`}
-                className={`truncate rounded-full border px-0.5 py-1 text-center ${previewResultClass(game, standingForTotal(game, pick.direction))}`}
-              >
-                {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
-                {pick.direction === "over" ? "O" : "U"}
-              </span>
-            );
-          })}
-          <span
-            aria-label={
-              picks.underdog
-                ? `${picks.underdog.team} Underdog`
-                : "Underdog not selected"
-            }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && (gameMap.get(picks.underdog?.gameId ?? savedPicks?.underdog?.gameId ?? "")?.status ?? "upcoming") === "upcoming" && pickKey(picks.underdog ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.underdog ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
-          >
-            {picks.underdog?.team ?? "—"}·UD
-          </span>
-          <span
-            aria-label={
-              picks.suddenDeath
-                ? `${picks.suddenDeath.team} Sudden Death`
-                : "Sudden Death not selected"
-            }
-            className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
-          >
-            {picks.suddenDeath?.team ?? "—"}·SD
-          </span>
+            })}
+            <span
+              aria-label={
+                picks.underdog
+                  ? `${picks.underdog.team} Underdog`
+                  : "Underdog not selected"
+              }
+              className={`truncate rounded-full border px-1 py-1 text-center ${picks.underdog ? previewResultClass(gameMap.get(picks.underdog.gameId), standingForTeam(gameMap.get(picks.underdog.gameId), picks.underdog.team, "side")) : "border-dashed border-slate-700 text-slate-600"} ${modified && (gameMap.get(picks.underdog?.gameId ?? savedPicks?.underdog?.gameId ?? "")?.status ?? "upcoming") === "upcoming" && pickKey(picks.underdog ?? { gameId: "", team: "" }) !== pickKey(savedPicks?.underdog ?? { gameId: "", team: "" }) ? "pick-modified" : ""}`}
+            >
+              {picks.underdog?.team ?? "—"}·UD
+            </span>
+            <span
+              aria-label={
+                picks.suddenDeath
+                  ? `${picks.suddenDeath.team} Sudden Death`
+                  : "Sudden Death not selected"
+              }
+              className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
+            >
+              {picks.suddenDeath?.team ?? "—"}·SD
+            </span>
+          </div>
         </div>
-      </div>
+      )}
       <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
         <div className="grid border-r border-slate-800">
           <button
@@ -925,14 +986,26 @@ function Preview({
           aria-label={submitted ? "Submission saved" : "Submission status"}
           className={`flex flex-wrap content-center gap-1 px-1.5 py-1 text-[9px] font-black transition-colors ${submitted && complete ? "bg-emerald-800" : submitted ? "bg-amber-950" : modified ? "bg-fuchsia-950" : "bg-slate-900"}`}
         >
-          {statusItems.map((item) => (
-            <span
-              key={item.label}
-              className={`rounded border px-1 py-0.5 ${submitted && item.filled ? "border-transparent bg-emerald-600/80 text-white" : item.filled ? "border-fuchsia-300 bg-fuchsia-900 text-fuchsia-100" : "border-amber-400 bg-amber-950 text-amber-200"}`}
-            >
-              {item.label}
-            </span>
-          ))}
+          <div className="grid gap-0.5">
+            <div className="flex gap-1">
+              {mainStatusItems.map((item) => (
+                <StatusBadge
+                  key={item.label}
+                  item={item}
+                  submitted={submitted}
+                />
+              ))}
+            </div>
+            <div className="flex gap-1">
+              {sideStatusItems.map((item) => (
+                <StatusBadge
+                  key={item.label}
+                  item={item}
+                  submitted={submitted}
+                />
+              ))}
+            </div>
+          </div>
           <span
             className={`ml-auto flex min-w-16 flex-col justify-center self-stretch px-1 text-center leading-none ${submitted ? "text-emerald-200" : modified ? "text-fuchsia-200" : complete ? "text-cyan-200" : "text-amber-200"}`}
           >
@@ -965,7 +1038,7 @@ function Preview({
               if (!result.ok) return;
             }
 
-            setSubmittedDraft(JSON.stringify(nextPicks));
+            setSubmittedDraft(serializePicks(nextPicks));
             if (!draftTarget) setMessage("Demo submission recorded");
           }}
           className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)] disabled:opacity-60"
@@ -1015,7 +1088,7 @@ export function PicksExperience({
 }: PicksExperienceProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(
-    initialSubmittedPicks ? JSON.stringify(initialSubmittedPicks) : null,
+    initialSubmittedPicks ? serializePicks(initialSubmittedPicks) : null,
   );
   const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
 
@@ -1057,7 +1130,7 @@ export function PicksExperience({
     return () => window.clearTimeout(timer);
   }, [draftReady, draftTarget, picks]);
 
-  const serializedDraft = JSON.stringify(picks);
+  const serializedDraft = serializePicks(picks);
   const pickStatus =
     submittedDraft === null
       ? "Not Submitted"

@@ -19,7 +19,7 @@ export default async function AdminLayout({
   await requireCommissioner();
   return (
     <>
-      <nav className="sticky top-0 z-40 overflow-x-auto border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur">
+      <nav className="fixed inset-x-0 top-[49px] z-30 overflow-x-auto border-b border-slate-800 bg-slate-950/95 px-3 py-2 backdrop-blur sm:top-[57px]">
         <div className="mx-auto flex w-max min-w-full max-w-6xl gap-2 sm:px-2">
           {tabs.map(([label, href]) => (
             <Link
@@ -32,6 +32,7 @@ export default async function AdminLayout({
           ))}
         </div>
       </nav>
+      <div className="h-[53px]" aria-hidden="true" />
       {children}
     </>
   );
