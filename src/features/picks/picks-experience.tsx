@@ -401,7 +401,9 @@ function GameRow({
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
   usedSuddenDeathTeams: string[];
 }) {
-  const [sdAlternateRevealed, setSdAlternateRevealed] = useState(false);
+  const [sdDisplayOverride, setSdDisplayOverride] = useState<string | null>(
+    null,
+  );
   const [sdFlipping, setSdFlipping] = useState(false);
   const sdHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sdFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -414,11 +416,7 @@ function GameRow({
   const underdog = underdogFor(game);
   const selectedSdTeam =
     picks.suddenDeath?.gameId === game.id ? picks.suddenDeath.team : favorite;
-  const sdTeam = sdAlternateRevealed
-    ? selectedSdTeam === favorite
-      ? underdog
-      : favorite
-    : selectedSdTeam;
+  const sdTeam = sdDisplayOverride ?? selectedSdTeam;
   const awayIsFavorite = favorite === game.away.abbreviation;
   const atsAtLimit = picks.ats.length >= 6 && !ats;
   const totalsAtLimit = picks.totals.length >= 3 && !total;
@@ -462,16 +460,18 @@ function GameRow({
     }));
   }
 
-  function selectSdTeam(team: string) {
-    setSdAlternateRevealed(false);
+  function toggleSdTeam(team: string) {
     setPicks((current) => ({
       ...current,
-      suddenDeath: { gameId: game.id, team },
+      suddenDeath: isTeamSelected(current.suddenDeath, game.id, team)
+        ? null
+        : { gameId: game.id, team },
     }));
   }
 
-  function revealAlternateSdTeam() {
-    setSdAlternateRevealed(true);
+  function switchDisplayedSdTeam() {
+    setSdDisplayOverride(sdTeam === favorite ? underdog : favorite);
+    setPicks((current) => ({ ...current, suddenDeath: null }));
     setSdFlipping(true);
     if (sdFlipTimer.current) clearTimeout(sdFlipTimer.current);
     sdFlipTimer.current = setTimeout(() => setSdFlipping(false), 300);
@@ -486,7 +486,7 @@ function GameRow({
     event.currentTarget.setPointerCapture(event.pointerId);
     sdLongPressFired.current = false;
     sdHoldTimer.current = setTimeout(() => {
-      revealAlternateSdTeam();
+      switchDisplayedSdTeam();
       sdLongPressFired.current = true;
       navigator.vibrate?.(20);
     }, 400);
@@ -585,7 +585,7 @@ function GameRow({
               aria-label={`Sudden Death ${sdTeam}`}
               title="Double-tap or press and hold to show the other team"
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
-              disabled={Boolean(locked || sdUnavailable || sdTeamUsed)}
+              disabled={Boolean(locked || sdUnavailable)}
               onPointerDown={startSdHold}
               onPointerUp={cancelSdHold}
               onPointerCancel={cancelSdHold}
@@ -593,19 +593,12 @@ function GameRow({
               onKeyDown={(event) => {
                 if (event.key === "ArrowUp") {
                   event.preventDefault();
-                  selectSdTeam(
-                    selectedSdTeam === favorite ? underdog : favorite,
-                  );
+                  switchDisplayedSdTeam();
                 }
               }}
               onClick={() => {
                 if (sdLongPressFired.current) {
                   sdLongPressFired.current = false;
-                  return;
-                }
-                if (sdAlternateRevealed) {
-                  selectSdTeam(sdTeam);
-                  sdLastTapAt.current = 0;
                   return;
                 }
                 const now = performance.now();
@@ -614,16 +607,15 @@ function GameRow({
                   now - sdLastTapAt.current <= 240
                 ) {
                   sdLastTapAt.current = 0;
-                  revealAlternateSdTeam();
+                  switchDisplayedSdTeam();
                   return;
                 }
                 sdLastTapAt.current = now;
-                selectSdTeam(sdTeam);
+                if (!sdTeamUsed) toggleSdTeam(sdTeam);
               }}
               className={`h-full min-h-9 w-full touch-manipulation select-none text-[11px] font-black disabled:opacity-30 ${sdFlipping ? "sd-card-flip" : ""}`}
             >
-              {sdTeam} · SD
-              {sdAlternateRevealed ? " · TAP" : sdTeamUsed ? " · USED" : ""}
+              {sdTeam} · SD{sdTeamUsed ? " · USED" : ""}
             </button>
           </div>
           <SmallToggle
@@ -702,7 +694,19 @@ function WeeklyCommentEditor({
         >
           Weekly comment
         </label>
-        <span className="text-[10px] text-slate-500">{comment.length}/40</span>
+        <span
+          className={
+            savedComment && !changed
+              ? "text-[10px] text-emerald-400"
+              : "text-[10px] text-slate-500"
+          }
+        >
+          {saving
+            ? "Saving…"
+            : savedComment && !changed
+              ? "Comment saved."
+              : `${comment.length}/40`}
+        </span>
       </div>
       <div className="flex gap-2">
         <input
@@ -735,23 +739,9 @@ function WeeklyCommentEditor({
         <span role="status" className="text-[10px] text-slate-500">
           {locked
             ? "Comments locked after the final kickoff"
-            : status ||
-              (savedComment
-                ? "Comment saved"
-                : "Optional · visible immediately")}
-        </span>
-        <span
-          className={
-            savedComment
-              ? "text-[10px] text-emerald-400"
-              : "text-[10px] text-slate-500"
-          }
-        >
-          {saving
-            ? "Saving…"
-            : savedComment && !changed
-              ? "Comment saved."
-              : `${comment.length}/40`}
+            : status && !status.toLowerCase().includes("saved")
+              ? status
+              : "Optional · visible immediately"}
         </span>
       </div>
     </section>
@@ -834,21 +824,31 @@ function Preview({
 
   return (
     <aside className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-2xl border-t-4 border-slate-700 bg-slate-950/98 shadow-2xl backdrop-blur sm:bottom-0">
-      <button
-        type="button"
-        onClick={() => setMinimized((value) => !value)}
-        aria-expanded={!minimized}
-        className="absolute -top-7 right-2 rounded-t-md border border-b-0 border-slate-700 bg-slate-950 px-3 py-1 text-[10px] font-black text-slate-300"
-      >
-        {minimized ? "SHOW PICKS ▲" : "MINIMIZE ▼"}
-      </button>
+      {minimized && (
+        <button
+          type="button"
+          onClick={() => setMinimized(false)}
+          aria-label="Expand picks preview"
+          className="absolute top-1 left-2 z-10 px-2 text-lg leading-none text-slate-300"
+        >
+          ⌃
+        </button>
+      )}
       {!minimized && (
         <div className="space-y-1 px-2 py-1.5">
           <div
             className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
             aria-label="Main picks"
           >
-            <span className="text-center text-[10px] font-black text-slate-400">
+            <span className="flex flex-col items-center text-center text-[10px] font-black text-slate-400">
+              <button
+                type="button"
+                onClick={() => setMinimized(true)}
+                aria-label="Minimize picks preview"
+                className="h-4 text-base leading-3 text-slate-300"
+              >
+                ⌄
+              </button>
               MAIN
             </span>
             {Array.from({ length: 6 }, (_, index) => {
@@ -1004,18 +1004,16 @@ function Preview({
                   submitted={submitted}
                 />
               ))}
+              <span
+                className={`self-center whitespace-nowrap px-1 text-[9px] leading-none ${submitted ? "text-emerald-200" : modified ? "text-fuchsia-200" : complete ? "text-cyan-200" : "text-amber-200"}`}
+              >
+                <strong>{statusLabel}</strong>
+                {submitted && picks.bestBet
+                  ? ` (BB = ${picks.bestBet.team})`
+                  : ""}
+              </span>
             </div>
           </div>
-          <span
-            className={`ml-auto flex min-w-16 flex-col justify-center self-stretch px-1 text-center leading-none ${submitted ? "text-emerald-200" : modified ? "text-fuchsia-200" : complete ? "text-cyan-200" : "text-amber-200"}`}
-          >
-            <strong>{statusLabel}</strong>
-            {submitted && picks.bestBet && (
-              <small className="mt-0.5 text-[8px] font-medium">
-                (BB = {picks.bestBet.team})
-              </small>
-            )}
-          </span>
           <span role="status" className="sr-only">
             {message}
           </span>

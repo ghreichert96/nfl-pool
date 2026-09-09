@@ -107,7 +107,7 @@ describe("Home", () => {
 
     expect(
       screen.getByRole("button", { name: "Sudden Death SF" }),
-    ).toHaveTextContent("SF · SD");
+    ).toHaveAttribute("aria-pressed", "false");
   });
 
   it("reveals the alternate SD team on a quick double tap", () => {
@@ -117,7 +117,7 @@ describe("Home", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sudden Death LAR" }));
 
     const alternate = screen.getByRole("button", { name: "Sudden Death SF" });
-    expect(alternate).toHaveTextContent("SF · SD · TAP");
+    expect(alternate).toHaveTextContent("SF · SD");
     expect(alternate).toHaveClass("sd-card-flip");
 
     fireEvent.click(alternate);

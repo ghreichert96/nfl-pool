@@ -443,7 +443,7 @@ export default async function GridPage({
         </details>
         <details className="game-card mt-3 rounded-xl border">
           <summary className="cursor-pointer px-3 py-3 text-xs font-black uppercase">
-            Weekly Results Snapshot
+            Results
           </summary>
           <div className="overflow-x-auto border-t border-slate-800">
             <table className="w-full min-w-[330px] text-[10px]">
