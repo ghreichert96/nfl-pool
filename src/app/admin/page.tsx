@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { PhoneInput } from "@/components/phone-input";
 import { createClient } from "@/lib/supabase/server";
 import { testLabEnabled } from "@/lib/test-lab";
@@ -134,11 +134,6 @@ export default async function AdminPage({
       isCommissioner
       refreshWhileLive={Boolean(games?.some((game) => game.status === "live"))}
     >
-      <PageHeading
-        eyebrow="Commissioner tools"
-        title="Admin pane"
-        description="Manage the active season, weekly slate, frozen lines, and entrants."
-      />
       {testLabEnabled() && (
         <Link
           href="/admin/test-lab"

@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { completeNavigation, startNavigation } from "./navigation-progress";
@@ -20,6 +19,7 @@ export function StandingsTabs({
   view: string;
   weekNumber?: number;
 }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const locationKey = searchParams.toString();
   const [pending, setPending] = useState<string | null>(null);
@@ -30,28 +30,24 @@ export function StandingsTabs({
 
   const visibleView = pending && pending !== view ? pending : view;
   return (
-    <nav
-      aria-label="Standings views"
-      className="mb-4 grid grid-cols-4 rounded-lg border border-slate-700 bg-slate-950 p-1"
+    <select
+      aria-label="Standings view"
+      value={visibleView}
+      onChange={(event) => {
+        const next = event.target.value;
+        setPending(next);
+        startNavigation();
+        router.push(
+          `/standings?view=${next}${weekNumber ? `&week=${weekNumber}` : ""}`,
+        );
+      }}
+      className="control-raised min-h-9 max-w-28 rounded-md border px-2 text-xs font-black uppercase"
     >
       {tabs.map(([key, label]) => (
-        <Link
-          key={key}
-          href={`/standings?view=${key}${weekNumber ? `&week=${weekNumber}` : ""}`}
-          aria-current={visibleView === key ? "page" : undefined}
-          onPointerDown={() => {
-            setPending(key);
-            startNavigation();
-          }}
-          onClick={() => {
-            setPending(key);
-            startNavigation();
-          }}
-          className={`grid min-h-10 place-items-center rounded-md text-[10px] font-black uppercase transition-colors ${visibleView === key ? "control-pressed" : "text-slate-400"}`}
-        >
+        <option key={key} value={key}>
           {label}
-        </Link>
+        </option>
       ))}
-    </nav>
+    </select>
   );
 }

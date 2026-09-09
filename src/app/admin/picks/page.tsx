@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
@@ -31,11 +31,6 @@ export default async function AdminPicksPage() {
   const currentWeek = weeks?.[0];
   return (
     <PageShell isCommissioner>
-      <PageHeading
-        eyebrow={`Commissioner · ${season?.year ?? "Season"}`}
-        title="Manage picks"
-        description="Open any entrant’s pick sheet. Games become immutable at their scheduled kickoff."
-      />
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {(entries ?? []).map((entry) => (
           <div key={entry.id} className="game-card rounded-xl border p-4">

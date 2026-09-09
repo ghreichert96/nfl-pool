@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { createClient } from "@/lib/supabase/server";
 import { TEST_LAB_STAGES, testLabEnabled } from "@/lib/test-lab";
 
@@ -35,19 +35,6 @@ export default async function TestLabPage() {
 
   return (
     <PageShell isCommissioner>
-      <PageHeading
-        eyebrow="Commissioner · local testing"
-        title="Week simulator"
-        description="Exercise real locking, visibility, scoring, and standings against isolated synthetic data."
-        action={
-          <Link
-            href="/admin"
-            className="control-raised rounded-md border px-3 py-2 text-xs font-black"
-          >
-            BACK
-          </Link>
-        }
-      />
       <section className="mb-4 rounded-xl border border-amber-700 bg-amber-950/40 p-4 text-xs leading-5 text-amber-100">
         <strong>Test fixture only.</strong> Reset creates synthetic entries
         inside the active local season. Delete removes every marked test entry,

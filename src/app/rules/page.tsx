@@ -85,8 +85,8 @@ export default async function RulesPage() {
       isCommissioner={isCommissioner}
       compact
     >
-      <div className="py-3 sm:py-5">
-        <CompactPageHeader title="Rules" className="mb-3" />
+      <div className="pb-3 sm:pb-5">
+        <CompactPageHeader sticky title="Rules" className="mb-3" />
         <div className="space-y-2">
           {displayedSections.map((section, index) => (
             <details

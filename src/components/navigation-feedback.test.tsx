@@ -13,16 +13,17 @@ import { completeNavigation, startNavigation } from "./navigation-progress";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("view=overall&week=1"),
+  useRouter: () => ({ push: vi.fn() }),
 }));
 
 describe("navigation feedback", () => {
   afterEach(cleanup);
 
-  it("marks a standings tab pressed as soon as it is touched", () => {
+  it("updates the standings selector immediately", () => {
     render(<StandingsTabs view="overall" weekNumber={1} />);
-    const main = screen.getByRole("link", { name: "Main" });
-    fireEvent.pointerDown(main);
-    expect(main).toHaveClass("control-pressed");
+    const selector = screen.getByRole("combobox", { name: "Standings view" });
+    fireEvent.change(selector, { target: { value: "main" } });
+    expect(selector).toHaveValue("main");
   });
 
   it("shows and completes the footer progress bar", () => {

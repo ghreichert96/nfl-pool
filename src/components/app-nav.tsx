@@ -19,6 +19,13 @@ const secondary = [
   { href: "/settings", label: "Settings", icon: "settings" },
   { href: "/about", label: "About", icon: "info" },
 ] as const;
+const adminTabs = [
+  { href: "/admin", label: "Overview" },
+  { href: "/admin/lines", label: "Lines" },
+  { href: "/admin/entrants", label: "Entrants" },
+  { href: "/admin/picks", label: "Picks" },
+  { href: "/admin/manage", label: "Rules" },
+] as const;
 type IconName =
   | "check"
   | "football"
@@ -198,6 +205,16 @@ export function AppNav({
   const menuItems = isCommissioner
     ? [...secondary, { href: "/admin", label: "Admin", icon: "admin" as const }]
     : secondary;
+  const activeAdminTab =
+    adminTabs.find(
+      (item) => item.href !== "/admin" && pathname.startsWith(item.href),
+    ) ?? adminTabs[0];
+  const selectedAdminTab = effectivePendingHref?.startsWith("/admin")
+    ? (adminTabs.find(
+        (item) =>
+          item.href !== "/admin" && effectivePendingHref.startsWith(item.href),
+      ) ?? adminTabs[0])
+    : activeAdminTab;
   return (
     <>
       <header className="app-header sticky top-0 z-40 border-b border-slate-700 bg-[#07090b]/95 backdrop-blur">
@@ -274,6 +291,52 @@ export function AppNav({
           </div>
         </div>
       </header>
+      {isCommissioner && pathname.startsWith("/admin") && (
+        <nav
+          aria-label="Commissioner sections"
+          className="sticky top-[49px] z-30 border-b border-[var(--line)] bg-[var(--panel)] px-3 py-1.5 shadow-sm sm:top-[57px]"
+        >
+          <div className="mx-auto max-w-6xl">
+            <label className="flex min-h-9 items-center justify-between gap-3 sm:hidden">
+              <span className="text-[9px] font-black uppercase text-slate-400">
+                Admin
+              </span>
+              <select
+                aria-label="Admin section"
+                value={selectedAdminTab.href}
+                onChange={(event) => {
+                  setPendingHref(event.target.value);
+                  startNavigation();
+                  router.push(event.target.value);
+                }}
+                className="control-raised min-h-9 rounded-md border px-2 text-xs font-black uppercase"
+              >
+                {adminTabs.map((item) => (
+                  <option key={item.href} value={item.href}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="hidden grid-cols-5 gap-1 sm:grid">
+              {adminTabs.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onPointerDown={() => setPendingHref(item.href)}
+                  onClick={() => {
+                    setPendingHref(item.href);
+                    startNavigation();
+                  }}
+                  className={`${selectedAdminTab.href === item.href ? "control-pressed" : "control-raised"} grid min-h-9 place-items-center rounded-md border text-[10px] font-black uppercase`}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </nav>
+      )}
       {panel && (
         <button
           type="button"
