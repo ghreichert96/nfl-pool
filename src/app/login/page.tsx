@@ -54,7 +54,7 @@ export default async function LoginPage({
             name="password"
             type="password"
             autoComplete="current-password"
-            minLength={12}
+            minLength={6}
             required
             className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
           />

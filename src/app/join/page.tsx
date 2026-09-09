@@ -54,7 +54,7 @@ export default async function JoinPage({
                 className="mt-4 rounded-lg bg-amber-950 p-3 text-sm text-amber-200"
               >
                 We could not finish enrollment. Check the abbreviation and
-                matching 12-character passwords.
+                matching passwords of at least 6 characters.
               </p>
             )}
             <form action={acceptInvitation} className="mt-5 grid gap-4">
@@ -78,7 +78,7 @@ export default async function JoinPage({
                   name="password"
                   type="password"
                   required
-                  minLength={12}
+                  minLength={6}
                   maxLength={128}
                   autoComplete="new-password"
                   className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case"
@@ -90,7 +90,7 @@ export default async function JoinPage({
                   name="confirmation"
                   type="password"
                   required
-                  minLength={12}
+                  minLength={6}
                   maxLength={128}
                   autoComplete="new-password"
                   className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case"

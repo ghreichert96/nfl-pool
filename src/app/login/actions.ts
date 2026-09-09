@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 const emailSchema = z.string().trim().email().max(254);
 const passwordLoginSchema = z.object({
   identifier: z.string().trim().min(3).max(254),
-  password: z.string().min(12).max(128),
+  password: z.string().min(6).max(128),
 });
 
 export async function signInWithPassword(formData: FormData) {
