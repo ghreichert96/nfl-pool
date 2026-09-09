@@ -879,9 +879,10 @@ function Preview({
             </svg>
           </button>
           <div
-            className="grid grid-cols-6 items-center gap-1 pt-5"
+            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-0.5 pt-2.5"
             aria-label="Main picks"
           >
+            <span aria-hidden="true" />
             {Array.from({ length: 6 }, (_, index) => {
               const pick = picks.ats[index];
               const removedGameId = savedPicks?.ats[index]?.gameId;
