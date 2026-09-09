@@ -50,13 +50,16 @@ export async function updateProfile(formData: FormData) {
   const entryCode = String(formData.get("entry_code") ?? "")
     .trim()
     .toUpperCase();
-  if (!/^[A-Z]{3,4}$/.test(entryCode)) redirect("/account?error=profile");
+  const parsedPhone = phoneSchema.safeParse(formData.get("phone"));
+  if (!/^[A-Z]{3,4}$/.test(entryCode) || !parsedPhone.success)
+    redirect("/account?error=profile");
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) redirect("/login");
   const { error } = await supabase.rpc("update_own_entry_settings", {
     requested_entry_code: entryCode,
+    requested_phone: parsedPhone.data,
   });
   if (error) redirect("/account?error=profile");
   redirect("/account?saved=1");

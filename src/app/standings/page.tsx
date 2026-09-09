@@ -1,6 +1,7 @@
 import Image from "next/image";
 
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { CompactPageHeader } from "@/components/compact-page-header";
+import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
 import { StandingsTabs } from "@/components/standings-tabs";
 import { loadCompetition } from "@/features/competition/data";
@@ -73,9 +74,9 @@ export default async function StandingsPage({
       )}
     >
       <div className="py-3 sm:py-5">
-        <PageHeading
-          eyebrow=""
-          title="Weekly Standings"
+        <CompactPageHeader
+          title="Standings"
+          className="mb-3"
           action={
             selectedWeek ? (
               <WeekSelector

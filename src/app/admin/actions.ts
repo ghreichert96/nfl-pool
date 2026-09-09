@@ -427,10 +427,7 @@ export async function generatePayoutSchedule(formData: FormData) {
   const rows = Array.from({ length: count }, (_, index) => ({
     season_id: seasonId,
     rank: index + 1,
-    amount:
-      count === 13
-        ? 300 - index * 50
-        : Math.round((300 - (600 * index) / (count - 1)) * 100) / 100,
+    amount: Math.round((350 - (700 * index) / (count - 1)) * 100) / 100,
   }));
   await supabase.from("payout_schedules").delete().eq("season_id", seasonId);
   const { error } = await supabase.from("payout_schedules").insert(rows);

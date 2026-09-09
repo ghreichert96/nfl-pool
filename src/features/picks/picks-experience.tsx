@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { WeekSelector } from "@/components/week-selector";
+import { CompactPageHeader } from "@/components/compact-page-header";
 import { createClient } from "../../lib/supabase/client";
 
 import { MOCK_GAMES } from "./mock-games";
@@ -840,7 +841,7 @@ function Preview({
           type="button"
           onClick={() => setMinimized(false)}
           aria-label="Expand picks preview"
-          className="absolute -top-7 left-2 z-10 grid h-6 w-9 place-items-center rounded-t-md border-x border-t border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-[0_-2px_5px_rgb(0_0_0/0.35)]"
+          className="absolute -top-7 left-3 z-10 grid h-6 w-9 place-items-center rounded-t-md border-x border-t border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-[0_-2px_5px_rgb(0_0_0/0.35)]"
         >
           <svg
             aria-hidden="true"
@@ -862,7 +863,7 @@ function Preview({
             type="button"
             onClick={() => setMinimized(true)}
             aria-label="Minimize picks preview"
-            className="absolute -top-1 left-2 z-10 grid h-6 w-9 place-items-center rounded-b-md border-x border-b border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-md"
+            className="absolute top-0 left-3 z-10 grid h-6 w-9 place-items-center rounded-b-md border-x border-b border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-md"
           >
             <svg
               aria-hidden="true"
@@ -878,12 +879,9 @@ function Preview({
             </svg>
           </button>
           <div
-            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
+            className="grid grid-cols-6 items-center gap-1 pt-5"
             aria-label="Main picks"
           >
-            <span className="flex flex-col items-center pt-5 text-center text-[10px] font-black text-slate-400">
-              MAIN
-            </span>
             {Array.from({ length: 6 }, (_, index) => {
               const pick = picks.ats[index];
               const removedGameId = savedPicks?.ats[index]?.gameId;
@@ -1170,21 +1168,25 @@ export function PicksExperience({
         : "Modified";
   return (
     <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
-      <div className="sticky top-[49px] z-30 -mx-2 flex items-center justify-between gap-2 border-b border-slate-700 bg-slate-950/95 px-2 py-1.5 backdrop-blur sm:top-[57px]">
-        <div className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
-          <span
-            className={`rounded border px-1.5 py-1 ${linesFrozen ? "border-amber-600 text-amber-300" : "border-cyan-700 text-cyan-300"}`}
-          >
-            Lines · {linesFrozen ? "Frozen" : "Unfrozen"}
+      <CompactPageHeader
+        sticky
+        className="-mx-2"
+        title={
+          <span className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
+            <span
+              className={`rounded border px-1.5 py-1 ${linesFrozen ? "border-amber-600 text-amber-300" : "border-cyan-700 text-cyan-300"}`}
+            >
+              Lines · {linesFrozen ? "Frozen" : "Unfrozen"}
+            </span>
+            <span
+              className={`rounded border px-1.5 py-1 ${pickStatus === "Submitted" ? "border-emerald-700 text-emerald-300" : pickStatus === "Modified" ? "border-fuchsia-700 text-fuchsia-300" : "border-slate-700 text-slate-300"}`}
+            >
+              Picks · {pickStatus}
+            </span>
           </span>
-          <span
-            className={`rounded border px-1.5 py-1 ${pickStatus === "Submitted" ? "border-emerald-700 text-emerald-300" : pickStatus === "Modified" ? "border-fuchsia-700 text-fuchsia-300" : "border-slate-700 text-slate-300"}`}
-          >
-            Picks · {pickStatus}
-          </span>
-        </div>
-        <WeekSelector weeks={weeks} selected={weekNumber} />
-      </div>
+        }
+        action={<WeekSelector weeks={weeks} selected={weekNumber} />}
+      />
       <section
         className="mt-1.5 space-y-2"
         aria-label={`Week ${weekNumber} games`}
