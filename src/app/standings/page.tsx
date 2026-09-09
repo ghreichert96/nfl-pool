@@ -63,6 +63,9 @@ export default async function StandingsPage({
       entryCode={entry?.entry_code}
       isCommissioner={isCommissioner}
       compact
+      refreshWhileLive={Boolean(
+        data?.games.some((game) => game.status === "live"),
+      )}
     >
       <div className="py-3 sm:py-5">
         <PageHeading

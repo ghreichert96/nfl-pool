@@ -35,7 +35,13 @@ export default async function AccountPage({
   const financial = entry ? competition?.financials.get(entry.id) : undefined;
 
   return (
-    <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
+    <PageShell
+      entryCode={entry?.entry_code}
+      isCommissioner={isCommissioner}
+      refreshWhileLive={Boolean(
+        competition?.games.some((game) => game.status === "live"),
+      )}
+    >
       <PageHeading eyebrow="" title="Profile" />
       {standing && (
         <section className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-6">

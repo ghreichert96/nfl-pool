@@ -1,0 +1,61 @@
+name: NFL score ingestion
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Score ingestion mode
+        required: true
+        default: live
+        type: choice
+        options:
+          - live
+          - reconcile
+  schedule:
+    - cron: "*/15 * * * *"
+    # One 6 AM Eastern reconciliation; paired UTC hours cover EDT and EST.
+    - cron: "7 10,11 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nfl-score-ingestion
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Select ingestion mode
+        id: schedule
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "mode=${REQUESTED_MODE:-live}" >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_SCHEDULE" = "*/15 * * * *" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "mode=live" >> "$GITHUB_OUTPUT"
+          elif [ "$(TZ=America/New_York date '+%H')" = "06" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "mode=reconcile" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Refresh NFL scores
+        if: steps.schedule.outputs.run == 'true'
+        env:
+          INGEST_URL: ${{ secrets.ODDS_INGEST_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          MODE: ${{ steps.schedule.outputs.mode }}
+        run: |
+          test -n "$INGEST_URL"
+          test -n "$CRON_SECRET"
+          curl --fail-with-body --retry 2 --max-time 60 \
+            -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$INGEST_URL/api/cron/scores?mode=$MODE"

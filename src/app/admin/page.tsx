@@ -11,6 +11,7 @@ import {
   generatePayoutSchedule,
   inviteEntry,
   recordGameResult,
+  releaseGameResultToProvider,
   refreshOdds,
   saveGame,
   savePayoutSchedule,
@@ -27,6 +28,7 @@ export default async function AdminPage({
     game_error?: string;
     result_saved?: string;
     result_error?: string;
+    result_provider?: string;
     payout_saved?: string;
     payout_error?: string;
     odds_refreshed?: string;
@@ -76,7 +78,7 @@ export default async function AdminPage({
           ? supabase
               .from("games")
               .select(
-                "id, week_id, away_team, home_team, away_score, home_score, status",
+                "id, week_id, away_team, home_team, away_score, home_score, status, game_results(source)",
               )
               .in("week_id", weekIds)
               .order("kickoff_at", { ascending: false })
@@ -99,14 +101,39 @@ export default async function AdminPage({
     ? await supabase
         .from("odds_ingestion_runs")
         .select(
-          "id, status, events_received, snapshots_written, quota_remaining, created_at",
+          "id, status, events_received, snapshots_written, quota_remaining, requested_at",
         )
         .eq("week_id", activeWeek.id)
-        .order("created_at", { ascending: false })
+        .order("requested_at", { ascending: false })
         .limit(3)
     : { data: [] };
+  const { data: scoreRuns } = activeWeek
+    ? await supabase
+        .from("score_ingestion_runs")
+        .select(
+          "id, mode, status, events_received, games_updated, games_finalized, quota_used, quota_remaining, skip_reason, error_message, requested_at",
+        )
+        .eq("week_id", activeWeek.id)
+        .order("requested_at", { ascending: false })
+        .limit(5)
+    : { data: [] };
+  const latestQuota = [
+    ...(oddsRuns ?? []).map((run) => ({
+      remaining: run.quota_remaining,
+      at: run.requested_at,
+    })),
+    ...(scoreRuns ?? []).map((run) => ({
+      remaining: run.quota_remaining,
+      at: run.requested_at,
+    })),
+  ]
+    .filter((item) => item.remaining !== null)
+    .sort((a, b) => b.at.localeCompare(a.at))[0]?.remaining;
   return (
-    <PageShell isCommissioner>
+    <PageShell
+      isCommissioner
+      refreshWhileLive={Boolean(games?.some((game) => game.status === "live"))}
+    >
       <PageHeading
         eyebrow="Commissioner tools"
         title="Admin pane"
@@ -127,6 +154,13 @@ export default async function AdminPage({
           </span>
           <span className="text-xl text-cyan-300">›</span>
         </Link>
+      )}
+      {latestQuota !== undefined && latestQuota <= 49 && (
+        <p className="mb-5 rounded-lg border border-amber-600 bg-amber-950 p-3 text-sm font-bold text-amber-200">
+          Odds API reserve active: {latestQuota} credits remain. Live-only score
+          checks are paused; final results and scheduled line ingestion remain
+          enabled.
+        </p>
       )}
       {activeWeek && (
         <section className="game-card mb-5 rounded-xl border p-5">
@@ -198,7 +232,7 @@ export default async function AdminPage({
                     {run.quota_remaining == null
                       ? "Quota —"
                       : `${run.quota_remaining} requests left`}{" "}
-                    · {new Date(run.created_at).toLocaleString("en-US")}
+                    · {new Date(run.requested_at).toLocaleString("en-US")}
                   </span>
                 </li>
               ))}
@@ -428,46 +462,103 @@ export default async function AdminPage({
               Result could not be saved.
             </p>
           )}
+          {params.result_provider && (
+            <p className="mt-3 rounded bg-cyan-950 p-2 text-xs text-cyan-200">
+              Result returned to provider control.
+            </p>
+          )}
+          {(scoreRuns ?? []).length > 0 && (
+            <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950 p-3">
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                Automated scoring
+              </h3>
+              <ol className="mt-2 divide-y divide-slate-800">
+                {(scoreRuns ?? []).map((run) => (
+                  <li key={run.id} className="py-2 text-[10px] text-slate-300">
+                    <div className="flex justify-between gap-2">
+                      <strong className="uppercase">
+                        {run.mode} · {run.status}
+                      </strong>
+                      <span className="text-slate-500">
+                        {run.quota_remaining == null
+                          ? "Quota —"
+                          : `${run.quota_remaining} left`}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-slate-500">
+                      {run.events_received} events · {run.games_updated} updated
+                      · {run.games_finalized} final
+                      {run.skip_reason ? ` · ${run.skip_reason}` : ""}
+                    </p>
+                    {run.error_message && (
+                      <p className="mt-1 text-red-300">{run.error_message}</p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           <div className="mt-4 max-h-96 space-y-2 overflow-auto">
-            {(games ?? []).map((game) => (
-              <form
-                key={game.id}
-                action={recordGameResult}
-                className="grid grid-cols-[1fr_58px_12px_58px_64px] items-center gap-1 rounded-lg border border-slate-800 p-2"
-              >
-                <input type="hidden" name="game_id" value={game.id} />
-                <label className="text-xs font-black">
-                  {game.away_team} @ {game.home_team}
-                  <small className="block font-normal text-slate-500">
-                    {game.status}
-                  </small>
-                </label>
-                <input
-                  aria-label={`${game.away_team} score`}
-                  name="away_score"
-                  type="number"
-                  min="0"
-                  max="255"
-                  defaultValue={game.away_score ?? ""}
-                  required
-                  className="control-raised min-h-9 rounded border px-1 text-center"
-                />
-                <span>–</span>
-                <input
-                  aria-label={`${game.home_team} score`}
-                  name="home_score"
-                  type="number"
-                  min="0"
-                  max="255"
-                  defaultValue={game.home_score ?? ""}
-                  required
-                  className="control-raised min-h-9 rounded border px-1 text-center"
-                />
-                <button className="control-pressed min-h-9 rounded border text-[9px] font-black">
-                  FINAL
-                </button>
-              </form>
-            ))}
+            {(games ?? []).map((game) => {
+              const result = Array.isArray(game.game_results)
+                ? game.game_results[0]
+                : game.game_results;
+              return (
+                <div
+                  key={game.id}
+                  className="rounded-lg border border-slate-800 p-2"
+                >
+                  <form
+                    action={recordGameResult}
+                    className="grid grid-cols-[1fr_58px_12px_58px_64px] items-center gap-1"
+                  >
+                    <input type="hidden" name="game_id" value={game.id} />
+                    <label className="text-xs font-black">
+                      {game.away_team} @ {game.home_team}
+                      <small className="block font-normal text-slate-500">
+                        {game.status}
+                        {result?.source ? ` · ${result.source}` : ""}
+                      </small>
+                    </label>
+                    <input
+                      aria-label={`${game.away_team} score`}
+                      name="away_score"
+                      type="number"
+                      min="0"
+                      max="255"
+                      defaultValue={game.away_score ?? ""}
+                      required
+                      className="control-raised min-h-9 rounded border px-1 text-center"
+                    />
+                    <span>–</span>
+                    <input
+                      aria-label={`${game.home_team} score`}
+                      name="home_score"
+                      type="number"
+                      min="0"
+                      max="255"
+                      defaultValue={game.home_score ?? ""}
+                      required
+                      className="control-raised min-h-9 rounded border px-1 text-center"
+                    />
+                    <button className="control-pressed min-h-9 rounded border text-[9px] font-black">
+                      FINAL
+                    </button>
+                  </form>
+                  {result?.source === "commissioner" && (
+                    <form
+                      action={releaseGameResultToProvider}
+                      className="mt-2 text-right"
+                    >
+                      <input type="hidden" name="game_id" value={game.id} />
+                      <button className="text-[9px] font-black uppercase text-cyan-300 underline">
+                        Return to provider control
+                      </button>
+                    </form>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
         <section className="game-card rounded-xl border p-5">
