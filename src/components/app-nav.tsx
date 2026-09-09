@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { signOut } from "@/app/account/actions";
@@ -137,9 +137,26 @@ export function AppNav({
   isCommissioner?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [panel, setPanel] = useState<"menu" | "help" | "profile" | null>(null);
-  const active = (href: string) =>
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const routeMatches = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const effectivePendingHref =
+    pendingHref && !routeMatches(pendingHref) ? pendingHref : null;
+  const active = (href: string) =>
+    href === "/"
+      ? (effectivePendingHref ?? pathname) === "/"
+      : (effectivePendingHref ?? pathname).startsWith(href);
+  useEffect(() => {
+    primary.forEach(({ href }) => router.prefetch(href));
+    secondary.forEach(({ href }) => router.prefetch(href));
+  }, [router]);
+  useEffect(() => {
+    if (!pendingHref) return;
+    const fallback = window.setTimeout(() => setPendingHref(null), 4000);
+    return () => window.clearTimeout(fallback);
+  }, [pendingHref]);
   useEffect(() => {
     if (!panel) return;
     const close = (event: KeyboardEvent) =>
@@ -186,6 +203,8 @@ export function AppNav({
                 key={item.href}
                 href={item.href}
                 aria-current={active(item.href) ? "page" : undefined}
+                onPointerDown={() => setPendingHref(item.href)}
+                onClick={() => setPendingHref(item.href)}
                 className={`rounded-md border px-3 py-2 text-[11px] font-black uppercase ${active(item.href) ? "control-pressed" : "control-raised text-slate-300"}`}
               >
                 {item.label}
@@ -267,7 +286,11 @@ export function AppNav({
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setPanel(null)}
+                  onPointerDown={() => setPendingHref(item.href)}
+                  onClick={() => {
+                    setPendingHref(item.href);
+                    setPanel(null);
+                  }}
                   className="control-raised flex min-h-12 items-center gap-2 rounded-lg border px-3 text-xs font-black uppercase"
                 >
                   <Icon name={item.icon} />
@@ -325,6 +348,9 @@ export function AppNav({
             key={item.href}
             href={item.href}
             aria-current={active(item.href) ? "page" : undefined}
+            onPointerDown={() => setPendingHref(item.href)}
+            onClick={() => setPendingHref(item.href)}
+            aria-busy={effectivePendingHref === item.href || undefined}
             className={`grid min-h-14 place-items-center py-1 text-[9px] font-black uppercase ${active(item.href) ? "bg-slate-100 text-slate-950" : "text-slate-400"}`}
           >
             <Icon name={item.icon} />
