@@ -8,13 +8,9 @@ import { z } from "zod";
 import { getAppOrigin } from "@/lib/site-url";
 import { phoneSchema } from "@/features/auth/phone";
 import { ingestOdds } from "@/lib/odds/ingest";
+import { saveFinalGameResult } from "@/lib/scores/result";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import {
-  pickOutcome,
-  type ScoringGame,
-  type ScoringPick,
-} from "@/features/competition/scoring";
 
 const inviteSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -287,64 +283,32 @@ export async function recordGameResult(formData: FormData) {
     ? game.pool_lines[0]
     : game.pool_lines;
   if (!line) redirect("/admin?result_error=line");
-  const atsAway = parsed.data.awayScore + Number(line.away_spread);
-  const atsHome = parsed.data.homeScore;
-  const atsWinner =
-    atsAway === atsHome
-      ? null
-      : atsAway > atsHome
-        ? game.away_team
-        : game.home_team;
-  const totalScore = parsed.data.awayScore + parsed.data.homeScore;
-  const totalWinner =
-    totalScore === Number(line.total)
-      ? null
-      : totalScore > Number(line.total)
-        ? "over"
-        : "under";
-  const outrightWinner =
-    parsed.data.awayScore === parsed.data.homeScore
-      ? null
-      : parsed.data.awayScore > parsed.data.homeScore
-        ? game.away_team
-        : game.home_team;
   const { data: claims } = await supabase.auth.getClaims();
-  const { error } = await supabase.from("game_results").upsert({
-    game_id: game.id,
-    away_score: parsed.data.awayScore,
-    home_score: parsed.data.homeScore,
-    ats_winner: atsWinner,
-    total_winner: totalWinner,
-    outright_winner: outrightWinner,
-    source: "commissioner",
-    recorded_by: claims?.claims?.sub,
-    corrected_at: new Date().toISOString(),
-  });
-  if (error) redirect("/admin?result_error=save");
-  await supabase
-    .from("games")
-    .update({
-      away_score: parsed.data.awayScore,
-      home_score: parsed.data.homeScore,
-      status: "final",
-      status_detail: "Final",
-    })
-    .eq("id", game.id);
   const gameWeek = Array.isArray(game.pool_weeks)
     ? game.pool_weeks[0]
     : game.pool_weeks;
-  await rebuildGameScoreEvents(supabase, {
-    id: game.id,
-    weekId: game.week_id,
-    weekNumber: gameWeek?.week_number ?? 0,
-    away: game.away_team,
-    home: game.home_team,
-    awaySpread: Number(line.away_spread),
-    total: Number(line.total),
-    awayScore: parsed.data.awayScore,
-    homeScore: parsed.data.homeScore,
-    status: "final",
-  });
+  try {
+    await saveFinalGameResult({
+      supabase,
+      source: "commissioner",
+      recordedBy: claims?.claims?.sub,
+      isCorrection: true,
+      game: {
+        id: game.id,
+        weekId: game.week_id,
+        weekNumber: gameWeek?.week_number ?? 0,
+        away: game.away_team,
+        home: game.home_team,
+        awaySpread: Number(line.away_spread),
+        total: Number(line.total),
+        awayScore: parsed.data.awayScore,
+        homeScore: parsed.data.homeScore,
+        status: "final",
+      },
+    });
+  } catch {
+    redirect("/admin?result_error=save");
+  }
   await supabase.from("commissioner_audit_events").insert({
     pool_id: poolId,
     actor_id: claims?.claims?.sub,
@@ -360,83 +324,39 @@ export async function recordGameResult(formData: FormData) {
   redirect("/admin?result_saved=1");
 }
 
-async function rebuildGameScoreEvents(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  game: ScoringGame,
-) {
-  const { data: submissions } = await supabase
-    .from("weekly_submissions")
-    .select("id, entry_id, revision")
-    .eq("week_id", game.weekId)
-    .order("revision", { ascending: false });
-  const latest = new Map<number, number>();
-  for (const item of submissions ?? [])
-    if (!latest.has(item.entry_id)) latest.set(item.entry_id, item.id);
-  const ids = [...latest.values()];
-  const { data: rows } = ids.length
-    ? await supabase
-        .from("picks")
-        .select(
-          "id, submission_id, game_id, kind, team, total_direction, is_best_bet",
-        )
-        .in("submission_id", ids)
-        .eq("game_id", game.id)
-    : { data: [] };
-  await supabase.from("score_events").delete().eq("game_id", game.id);
-  const entryBySubmission = new Map(
-    [...latest].map(([entryId, submissionId]) => [submissionId, entryId]),
-  );
-  const events = (rows ?? []).flatMap((row) => {
-    const entryId = entryBySubmission.get(row.submission_id);
-    if (!entryId) return [];
-    const pick: ScoringPick = {
-      entryId,
-      gameId: row.game_id,
-      kind: row.kind as ScoringPick["kind"],
-      team: row.team,
-      totalDirection: row.total_direction as ScoringPick["totalDirection"],
-      isBestBet: row.is_best_bet,
-    };
-    const outcome = pickOutcome(game, pick);
-    const base = {
-      entry_id: entryId,
-      week_id: game.weekId,
-      game_id: game.id,
-      pick_id: row.id,
-      outcome,
-      scoring_revision: 1,
-    };
-    const value =
-      pick.kind === "underdog" && outcome === "win"
-        ? Math.abs(pick.team === game.away ? game.awaySpread : -game.awaySpread)
-        : pick.kind === "ats" || pick.kind === "total"
-          ? outcome === "win"
-            ? 1
-            : outcome === "loss"
-              ? -1
-              : 0
-          : 0;
-    return [
-      {
-        ...base,
-        kind: pick.kind,
-        decision_value: value,
-        strike_delta:
-          pick.kind === "sudden_death" && outcome === "loss" ? 1 : 0,
-      },
-      ...(pick.isBestBet
-        ? [
-            {
-              ...base,
-              kind: "best_bet",
-              decision_value: value,
-              strike_delta: 0,
-            },
-          ]
-        : []),
-    ];
+export async function releaseGameResultToProvider(formData: FormData) {
+  const gameId = z.coerce
+    .number()
+    .int()
+    .positive()
+    .safeParse(formData.get("game_id"));
+  if (!gameId.success) redirect("/admin?result_error=invalid");
+  const { supabase, poolId, userId } = await requireCommissioner();
+  const { data: game } = await supabase
+    .from("games")
+    .select(
+      "id, pool_weeks!inner(seasons!inner(pool_id)), game_results!inner(source)",
+    )
+    .eq("id", gameId.data)
+    .eq("pool_weeks.seasons.pool_id", poolId)
+    .eq("game_results.source", "commissioner")
+    .maybeSingle();
+  if (!game) redirect("/admin?result_error=game");
+  const { error } = await supabase
+    .from("game_results")
+    .update({ source: "provider", recorded_by: null })
+    .eq("game_id", game.id)
+    .eq("source", "commissioner");
+  if (error) redirect("/admin?result_error=save");
+  await supabase.from("commissioner_audit_events").insert({
+    pool_id: poolId,
+    actor_id: userId,
+    action: "game_result_returned_to_provider",
+    entity_type: "game",
+    entity_id: String(game.id),
   });
-  if (events.length) await supabase.from("score_events").insert(events);
+  revalidatePath("/", "layout");
+  redirect("/admin?result_provider=1");
 }
 
 export async function savePayoutSchedule(formData: FormData) {

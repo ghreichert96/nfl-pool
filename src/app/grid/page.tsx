@@ -244,6 +244,7 @@ export default async function GridPage({
       entryCode={entry?.entry_code}
       isCommissioner={isCommissioner}
       compact
+      refreshWhileLive={games.some((game) => game.status === "live")}
     >
       <div className="py-3 sm:py-5">
         <PageHeading
