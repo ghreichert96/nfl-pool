@@ -382,7 +382,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
             O/U {game.total}
           </span>
           <span className="max-w-full truncate whitespace-nowrap text-[9px] text-slate-400">
-            {game.kickoff} · {game.location}
+            {game.kickoff}
           </span>
         </>
       )}
