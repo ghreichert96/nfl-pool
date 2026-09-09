@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { WeekSelector } from "@/components/week-selector";
 import { CompactPageHeader } from "@/components/compact-page-header";
+import { PREVIEW_MINIMIZED_KEY } from "@/components/profile-preferences";
 import { createClient } from "../../lib/supabase/client";
 
 import { MOCK_GAMES } from "./mock-games";
@@ -801,6 +802,10 @@ function Preview({
   );
   const [submitting, setSubmitting] = useState(false);
   const [minimized, setMinimized] = useState(false);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- device preference is browser-only
+    setMinimized(window.localStorage.getItem(PREVIEW_MINIMIZED_KEY) === "true");
+  }, []);
   const gameMap = useMemo(
     () => new Map(games.map((game) => [game.id, game])),
     [games],
@@ -879,7 +884,7 @@ function Preview({
             </svg>
           </button>
           <div
-            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-0.5 pt-2.5"
+            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-0.5 pt-1.5"
             aria-label="Main picks"
           >
             <span aria-hidden="true" />

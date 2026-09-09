@@ -6,48 +6,34 @@ const defaults = [
   {
     section_key: "lines_deadlines",
     title: "Deadlines",
-    summary:
-      "Lines normally freeze Thursday at 8:00 PM ET. Picks lock and become public game by game at kickoff.",
+    summary: "Line freeze, pick lock, and public reveal times.",
     detail:
-      "Standard weeks: All pool lines freeze Thursday at 8:00 PM ET.\nIrregular games: Games before Thursday’s deadline freeze one hour before kickoff.\nPick deadline: Each pick remains editable until that game kicks off.\nVisibility: Other entrants’ picks and Most Picked counts appear only after kickoff.",
+      "Standard lines: Thu 8 PM ET\nEarly/irregular games: 1 hour before kickoff\nPicks: Game kickoff\nVisibility: Picks and Most Picked reveal after kickoff",
   },
   {
     section_key: "weekly_card",
     title: "Main pool",
-    summary:
-      "Six ATS picks, including one 2× Best Bet, plus three game totals create ten decisions each week.",
+    summary: "6 ATS + 3 O/U = 10 weekly decisions.",
     detail:
-      "ATS: Choose six teams against the frozen spread.\nBest Bet: Mark one ATS pick; it counts as a second decision.\nO/U: Choose three game totals.\nMissing picks: Every omitted decision is a loss; an omitted Best Bet adds another loss.\nPushes: Main-pool pushes count as ties.",
+      "ATS: 6 picks against the frozen spread\nBest Bet: 1 ATS pick counts twice\nO/U: 3 game totals\nMissing: Loss for each empty decision\nPush: Tie",
   },
   {
     section_key: "sudden_death",
     title: "Side pools",
-    summary:
-      "Sudden Death and Underdog each carry a $200 prize funded evenly by the rest of the pool.",
+    summary: "Sudden Death and Underdog · $200 each.",
     detail:
-      "Sudden Death: Pick one outright winner weekly. A loss or missing pick earns a strike; two strikes eliminate the entry. An NFL tie adds no strike. A team cannot be reused after its pick locks.\nUnderdog: Pick one eligible underdog to win outright. A win earns points equal to its frozen positive spread; a tie, loss, or missing pick earns zero. Highest season total wins.",
+      "Sudden Death: 1 outright winner weekly; 2 strikes eliminates\nSD loss/missing: 1 strike\nSD tie: No strike\nSD reuse: Team unavailable after lock\nUnderdog: Outright win earns frozen positive spread\nUD tie/loss/missing: 0 points",
   },
   {
     section_key: "scoring",
     title: "Payouts",
-    summary:
-      "Main standings use a balanced +$350 to −$350 rank schedule. Side pools and the separate playoff contest settle after the season.",
+    summary: "Main ±$350 · Side pools $200 · Playoffs $20/entry.",
     detail:
-      "Main: Rank payouts are normalized from +$350 to −$350 with the middle of the field at $0; tied entries average occupied rank slots.\nSide pools: SD and UD winners split their $200 pool; all non-winners fund it evenly.\nPlayoffs: Separate 100-point ATS/O/U contest, weighted more heavily by round, with $20 per entry and bonuses for first, second, and third.\nSettlement: Total season exposure can move roughly $400 either way. The commissioner collects and pays after the season by Venmo or Zelle.",
+      "Main: +$350 to −$350; middle rank $0\nTies: Average occupied rank slots\nSD / UD: $200 each; funded evenly by non-winners\nPlayoffs: 100 points; $20/entry; 1st/2nd/3rd paid\nSettlement: After season via Venmo or Zelle",
   },
 ];
 
 const desiredKeys = defaults.map((section) => section.section_key);
-
-function DetailLine({ line }: { line: string }) {
-  const [lead, ...rest] = line.split(":");
-  return (
-    <li>
-      <strong className="text-slate-100">{lead}</strong>
-      {rest.length ? `: ${rest.join(":").trim()}` : ""}
-    </li>
-  );
-}
 
 export default async function RulesPage() {
   const { supabase, entry, membership, isCommissioner } =
@@ -100,7 +86,7 @@ export default async function RulesPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <h2 className="text-sm font-black">{section.title}</h2>
-                  <p className="mt-0.5 text-[10px] leading-4 text-slate-400">
+                  <p className="mt-0.5 text-xs leading-4 text-slate-300">
                     {section.summary}
                   </p>
                 </div>
@@ -109,71 +95,31 @@ export default async function RulesPage() {
                 </span>
               </summary>
               <div className="border-t border-slate-800 px-3 py-3">
-                {section.section_key === "lines_deadlines" && (
-                  <table className="mb-3 w-full text-left text-[10px]">
-                    <thead className="text-[8px] uppercase text-slate-500">
-                      <tr>
-                        <th className="pb-1">Item</th>
-                        <th className="pb-1">Lock</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-t border-slate-800">
-                        <th className="py-1.5">Standard lines</th>
-                        <td>Thu 8 PM ET</td>
-                      </tr>
-                      <tr className="border-t border-slate-800">
-                        <th className="py-1.5">Early/irregular game</th>
-                        <td>1 hr before kickoff</td>
-                      </tr>
-                      <tr className="border-t border-slate-800">
-                        <th className="py-1.5">Each pick</th>
-                        <td>Game kickoff</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                )}
-                {section.section_key === "weekly_card" && (
-                  <table className="mb-3 w-full text-left text-[10px]">
-                    <thead className="text-[8px] uppercase text-slate-500">
-                      <tr>
-                        <th className="pb-1">Pick</th>
-                        <th className="pb-1">Weekly</th>
-                        <th className="pb-1">Decisions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        ["ATS", "6", "6"],
-                        ["Best Bet", "1 of 6 ATS", "+1"],
-                        ["O/U", "3", "3"],
-                        ["Total", "9 picks", "10"],
-                      ].map((row) => (
-                        <tr
-                          key={row[0]}
-                          className="border-t border-slate-800 last:font-black"
-                        >
-                          <th className="py-1.5">{row[0]}</th>
-                          <td>{row[1]}</td>
-                          <td>{row[2]}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
                 {section.section_key === "scoring" && (
-                  <p className="mb-3 rounded-md border border-slate-700 bg-slate-950 px-2 py-1.5 text-[10px]">
+                  <p className="mb-2 rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-slate-200">
                     Current Main schedule: <strong>{payoutRange}</strong>
                   </p>
                 )}
-                <ul className="space-y-1.5 text-xs leading-5 text-slate-400">
-                  {section.detail
-                    .split("\n")
-                    .filter(Boolean)
-                    .map((line: string) => (
-                      <DetailLine key={line} line={line} />
-                    ))}
-                </ul>
+                <table className="w-full table-fixed text-left text-sm text-slate-200">
+                  <tbody>
+                    {section.detail
+                      .split("\n")
+                      .filter(Boolean)
+                      .map((line: string) => {
+                        const [label, ...detail] = line.split(":");
+                        return (
+                          <tr key={line} className="border-t border-slate-800">
+                            <th className="w-[42%] py-2 pr-2 align-top text-xs font-black text-slate-100">
+                              {label}
+                            </th>
+                            <td className="py-2 align-top">
+                              {detail.join(":").trim()}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
               </div>
             </details>
           ))}

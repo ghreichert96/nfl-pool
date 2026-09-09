@@ -22,7 +22,7 @@ export async function updateSettings(formData: FormData) {
     email: formData.get("email"),
     phone: formData.get("phone"),
   });
-  if (!parsed.success) redirect("/settings?error=invalid");
+  if (!parsed.success) redirect("/account?section=settings&error=invalid");
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
@@ -34,16 +34,16 @@ export async function updateSettings(formData: FormData) {
       requested_phone: parsed.data.phone,
     },
   );
-  if (settingsError) redirect("/settings?error=save");
+  if (settingsError) redirect("/account?section=settings&error=save");
   const currentEmail =
     typeof data?.claims?.email === "string" ? data.claims.email : "";
   if (parsed.data.email.toLowerCase() !== currentEmail.toLowerCase()) {
     const { error: authError } = await supabase.auth.updateUser({
       email: parsed.data.email,
     });
-    if (authError) redirect("/settings?error=email");
+    if (authError) redirect("/account?section=settings&error=email");
   }
-  redirect("/settings?saved=1");
+  redirect("/account?section=settings&saved=1");
 }
 
 export async function updateProfile(formData: FormData) {
