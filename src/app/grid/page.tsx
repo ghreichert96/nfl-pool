@@ -1,4 +1,5 @@
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { CompactPageHeader } from "@/components/compact-page-header";
+import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
 import Image from "next/image";
 import {
@@ -247,9 +248,9 @@ export default async function GridPage({
       refreshWhileLive={games.some((game) => game.status === "live")}
     >
       <div className="py-3 sm:py-5">
-        <PageHeading
-          eyebrow=""
-          title="Weekly Picks Grid"
+        <CompactPageHeader
+          title="Picks Grid"
+          className="mb-3"
           action={
             week ? (
               <WeekSelector weeks={weeks ?? []} selected={week.week_number} />

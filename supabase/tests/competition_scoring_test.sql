@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 select has_table('public','weekly_comments','weekly comments exist');
 select has_table('public','game_results','game results exist');
 select has_table('public','score_events','score events exist');
@@ -15,5 +15,7 @@ select ok((select relrowsecurity from pg_class where oid='public.score_ingestion
 select col_type_is('public','weekly_comments','body','text','comment body is text');
 select col_type_is('public','score_events','decision_value','numeric(6,2)','score values are exact');
 select is((select sum(amount) from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026),0::numeric,'default payout schedule balances');
+select is((select max(amount) from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026),350::numeric,'default payout schedule tops at positive 350');
+select is((select min(amount) from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026),(-350)::numeric,'default payout schedule bottoms at negative 350');
 select * from finish();
 rollback;

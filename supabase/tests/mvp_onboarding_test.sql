@@ -4,7 +4,7 @@ select plan(7);
 
 select has_table('public', 'pool_invitations', 'pending invitations exist');
 select has_table('public', 'rule_sections', 'editable rules exist');
-select is((select count(*) from public.rule_sections)::integer, 6, 'six canonical rule sections are seeded');
+select is((select count(*) from public.rule_sections)::integer, 4, 'four canonical rule sections are seeded');
 
 insert into auth.users (id, email, raw_user_meta_data)
 values ('00000000-0000-0000-0000-000000000081', 'joiner@example.test', '{}');
