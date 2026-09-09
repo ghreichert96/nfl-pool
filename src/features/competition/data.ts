@@ -13,7 +13,17 @@ export async function loadCompetition(
   supabase: SupabaseClient,
   seasonId: number,
   throughWeekNumber?: number,
+  options: {
+    includeComments?: boolean;
+    includePayouts?: boolean;
+    includeTeams?: boolean;
+  } = {},
 ) {
+  const {
+    includeComments = true,
+    includePayouts = true,
+    includeTeams = true,
+  } = options;
   const [
     { data: entries },
     { data: weeks },
@@ -35,12 +45,16 @@ export async function loadCompetition(
         query = query.lte("week_number", throughWeekNumber);
       return query.order("week_number");
     })(),
-    supabase
-      .from("payout_schedules")
-      .select("rank, amount, locked_at")
-      .eq("season_id", seasonId)
-      .order("rank"),
-    supabase.from("teams").select("abbreviation, logo_url"),
+    includePayouts
+      ? supabase
+          .from("payout_schedules")
+          .select("rank, amount, locked_at")
+          .eq("season_id", seasonId)
+          .order("rank")
+      : Promise.resolve({ data: [] }),
+    includeTeams
+      ? supabase.from("teams").select("abbreviation, logo_url")
+      : Promise.resolve({ data: [] }),
   ]);
   const weekIds = (weeks ?? []).map((week) => week.id);
   const [{ data: gameRows }, { data: submissionRows }, { data: comments }] =
@@ -58,10 +72,12 @@ export async function loadCompetition(
             .select("id, entry_id, week_id, revision, submitted_at")
             .in("week_id", weekIds)
             .order("revision", { ascending: false }),
-          supabase
-            .from("weekly_comments")
-            .select("entry_id, week_id, body, updated_at")
-            .in("week_id", weekIds),
+          includeComments
+            ? supabase
+                .from("weekly_comments")
+                .select("entry_id, week_id, body, updated_at")
+                .in("week_id", weekIds)
+            : Promise.resolve({ data: [] }),
         ])
       : [{ data: [] }, { data: [] }, { data: [] }];
   type SubmissionRow = {

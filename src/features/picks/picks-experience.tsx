@@ -730,9 +730,20 @@ function WeeklyCommentEditor({
             setStatus(result.message);
             if (result.ok) setSavedComment(comment.trim());
           }}
-          className="control-pressed grid size-11 shrink-0 place-items-center rounded-lg border text-xl font-black disabled:opacity-40"
+          className={`control-pressed grid size-11 shrink-0 place-items-center rounded-lg border disabled:opacity-40 ${savedComment && !changed ? "border-emerald-400 bg-emerald-700 text-white" : ""}`}
         >
-          ✓
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="size-6"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="m5 12.5 4.2 4.2L19 7" />
+          </svg>
         </button>
       </div>
       <div className="mt-1 flex items-center justify-between gap-2">
@@ -829,26 +840,26 @@ function Preview({
           type="button"
           onClick={() => setMinimized(false)}
           aria-label="Expand picks preview"
-          className="absolute top-1 left-2 z-10 px-2 text-lg leading-none text-slate-300"
+          className="absolute -top-7 left-2 z-10 grid h-6 w-9 place-items-center rounded-t-md border-x border-t border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-[0_-2px_5px_rgb(0_0_0/0.35)]"
         >
           ⌃
         </button>
       )}
       {!minimized && (
-        <div className="space-y-1 px-2 py-1.5">
+        <div className="relative space-y-1 px-2 py-1.5">
+          <button
+            type="button"
+            onClick={() => setMinimized(true)}
+            aria-label="Minimize picks preview"
+            className="absolute -top-1.5 left-2 z-10 grid h-6 w-9 place-items-center rounded-b-md border-x border-b border-slate-600 bg-slate-950 text-base leading-none text-slate-200 shadow-md"
+          >
+            ⌄
+          </button>
           <div
             className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-1"
             aria-label="Main picks"
           >
-            <span className="flex flex-col items-center text-center text-[10px] font-black text-slate-400">
-              <button
-                type="button"
-                onClick={() => setMinimized(true)}
-                aria-label="Minimize picks preview"
-                className="h-4 text-base leading-3 text-slate-300"
-              >
-                ⌄
-              </button>
+            <span className="flex flex-col items-center pt-5 text-center text-[10px] font-black text-slate-400">
               MAIN
             </span>
             {Array.from({ length: 6 }, (_, index) => {

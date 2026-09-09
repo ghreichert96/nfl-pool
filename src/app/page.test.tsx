@@ -74,6 +74,22 @@ describe("Home", () => {
     expect(screen.getByText("Submitted")).not.toHaveClass("border");
   });
 
+  it("keeps the preview toggle clear of actions in both positions", () => {
+    render(<PicksExperience />);
+
+    const minimize = screen.getByRole("button", {
+      name: "Minimize picks preview",
+    });
+    expect(minimize).toHaveClass("rounded-b-md");
+    fireEvent.click(minimize);
+
+    const expand = screen.getByRole("button", {
+      name: "Expand picks preview",
+    });
+    expect(expand).toHaveClass("-top-7", "rounded-t-md");
+    expect(screen.getByRole("button", { name: "Clear" })).toBeInTheDocument();
+  });
+
   it("limits a removed BB highlight and gives live state visual priority", () => {
     const { rerender } = render(<PicksExperience />);
 

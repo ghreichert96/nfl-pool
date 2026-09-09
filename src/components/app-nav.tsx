@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { signOut } from "@/app/account/actions";
+import { completeNavigation, startNavigation } from "./navigation-progress";
+import { RouteProgress } from "./route-progress";
 
 const primary = [
   { href: "/", label: "Picks", icon: "check" },
@@ -82,9 +84,8 @@ function Icon({ name }: { name: IconName }) {
   if (name === "settings")
     return (
       <svg {...common}>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" />
-        <circle cx="12" cy="12" r="6.5" />
+        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1H3v-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88L4.2 7.06l2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08a1.7 1.7 0 0 0 1.03 1.52 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.52 1H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" />
       </svg>
     );
   if (name === "history")
@@ -177,6 +178,9 @@ export function AppNav({
     return () => window.clearTimeout(fallback);
   }, [pendingHref]);
   useEffect(() => {
+    completeNavigation();
+  }, [pathname]);
+  useEffect(() => {
     if (!panel) return;
     const close = (event: KeyboardEvent) =>
       event.key === "Escape" && setPanel(null);
@@ -229,7 +233,10 @@ export function AppNav({
                 href={item.href}
                 aria-current={active(item.href) ? "page" : undefined}
                 onPointerDown={() => setPendingHref(item.href)}
-                onClick={() => setPendingHref(item.href)}
+                onClick={() => {
+                  setPendingHref(item.href);
+                  startNavigation();
+                }}
                 className={`rounded-md border px-3 py-2 text-[11px] font-black uppercase ${active(item.href) ? "control-pressed" : "control-raised text-slate-300"}`}
               >
                 {item.label}
@@ -314,9 +321,10 @@ export function AppNav({
                   onPointerDown={() => setPendingHref(item.href)}
                   onClick={() => {
                     setPendingHref(item.href);
+                    startNavigation();
                     setPanel(null);
                   }}
-                  className="control-raised flex min-h-12 items-center gap-2 rounded-lg border px-3 text-xs font-black uppercase"
+                  className={`${active(item.href) ? "control-pressed" : "control-raised"} flex min-h-12 items-center gap-2 rounded-lg border px-3 text-xs font-black uppercase transition-colors`}
                 >
                   <Icon name={item.icon} />
                   {item.label}
@@ -388,13 +396,17 @@ export function AppNav({
         aria-label="Mobile primary"
         className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-slate-700 bg-slate-950 pb-[env(safe-area-inset-bottom)] sm:hidden"
       >
+        <RouteProgress />
         {primary.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             aria-current={active(item.href) ? "page" : undefined}
             onPointerDown={() => setPendingHref(item.href)}
-            onClick={() => setPendingHref(item.href)}
+            onClick={() => {
+              setPendingHref(item.href);
+              startNavigation();
+            }}
             aria-busy={effectivePendingHref === item.href || undefined}
             className={`grid min-h-14 place-items-center py-1 text-[9px] font-black uppercase ${active(item.href) ? "bg-slate-100 text-slate-950" : "text-slate-400"}`}
           >
