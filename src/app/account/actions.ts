@@ -3,11 +3,9 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { z } from "zod";
 
 const settingsSchema = z.object({
-  displayName: z.string().trim().min(1).max(80),
   entryCode: z
     .string()
     .trim()
@@ -22,7 +20,6 @@ const settingsSchema = z.object({
 
 export async function updateSettings(formData: FormData) {
   const parsed = settingsSchema.safeParse({
-    displayName: formData.get("display_name"),
     entryCode: formData.get("entry_code"),
     email: formData.get("email"),
     phone: formData.get("phone"),
@@ -32,54 +29,37 @@ export async function updateSettings(formData: FormData) {
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) redirect("/login");
-  const { data: currentEntry } = await supabase
-    .from("pool_entries")
-    .select("id, entry_code, seasons!inner(pool_id)")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const [{ error: profileError }, { error: entryError }, { error: authError }] =
-    await Promise.all([
-      supabase.from("profiles").upsert({
-        id: userId,
-        display_name: parsed.data.displayName,
-        phone_e164: parsed.data.phone,
-      }),
-      supabase
-        .from("pool_entries")
-        .update({ entry_code: parsed.data.entryCode })
-        .eq("user_id", userId),
-      supabase.auth.updateUser({ email: parsed.data.email }),
-    ]);
-  if (profileError || entryError || authError) redirect("/settings?error=save");
-  if (currentEntry && currentEntry.entry_code !== parsed.data.entryCode) {
-    const season = Array.isArray(currentEntry.seasons)
-      ? currentEntry.seasons[0]
-      : currentEntry.seasons;
-    await createAdminClient()
-      .from("commissioner_audit_events")
-      .insert({
-        pool_id: season.pool_id,
-        actor_id: userId,
-        action: "entrant_code_changed",
-        entity_type: "pool_entry",
-        entity_id: String(currentEntry.id),
-        details: { from: currentEntry.entry_code, to: parsed.data.entryCode },
-      });
+  const { error: settingsError } = await supabase.rpc(
+    "update_own_entry_settings",
+    {
+      requested_entry_code: parsed.data.entryCode,
+      requested_phone: parsed.data.phone,
+    },
+  );
+  if (settingsError) redirect("/settings?error=save");
+  const currentEmail =
+    typeof data?.claims?.email === "string" ? data.claims.email : "";
+  if (parsed.data.email.toLowerCase() !== currentEmail.toLowerCase()) {
+    const { error: authError } = await supabase.auth.updateUser({
+      email: parsed.data.email,
+    });
+    if (authError) redirect("/settings?error=email");
   }
   redirect("/settings?saved=1");
 }
 
 export async function updateProfile(formData: FormData) {
-  const displayName = String(formData.get("display_name") ?? "").trim();
-  if (!displayName || displayName.length > 80)
-    redirect("/account?error=profile");
+  const entryCode = String(formData.get("entry_code") ?? "")
+    .trim()
+    .toUpperCase();
+  if (!/^[A-Z]{3,4}$/.test(entryCode)) redirect("/account?error=profile");
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
   if (!userId) redirect("/login");
-  const { error } = await supabase
-    .from("profiles")
-    .upsert({ id: userId, display_name: displayName });
+  const { error } = await supabase.rpc("update_own_entry_settings", {
+    requested_entry_code: entryCode,
+  });
   if (error) redirect("/account?error=profile");
   redirect("/account?saved=1");
 }

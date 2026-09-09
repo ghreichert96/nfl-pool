@@ -58,7 +58,7 @@ export default async function EntrantsPage({
       <PageHeading
         eyebrow={`Commissioner · ${season?.year ?? "Season"}`}
         title="Entrants"
-        description="Entry abbreviations, account state, and authentication recovery. Passwords are one-way hashes and cannot be displayed."
+        description="Entry names, account state, and authentication recovery. Passwords are one-way hashes and cannot be displayed."
       />
       {notice && (
         <p className="mb-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">

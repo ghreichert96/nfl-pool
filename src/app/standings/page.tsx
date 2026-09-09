@@ -60,9 +60,8 @@ export default async function StandingsPage({
   return (
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
       <PageHeading
-        eyebrow="2026 regular season"
-        title="Standings"
-        description="Main pool rank and detailed side-pool performance."
+        eyebrow=""
+        title="Weekly Standings"
         action={
           selectedWeek ? (
             <WeekSelector

@@ -51,7 +51,7 @@ export async function signInWithPassword(formData: FormData) {
 }
 
 export async function requestMagicLink(formData: FormData) {
-  const parsed = emailSchema.safeParse(formData.get("email"));
+  const parsed = emailSchema.safeParse(formData.get("identifier"));
   if (!parsed.success) redirect("/login?error=invalid-email");
 
   const requestHeaders = await headers();
@@ -77,7 +77,7 @@ export async function requestMagicLink(formData: FormData) {
 }
 
 export async function requestPasswordReset(formData: FormData) {
-  const parsed = emailSchema.safeParse(formData.get("email"));
+  const parsed = emailSchema.safeParse(formData.get("identifier"));
   if (!parsed.success) redirect("/login?error=invalid-email");
 
   const requestHeaders = await headers();

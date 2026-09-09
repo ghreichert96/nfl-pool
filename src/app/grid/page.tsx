@@ -219,7 +219,7 @@ export default async function GridPage({
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
       <PageHeading
         eyebrow=""
-        title="Picks Grid"
+        title="Weekly Picks Grid"
         action={
           week ? (
             <WeekSelector weeks={weeks ?? []} selected={week.week_number} />

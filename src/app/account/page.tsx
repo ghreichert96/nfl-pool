@@ -89,13 +89,15 @@ export default async function AccountPage({
           )}
           <form action={updateProfile} className="mt-5 grid gap-4">
             <label className="grid gap-1.5 text-xs font-black uppercase tracking-wide text-slate-400">
-              Display name
+              Entry name
               <input
-                name="display_name"
+                name="entry_code"
                 required
-                maxLength={80}
-                defaultValue={profile?.display_name ?? entry?.entry_code ?? ""}
-                className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case tracking-normal text-slate-100"
+                minLength={3}
+                maxLength={4}
+                pattern="[A-Za-z]{3,4}"
+                defaultValue={entry?.entry_code ?? profile?.display_name ?? ""}
+                className="control-raised min-h-12 rounded-lg border px-3 text-base uppercase tracking-normal text-slate-100"
               />
             </label>
             <label className="grid gap-1.5 text-xs font-black uppercase tracking-wide text-slate-400">

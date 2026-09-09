@@ -60,7 +60,7 @@ export default async function JoinPage({
             <form action={acceptInvitation} className="mt-5 grid gap-4">
               <input type="hidden" name="invitation_id" value={invitation.id} />
               <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
-                Entry abbreviation
+                Entry name
                 <input
                   name="entry_code"
                   required

@@ -268,6 +268,7 @@ export default async function Home({
     <PageShell
       entryCode={entry.entry_code}
       isCommissioner={Boolean(commissioner)}
+      compact
     >
       <PicksExperience
         games={games}

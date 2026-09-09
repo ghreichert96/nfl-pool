@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "HPPP NFL Pool",
+  title: "HPPP Picks Pool",
   description: "A defensible weekly NFL pick pool.",
 };
 

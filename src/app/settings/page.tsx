@@ -8,7 +8,7 @@ export default async function SettingsPage({
 }: {
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
-  const { supabase, entry, profile, email, isCommissioner, userId } =
+  const { supabase, entry, email, isCommissioner, userId } =
     await getPoolContext();
   const params = await searchParams;
   const { data: privateProfile } = await supabase
@@ -37,22 +37,14 @@ export default async function SettingsPage({
             role="alert"
             className="mb-4 rounded bg-amber-950 p-3 text-sm text-amber-200"
           >
-            Settings could not be saved. The abbreviation may already be in use.
+            {params.error === "email"
+              ? "Entry settings saved, but the email change could not be started."
+              : "Settings could not be saved. The entry name may already be in use."}
           </p>
         )}
         <form action={updateSettings} className="grid gap-4">
           <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
-            Display name
-            <input
-              name="display_name"
-              required
-              maxLength={80}
-              defaultValue={profile?.display_name ?? ""}
-              className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case"
-            />
-          </label>
-          <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
-            Entry abbreviation
+            Entry name
             <input
               name="entry_code"
               required

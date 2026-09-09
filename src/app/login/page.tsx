@@ -1,10 +1,4 @@
-import Link from "next/link";
-
-import {
-  requestMagicLink,
-  requestPasswordReset,
-  signInWithPassword,
-} from "./actions";
+import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
   searchParams,
@@ -15,7 +9,6 @@ export default async function LoginPage({
   const sent = params.sent === "1";
   const recoverySent = params.recovery_sent === "1";
   const error = typeof params.error === "string" ? params.error : null;
-
   return (
     <main className="pick-shell gunmetal mx-auto grid min-h-screen max-w-2xl place-items-center bg-slate-950 px-4 text-slate-100">
       <section className="game-card w-full max-w-sm rounded-xl border p-5 shadow-xl">
@@ -24,131 +17,25 @@ export default async function LoginPage({
         </p>
         <h1 className="mt-2 text-2xl font-black">Sign in</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Use your email or entry abbreviation with your password, or request a
-          one-time email link.
+          New here? Create an account with your email, phone, entry name, and
+          password.
         </p>
-
-        <form action={signInWithPassword} className="mt-5 space-y-3">
-          <label
-            htmlFor="password-identifier"
-            className="block text-xs font-black uppercase tracking-wide text-slate-300"
-          >
-            Email or entry abbreviation
-          </label>
-          <input
-            id="password-identifier"
-            name="identifier"
-            type="text"
-            autoComplete="username"
-            required
-            className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
-          />
-          <label
-            htmlFor="password"
-            className="block text-xs font-black uppercase tracking-wide text-slate-300"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            minLength={6}
-            required
-            className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
-          />
-          {error === "invalid-credentials" && (
-            <p role="alert" className="text-sm text-amber-300">
-              That email and password combination was not recognized.
-            </p>
-          )}
-          <button
-            type="submit"
-            className="control-pressed min-h-12 w-full rounded-lg border px-4 font-black"
-          >
-            SIGN IN
-          </button>
-        </form>
-        <details className="mt-3 rounded-lg border border-slate-800 p-3">
-          <summary className="cursor-pointer text-center text-xs font-black text-slate-300">
-            FORGOT PASSWORD?
-          </summary>
-          <form action={requestPasswordReset} className="mt-3 space-y-3">
-            <label
-              htmlFor="recovery-email"
-              className="block text-xs font-black uppercase tracking-wide text-slate-300"
-            >
-              Email address
-            </label>
-            <input
-              id="recovery-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
-            />
-            <button
-              type="submit"
-              className="control-raised min-h-11 w-full rounded-lg border px-4 text-xs font-black"
-            >
-              EMAIL PASSWORD RESET
-            </button>
-          </form>
-        </details>
-
-        <div className="my-6 flex items-center gap-3 text-xs font-black text-slate-500">
-          <span className="h-px flex-1 bg-slate-700" />
-          OR
-          <span className="h-px flex-1 bg-slate-700" />
-        </div>
-
+        <LoginForm invalidCredentials={error === "invalid-credentials"} />
         {sent || recoverySent ? (
           <div
             role="status"
-            className="rounded-lg border border-emerald-500 bg-emerald-950 p-3 text-sm text-emerald-100"
+            className="mt-4 rounded-lg border border-emerald-500 bg-emerald-950 p-3 text-sm text-emerald-100"
           >
             {recoverySent
               ? "Check your email for a password-reset link."
               : "Check your email. The sign-in link expires after 24 hours."}
           </div>
-        ) : (
-          <form action={requestMagicLink} className="space-y-3">
-            <label
-              htmlFor="email"
-              className="block text-xs font-black uppercase tracking-wide text-slate-300"
-            >
-              Email address
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              className="min-h-12 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-base outline-none focus:border-slate-200"
-            />
-            {error && error !== "invalid-credentials" && (
-              <p role="alert" className="text-sm text-amber-300">
-                We couldn’t send a link. Check the address or try again shortly.
-              </p>
-            )}
-            <button
-              type="submit"
-              className="control-pressed min-h-12 w-full rounded-lg border px-4 font-black"
-            >
-              EMAIL SIGN-IN LINK
-            </button>
-          </form>
-        )}
-
-        <Link
-          href="/"
-          className="mt-5 block text-center text-xs text-slate-400 underline"
-        >
-          Back to pool
-        </Link>
+        ) : error && error !== "invalid-credentials" ? (
+          <p role="alert" className="mt-4 text-sm text-amber-300">
+            We couldn’t complete that request. Email links require an email
+            address.
+          </p>
+        ) : null}
       </section>
     </main>
   );

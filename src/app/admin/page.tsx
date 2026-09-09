@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageHeading, PageShell } from "@/components/page-shell";
 import { createClient } from "@/lib/supabase/server";
 import { testLabEnabled } from "@/lib/test-lab";
+import { SignupLinkButton } from "./signup-link-button";
 
 import {
   generatePayoutSchedule,
@@ -358,9 +359,15 @@ export default async function AdminPage({
           </p>
           <h1 className="mt-2 text-xl font-black">Invite an entrant</h1>
           <p className="mt-2 text-sm text-slate-400">
-            The entrant receives an email invitation, then chooses an entry
-            abbreviation and private password.
+            Share the public signup link, or send a seven-day invitation to a
+            specific email address.
           </p>
+          <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950 p-3">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+              Self-enrollment
+            </p>
+            <SignupLinkButton />
+          </div>
           {params.sent ? (
             <p className="mt-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">
               Invitation sent.
