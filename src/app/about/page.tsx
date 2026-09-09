@@ -5,20 +5,39 @@ export default async function AboutPage() {
   return (
     <PageShell entryCode={entry?.entry_code} isCommissioner={isCommissioner}>
       <PageHeading
-        eyebrow="HPPP · 2026"
+        eyebrow="Est. Fall 2024"
         title="About the pool"
-        description="A private, commissioner-run NFL picks pool."
+        description="An independent, commissioner-run football picks pool."
       />
       <section className="game-card rounded-xl border p-5 text-sm leading-6 text-slate-300">
         <p>
-          HPPP combines weekly ATS and totals picks with season-long Underdog
-          and Sudden Death contests.
+          This pool is inspired by a spreads pool of Virginia dads, the Cville
+          16. It’s designed to give entrants a way to stay entertained and a
+          fair shot to win—against each other—without losing money to Vegas.
         </p>
         <p className="mt-3">
-          For account, invitation, or scoring help, contact the commissioner
-          through the private contact information used for your invitation.
+          The 2024 and 2025 seasons ran out of Google Forms and Google Sheets.
+          Code for the 2026 pool site was developed and is maintained by a
+          development team in Bangalore, India.
         </p>
-        <p className="mt-4 text-xs text-slate-500">2026 MVP</p>
+        <p className="mt-3">
+          Contact Harry (pool commish) at{" "}
+          <a
+            className="font-bold text-cyan-300 underline"
+            href="tel:+14344090768"
+          >
+            +1 (434) 409-0768
+          </a>{" "}
+          or{" "}
+          <a
+            className="font-bold text-cyan-300 underline"
+            href="mailto:ghreichert96@gmail.com"
+          >
+            ghreichert96@gmail.com
+          </a>{" "}
+          for any questions, concerns, or feedback.
+        </p>
+        <p className="mt-4 text-xs text-slate-500">HPPP · 2026 MVP</p>
       </section>
     </PageShell>
   );

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { phoneSchema } from "@/features/auth/phone";
 
 const settingsSchema = z.object({
   entryCode: z
@@ -12,10 +13,7 @@ const settingsSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{3,4}$/),
   email: z.string().trim().email().max(254),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\+[1-9][0-9]{7,14}$/),
+  phone: phoneSchema,
 });
 
 export async function updateSettings(formData: FormData) {

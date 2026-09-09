@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { PageHeading, PageShell } from "@/components/page-shell";
+import { PhoneInput } from "@/components/phone-input";
 import { createClient } from "@/lib/supabase/server";
 import { testLabEnabled } from "@/lib/test-lab";
 import { SignupLinkButton } from "./signup-link-button";
@@ -393,16 +394,9 @@ export default async function AdminPage({
             </label>
             <label className="grid gap-1 text-sm font-bold">
               Phone number
-              <input
-                name="phone"
-                type="tel"
-                required
-                pattern="\+[1-9][0-9]{7,14}"
-                className="control-raised min-h-11 rounded-lg border bg-transparent px-3"
-                placeholder="+12125551212"
-              />
+              <PhoneInput className="control-raised min-h-11 rounded-lg border bg-transparent px-3" />
               <small className="font-normal text-slate-500">
-                Include country code.
+                U.S. numbers automatically receive +1.
               </small>
             </label>
             <button

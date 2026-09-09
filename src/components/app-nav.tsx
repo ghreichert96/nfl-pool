@@ -15,7 +15,6 @@ const secondary = [
   { href: "/account", label: "Profile", icon: "profile" },
   { href: "/rules", label: "Rules", icon: "book" },
   { href: "/settings", label: "Settings", icon: "settings" },
-  { href: "/account#history", label: "History", icon: "history" },
   { href: "/about", label: "About", icon: "info" },
 ] as const;
 type IconName =

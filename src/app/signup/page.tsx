@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { PhoneInput } from "@/components/phone-input";
 import { signUp } from "./actions";
 
 export default async function SignupPage({
@@ -39,15 +40,7 @@ export default async function SignupPage({
             </label>
             <label className="grid gap-1 text-xs font-black uppercase text-slate-300">
               Phone
-              <input
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                pattern="\+[1-9][0-9]{7,14}"
-                placeholder="+12125551212"
-                required
-                className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case"
-              />
+              <PhoneInput className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case" />
             </label>
             <label className="grid gap-1 text-xs font-black uppercase text-slate-300">
               Entry name

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeading, PageShell } from "@/components/page-shell";
+import { PhoneInput } from "@/components/phone-input";
 import { getPoolContext } from "@/lib/pool-context";
 import { updateSettings } from "@/app/account/actions";
 
@@ -67,13 +68,8 @@ export default async function SettingsPage({
           </label>
           <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
             Phone
-            <input
-              name="phone"
-              type="tel"
-              required
-              pattern="\+[1-9][0-9]{7,14}"
+            <PhoneInput
               defaultValue={privateProfile?.phone_e164 ?? ""}
-              placeholder="+12125551212"
               className="control-raised min-h-12 rounded-lg border px-3 text-base normal-case"
             />
           </label>

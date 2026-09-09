@@ -5,16 +5,14 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { passwordSchema } from "@/features/auth/password";
+import { phoneSchema } from "@/features/auth/phone";
 import { getAppOrigin } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 const signupSchema = passwordSchema.and(
   z.object({
     email: z.string().trim().email().max(254),
-    phone: z
-      .string()
-      .trim()
-      .regex(/^\+[1-9][0-9]{7,14}$/),
+    phone: phoneSchema,
     entryCode: z
       .string()
       .trim()
