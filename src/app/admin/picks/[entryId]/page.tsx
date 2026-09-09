@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { PageShell } from "@/components/page-shell";
 import type { Game, Picks } from "@/features/picks/model";
 import { EMPTY_PICKS } from "@/features/picks/model";
 import { PicksExperience } from "@/features/picks/picks-experience";
@@ -156,13 +156,7 @@ export default async function CommissionerPickSheet({
   }, structuredClone(EMPTY_PICKS));
 
   return (
-    <div className="relative">
-      <Link
-        href="/admin/picks"
-        className="fixed right-3 top-14 z-50 rounded-md border border-amber-500 bg-slate-950 px-3 py-2 text-xs font-black text-amber-200"
-      >
-        EXIT ADMIN PICKS
-      </Link>
+    <PageShell entryCode={entry.entry_code} isCommissioner compact>
       <PicksExperience
         games={games}
         initialPicks={initial}
@@ -171,6 +165,6 @@ export default async function CommissionerPickSheet({
         weekNumber={week.week_number}
         submitAction={submitCommissionerPicks}
       />
-    </div>
+    </PageShell>
   );
 }

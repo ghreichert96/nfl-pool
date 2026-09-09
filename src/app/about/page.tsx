@@ -9,8 +9,8 @@ export default async function AboutPage() {
       isCommissioner={isCommissioner}
       compact
     >
-      <div className="py-3 sm:py-5">
-        <CompactPageHeader title="About the pool" className="mb-3" />
+      <div className="pb-3 sm:pb-5">
+        <CompactPageHeader sticky title="About the pool" className="mb-3" />
         <section className="game-card rounded-xl border p-5 text-sm leading-6 text-slate-300">
           <p>
             This pool is inspired by a spreads pool of Virginia dads, the Cville

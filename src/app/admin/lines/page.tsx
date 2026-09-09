@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 
 import { refreshLines, saveLine, toggleLinesFreeze } from "./actions";
@@ -75,11 +75,6 @@ export default async function LinesPage({
 
   return (
     <PageShell isCommissioner>
-      <PageHeading
-        eyebrow={`Commissioner · ${season?.year ?? "Season"}`}
-        title="Spreads & lines"
-        description="Full refresh requires an open board. Individual commissioner edits remain available while frozen and are audited."
-      />
       <div className="mb-5 flex flex-wrap gap-2">
         {(weeks ?? []).map((week) => (
           <Link

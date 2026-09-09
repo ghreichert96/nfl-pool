@@ -247,8 +247,9 @@ export default async function GridPage({
       compact
       refreshWhileLive={games.some((game) => game.status === "live")}
     >
-      <div className="py-3 sm:py-5">
+      <div className="pb-3 sm:pb-5">
         <CompactPageHeader
+          sticky
           title="Picks Grid"
           className="mb-3"
           action={

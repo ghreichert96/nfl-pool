@@ -1,4 +1,4 @@
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 import { saveRuleSection } from "./actions";
 import { PublishButton } from "./publish-button";
@@ -17,11 +17,6 @@ export default async function ManagePoolPage({
     .order("position");
   return (
     <PageShell isCommissioner>
-      <PageHeading
-        eyebrow="Commissioner"
-        title="Rules"
-        description="Small copy edits publish immediately. Scoring mechanics remain code-controlled."
-      />
       {params.saved && (
         <p
           role="status"

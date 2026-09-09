@@ -25,8 +25,8 @@ export default async function SettingsPage({
       isCommissioner={isCommissioner}
       compact
     >
-      <div className="py-3 sm:py-5">
-        <CompactPageHeader title="Settings" className="mb-3" />
+      <div className="pb-3 sm:pb-5">
+        <CompactPageHeader sticky title="Settings" className="mb-3" />
         <section className="game-card mx-auto max-w-lg rounded-xl border p-5">
           {params.saved && (
             <p

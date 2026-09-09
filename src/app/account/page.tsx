@@ -54,8 +54,9 @@ export default async function AccountPage({
         competition?.games.some((game) => game.status === "live"),
       )}
     >
-      <div className="py-3 sm:py-5">
+      <div className="pb-3 sm:pb-5">
         <CompactPageHeader
+          sticky
           title={
             <span className="flex items-center gap-2">
               Profile

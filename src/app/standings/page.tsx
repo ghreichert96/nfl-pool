@@ -73,21 +73,27 @@ export default async function StandingsPage({
         data?.games.some((game) => game.status === "live"),
       )}
     >
-      <div className="py-3 sm:py-5">
+      <div className="pb-3 sm:pb-5">
         <CompactPageHeader
+          sticky
           title="Standings"
           className="mb-3"
           action={
             selectedWeek ? (
-              <WeekSelector
-                weeks={availableWeeks ?? []}
-                selected={selectedWeek.week_number}
-                preserve={{ view }}
-              />
+              <div className="flex items-center gap-1.5">
+                <StandingsTabs
+                  view={view}
+                  weekNumber={selectedWeek.week_number}
+                />
+                <WeekSelector
+                  weeks={availableWeeks ?? []}
+                  selected={selectedWeek.week_number}
+                  preserve={{ view }}
+                />
+              </div>
             ) : undefined
           }
         />
-        <StandingsTabs view={view} weekNumber={selectedWeek?.week_number} />
         {view === "overall" ? (
           <section className="game-card overflow-hidden rounded-xl border shadow-xl">
             <div className="max-h-[68vh] overflow-auto">

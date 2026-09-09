@@ -1,4 +1,4 @@
-import { PageHeading, PageShell } from "@/components/page-shell";
+import { PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -55,11 +55,6 @@ export default async function EntrantsPage({
 
   return (
     <PageShell isCommissioner>
-      <PageHeading
-        eyebrow={`Commissioner · ${season?.year ?? "Season"}`}
-        title="Entrants"
-        description="Entry names, account state, and authentication recovery. Passwords are one-way hashes and cannot be displayed."
-      />
       {notice && (
         <p className="mb-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">
           {notice}
