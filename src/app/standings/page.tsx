@@ -111,7 +111,7 @@ export default async function StandingsPage({
                     ].map((header, index) => (
                       <th
                         key={header}
-                        className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-left text-[8px] uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 z-30 w-10 bg-slate-950" : ""} ${index === 2 ? "w-12" : ""} ${index === 3 ? "w-7" : ""} ${index >= 4 ? "w-11" : ""}`}
+                        className={`whitespace-nowrap border-b border-slate-800 px-0.5 py-2 text-left text-[8px] font-black uppercase text-slate-400 ${index === 0 ? "w-5" : ""} ${index === 1 ? "sticky left-0 z-30 w-9 bg-slate-950" : ""} ${index === 2 ? "w-11" : ""} ${index === 3 ? "w-6" : ""} ${index >= 4 ? "w-10" : ""}`}
                       >
                         {header}
                       </th>
@@ -126,22 +126,22 @@ export default async function StandingsPage({
                         standing.entryId === entry?.id ? "bg-slate-800/50" : ""
                       }
                     >
-                      <td className="w-6 border-b border-slate-800 px-1 py-2 text-left font-black text-slate-400">
+                      <td className="w-5 border-b border-slate-800 px-0.5 py-2 text-left font-black text-slate-400">
                         {ranks.get(standing.entryId)}
                       </td>
-                      <th className="sticky left-0 w-10 border-b border-slate-800 bg-[#111417] px-1 py-2 text-left font-black">
+                      <th className="sticky left-0 w-9 border-b border-slate-800 bg-[#111417] px-0.5 py-2 text-left font-black">
                         {entryMap.get(standing.entryId)?.entry_code}
                       </th>
-                      <td className="w-12 border-b border-slate-800 px-1 py-2 text-left">
+                      <td className="w-11 border-b border-slate-800 px-0.5 py-2 text-left">
                         {standing.wins}-{standing.losses}-{standing.ties}
                       </td>
-                      <td className="w-7 border-b border-slate-800 px-1 py-2 text-left">
+                      <td className="w-6 border-b border-slate-800 px-0.5 py-2 text-left">
                         {gamesBack(standing, data.standings).toFixed(1)}
                       </td>
-                      <td className="w-11 border-b border-slate-800 px-1 py-2 text-left font-black text-fuchsia-300">
+                      <td className="w-10 border-b border-slate-800 px-0.5 py-2 text-left font-black text-fuchsia-300">
                         {standing.underdogPoints.toFixed(1)}
                       </td>
-                      <td className="w-11 border-b border-slate-800 px-1 py-2 text-left">
+                      <td className="w-10 border-b border-slate-800 px-0.5 py-2 text-left">
                         <span
                           className={
                             standing.eliminated
@@ -152,7 +152,7 @@ export default async function StandingsPage({
                           {standing.suddenDeathStrikes}/2
                         </span>
                       </td>
-                      <td className="w-12 border-b border-slate-800 px-1 py-2 text-left font-black">
+                      <td className="w-11 border-b border-slate-800 px-0.5 py-2 text-left font-black">
                         {formatMoney(
                           data.financials.get(standing.entryId)?.net ?? 0,
                         )}
@@ -205,7 +205,7 @@ function MainBreakdownTable({
                 (header, index) => (
                   <th
                     key={header}
-                    className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-left text-[8px] uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 w-10 bg-slate-950" : ""} ${index >= 2 ? "w-12" : ""}`}
+                    className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-left text-[8px] font-black uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 w-10 bg-slate-950" : ""} ${index >= 2 ? "w-12" : ""}`}
                   >
                     {header}
                   </th>

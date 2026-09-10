@@ -233,3 +233,16 @@ export function sharedRankPayout(
     ).reduce((sum, value) => sum + value, 0) / tieCount
   );
 }
+
+export function sidePoolPayout(
+  entryId: number,
+  allEntryIds: number[],
+  winnerEntryIds: number[],
+  pot = 200,
+) {
+  if (allEntryIds.length === 0 || winnerEntryIds.length === allEntryIds.length)
+    return 0;
+  return winnerEntryIds.includes(entryId)
+    ? pot / winnerEntryIds.length
+    : -pot / (allEntryIds.length - winnerEntryIds.length);
+}

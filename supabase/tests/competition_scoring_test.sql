@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(19);
 select has_table('public','weekly_comments','weekly comments exist');
 select has_table('public','game_results','game results exist');
 select has_table('public','score_events','score events exist');
@@ -17,5 +17,8 @@ select col_type_is('public','score_events','decision_value','numeric(6,2)','scor
 select is((select sum(amount) from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026),0::numeric,'default payout schedule balances');
 select is((select max(amount) from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026),350::numeric,'default payout schedule tops at positive 350');
 select is((select min(amount) from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026),(-350)::numeric,'default payout schedule bottoms at negative 350');
+select is((select count(*) from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026),16::bigint,'default payout scale has 16 ranks');
+select is((select amount from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026 and schedule.rank=8),0::numeric,'rank 8 is zero');
+select is((select amount from public.payout_schedules schedule join public.seasons season on season.id=schedule.season_id where season.year=2026 and schedule.rank=9),0::numeric,'rank 9 is zero');
 select * from finish();
 rollback;

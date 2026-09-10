@@ -3,6 +3,7 @@ import {
   calculateStandings,
   gamesBack,
   sharedRankPayout,
+  sidePoolPayout,
   teamOutcome,
   totalOutcome,
   type ScoringGame,
@@ -93,6 +94,55 @@ describe("competition scoring", () => {
         ]),
       ),
     ).toBe(225);
+    expect(
+      sharedRankPayout(
+        3,
+        3,
+        new Map([
+          [3, 250],
+          [4, 200],
+          [5, 150],
+        ]),
+      ),
+    ).toBe(200);
+  });
+  it("balances projected side-pool winners and non-winners", () => {
+    const all = [1, 2, 3, 4];
+    expect(sidePoolPayout(1, all, [1, 2])).toBe(100);
+    expect(sidePoolPayout(4, all, [1, 2])).toBe(-100);
+    expect(sidePoolPayout(1, all, all)).toBe(0);
+  });
+  it("charges Main omissions only when every game in the week is final", () => {
+    expect(
+      calculateStandings([1], [{ ...game, status: "live" }], [])[0],
+    ).toMatchObject({
+      wins: 0,
+      losses: 0,
+      ties: 0,
+    });
+    expect(calculateStandings([1], [game], [])[0]).toMatchObject({
+      wins: 0,
+      losses: 10,
+      ties: 0,
+    });
+  });
+  it("recalculates corrected finals without retaining the prior outcome", () => {
+    const pick = {
+      entryId: 1,
+      gameId: 1,
+      kind: "ats" as const,
+      team: "DOG",
+      totalDirection: null,
+      isBestBet: false,
+    };
+    expect(calculateStandings([1], [game], [pick])[0].wins).toBe(1);
+    expect(
+      calculateStandings(
+        [1],
+        [{ ...game, awayScore: 10, homeScore: 24 }],
+        [pick],
+      )[0].losses,
+    ).toBe(10);
   });
   it("gives no UD points and no SD strike for an outright tie", () => {
     const tied = { ...game, awayScore: 20, homeScore: 20 };

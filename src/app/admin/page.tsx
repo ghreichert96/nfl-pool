@@ -6,16 +6,15 @@ import { PhoneInput } from "@/components/phone-input";
 import { createClient } from "@/lib/supabase/server";
 import { testLabEnabled } from "@/lib/test-lab";
 import { SignupLinkButton } from "./signup-link-button";
+import { PayoutScaleEditor } from "./payout-scale-editor";
 
 import {
-  generatePayoutSchedule,
   inviteEntry,
   recordGameResult,
   reconcileScores,
   releaseGameResultToProvider,
   refreshOdds,
   saveGame,
-  savePayoutSchedule,
   toggleWeekFreeze,
 } from "./actions";
 
@@ -74,6 +73,13 @@ export default async function AdminPage({
         .eq("season_id", season.id)
         .order("week_number", { ascending: false })
     : { data: [] };
+  const { count: competitiveEntryCount } = season
+    ? await supabase
+        .from("pool_entries")
+        .select("id", { count: "exact", head: true })
+        .eq("season_id", season.id)
+        .eq("is_test", false)
+    : { count: 0 };
   const weekIds = (weeks ?? []).map((week) => week.id);
   const [{ data: games }, { data: payouts }, { data: audit }] = season
     ? await Promise.all([
@@ -629,71 +635,35 @@ export default async function AdminPage({
           <p className="text-xs font-black tracking-[0.18em] text-slate-300">
             MAIN POOL
           </p>
-          <h2 className="mt-2 text-xl font-black">Payout schedule</h2>
+          <h2 className="mt-2 text-xl font-black">Payout scale</h2>
           <p className="mt-2 text-sm text-slate-400">
-            Amounts must sum to $0. Locking makes the schedule immutable.
+            Set the maximum gain and loss. The complete zero-sum scale updates
+            to match the competitive field.
           </p>
           {params.payout_saved && (
             <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
-              Payout schedule saved.
+              Payout scale saved.
             </p>
           )}
           {params.payout_error && (
             <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
-              Schedule must be valid and balance to $0.
+              Scale could not be saved. Check the field count and maximum.
             </p>
           )}
-          {season && (payouts ?? []).length === 0 && (
-            <form action={generatePayoutSchedule} className="mt-4">
-              <input type="hidden" name="season_id" value={season.id} />
-              <button className="control-raised min-h-10 w-full rounded border text-xs font-black">
-                GENERATE BALANCED SCHEDULE
-              </button>
-            </form>
-          )}
-          {season && (payouts ?? []).length > 0 && (
-            <form action={savePayoutSchedule} className="mt-4">
-              <input type="hidden" name="season_id" value={season.id} />
-              <input
-                type="hidden"
-                name="rank_count"
-                value={(payouts ?? []).length}
-              />
-              <div className="max-h-80 space-y-1 overflow-auto">
-                {(payouts ?? []).map((row) => (
-                  <label
-                    key={row.rank}
-                    className="grid grid-cols-[1fr_120px] items-center gap-2 text-xs"
-                  >
-                    <span>Rank {row.rank}</span>
-                    <input
-                      name={`rank_${row.rank}`}
-                      type="number"
-                      step="0.01"
-                      defaultValue={Number(row.amount)}
-                      disabled={Boolean(row.locked_at)}
-                      className="control-raised min-h-9 rounded border px-2 text-right"
-                    />
-                  </label>
-                ))}
-              </div>
-              {payouts?.[0]?.locked_at ? (
-                <p className="mt-4 text-xs font-black text-amber-300">
-                  Locked{" "}
-                  {new Date(payouts[0].locked_at).toLocaleDateString("en-US")}
-                </p>
-              ) : (
-                <div className="mt-4 flex items-center gap-3">
-                  <label className="text-xs">
-                    <input type="checkbox" name="lock" className="mr-2" />
-                    Lock schedule
-                  </label>
-                  <button className="control-pressed ml-auto min-h-10 rounded border px-4 text-xs font-black">
-                    SAVE
-                  </button>
-                </div>
+          {season && (competitiveEntryCount ?? 0) >= 2 && (
+            <PayoutScaleEditor
+              seasonId={season.id}
+              entryCount={competitiveEntryCount ?? 0}
+              currentMaximum={Math.max(
+                0,
+                ...(payouts ?? []).map((row) => Number(row.amount)),
               )}
-            </form>
+            />
+          )}
+          {season && (competitiveEntryCount ?? 0) < 2 && (
+            <p className="mt-4 text-xs text-amber-300">
+              At least two competitive entries are required.
+            </p>
           )}
         </section>
       </div>
