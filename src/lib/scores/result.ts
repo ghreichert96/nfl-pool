@@ -72,6 +72,10 @@ export async function saveFinalGameResult({
       home_score: game.homeScore,
       status: "final",
       status_detail: "Final",
+      live_state: "final",
+      final_validation_state: "validated",
+      final_validation_next_at: null,
+      final_validation_error: null,
       score_provider_updated_at: providerUpdatedAt,
     })
     .eq("id", game.id);

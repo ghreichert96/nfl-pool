@@ -319,7 +319,16 @@ async function applyStage(
         status: isFinal ? "final" : isLive ? "live" : "scheduled",
         away_score: isFinal || isLive ? awayScore : null,
         home_score: isFinal || isLive ? homeScore : null,
-        status_detail: isFinal ? "Final" : isLive ? "Q3 4:12" : null,
+        status_detail: isFinal ? "Final" : isLive ? "Q3 · 4:12" : null,
+        live_state: isFinal ? "final" : isLive ? "live" : "scheduled",
+        live_period: isLive ? 3 : null,
+        live_clock: isLive ? "4:12" : null,
+        live_status_updated_at: isLive ? new Date().toISOString() : null,
+        final_validation_state: isFinal ? "validated" : "none",
+        final_detected_at: isFinal ? new Date().toISOString() : null,
+        final_validation_next_at: null,
+        final_validation_attempts: 0,
+        final_validation_error: null,
       })
       .eq("id", games[index].id);
   }

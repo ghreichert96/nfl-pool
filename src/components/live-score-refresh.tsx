@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-const REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
 export function LiveScoreRefresh({ enabled }: { enabled: boolean }) {
   const router = useRouter();

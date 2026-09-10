@@ -111,7 +111,7 @@ export default async function Home({
     supabase
       .from("games")
       .select(
-        "id, away_team, home_team, kickoff_at, line_lock_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread, total)",
+        "id, away_team, home_team, kickoff_at, line_lock_at, venue, game_type, status, away_score, home_score, status_detail, live_status_updated_at, pool_lines(away_spread, total)",
       )
       .eq("week_id", week.id)
       .order("kickoff_at"),
@@ -233,6 +233,16 @@ export default async function Home({
     ];
   });
   const parsedDraft = picksSchema.safeParse(draft?.payload);
+  const hasLiveGames = games.some((game) => game.status === "live");
+  const latestLiveUpdate = (gameRows ?? [])
+    .flatMap((game) =>
+      game.live_status_updated_at ? [game.live_status_updated_at] : [],
+    )
+    .sort()
+    .at(-1);
+  const scoreFreshness = hasLiveGames
+    ? scoreFreshnessLabel(latestLiveUpdate, now)
+    : undefined;
   const submittedPicks: Picks | undefined = latestSubmission
     ? {
         ats: (submittedRows ?? [])
@@ -276,6 +286,7 @@ export default async function Home({
       entryCode={entry.entry_code}
       isCommissioner={Boolean(commissioner)}
       compact
+      refreshWhileLive={hasLiveGames}
     >
       <PicksExperience
         games={games}
@@ -305,7 +316,20 @@ export default async function Home({
               )
             : false)
         }
+        scoreFreshness={scoreFreshness}
       />
     </PageShell>
   );
+}
+
+function scoreFreshnessLabel(updatedAt: string | undefined, now: number) {
+  if (!updatedAt) return { label: "Scores pending", stale: true };
+  const minutes = Math.max(
+    0,
+    Math.floor((now - new Date(updatedAt).getTime()) / 60_000),
+  );
+  return {
+    label: minutes < 1 ? "Updated now" : `Updated ${minutes}m ago`,
+    stale: minutes >= 20,
+  };
 }
