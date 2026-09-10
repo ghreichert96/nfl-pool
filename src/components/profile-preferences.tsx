@@ -45,10 +45,10 @@ export function ProfilePreferences() {
             );
             window.dispatchEvent(new Event(preferenceEvent));
           }}
-          className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors ${minimized ? "border-emerald-400 bg-emerald-600" : "border-slate-600 bg-slate-800"}`}
+          className={`relative h-7 w-12 shrink-0 rounded-full border p-0.5 transition-colors ${minimized ? "border-emerald-400 bg-emerald-600" : "border-slate-600 bg-slate-800"}`}
         >
           <span
-            className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform ${minimized ? "translate-x-5" : "translate-x-0.5"}`}
+            className={`absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition-transform ${minimized ? "translate-x-5" : "translate-x-0"}`}
           />
           <span className="sr-only">
             {minimized ? "Preview starts collapsed" : "Preview starts expanded"}

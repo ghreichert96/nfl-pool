@@ -16,6 +16,8 @@ const primary = [
 const secondary = [
   { href: "/account", label: "Profile", icon: "profile" },
   { href: "/rules", label: "Rules", icon: "book" },
+  { href: "/submissions", label: "Submission Log", icon: "history" },
+  { href: "/settings", label: "Settings", icon: "settings" },
   { href: "/about", label: "About", icon: "info" },
 ] as const;
 const adminTabs = [
@@ -137,7 +139,9 @@ function pageHelp(pathname: string) {
   if (pathname.startsWith("/settings"))
     return "Update your entry name, login email, phone number, password, and display theme.";
   if (pathname.startsWith("/account"))
-    return "Use the Profile selector for entry performance, account settings, or a week-specific submission log.";
+    return "Profile shows your entry identity and current performance. Use Edit to update account settings.";
+  if (pathname.startsWith("/submissions"))
+    return "Choose a week to review submission time, revision count, comment, and the complete weekly record.";
   if (pathname.startsWith("/about"))
     return "Background, purpose, commissioner contact details, and app context.";
   return "Use the navigation to move through the pool. Account and support pages are available from Menu.";
@@ -338,13 +342,13 @@ export function AppNav({
           type="button"
           aria-label="Close panel"
           onClick={() => setPanel(null)}
-          className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px]"
+          className={`fixed inset-0 z-40 ${panel === "menu" ? "bg-transparent" : "bg-black/55 backdrop-blur-[2px]"}`}
         />
       )}
       {panel && (
         <section
           role="dialog"
-          aria-modal="true"
+          aria-modal={panel === "menu" ? "false" : "true"}
           aria-label={
             panel === "menu"
               ? "Menu"
@@ -352,9 +356,15 @@ export function AppNav({
                 ? "Page information"
                 : "Entry profile"
           }
-          className="fixed inset-x-4 top-1/2 z-[60] mx-auto max-w-md -translate-y-1/2 rounded-xl border border-slate-600 bg-slate-950 p-3 shadow-2xl sm:inset-x-auto sm:right-5 sm:top-16 sm:w-80 sm:translate-y-0"
+          className={
+            panel === "menu"
+              ? "fixed right-2 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-[60] w-56 rounded-xl border border-slate-700 bg-slate-950/98 p-2 shadow-2xl sm:top-14 sm:right-5 sm:bottom-auto"
+              : "fixed inset-x-4 top-1/2 z-[60] mx-auto max-w-md -translate-y-1/2 rounded-xl border border-slate-600 bg-slate-950 p-3 shadow-2xl sm:inset-x-auto sm:right-5 sm:top-16 sm:w-80 sm:translate-y-0"
+          }
         >
-          <div className="mb-3 flex items-center justify-between">
+          <div
+            className={`${panel === "menu" ? "sr-only" : "mb-3 flex items-center justify-between"}`}
+          >
             <strong className="text-xs uppercase tracking-wider">
               {panel === "menu"
                 ? "Menu"
@@ -372,8 +382,8 @@ export function AppNav({
             </button>
           </div>
           {panel === "menu" && (
-            <nav className="grid gap-2" aria-label="Secondary">
-              {menuItems.map((item) => (
+            <nav className="grid gap-1.5" aria-label="Secondary">
+              {menuItems.map((item, index) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -383,7 +393,10 @@ export function AppNav({
                     startNavigation();
                     setPanel(null);
                   }}
-                  className={`${active(item.href) ? "control-pressed" : "control-raised"} flex min-h-12 items-center gap-2 rounded-lg border px-3 text-xs font-black uppercase transition-colors`}
+                  style={{
+                    transform: `translateX(-${(menuItems.length - index - 1) * 3}px)`,
+                  }}
+                  className={`${active(item.href) ? "control-pressed" : "control-raised"} flex min-h-10 items-center gap-2 rounded-lg border px-3 text-[11px] font-black uppercase transition-[color,background-color,transform]`}
                 >
                   <Icon name={item.icon} />
                   {item.label}
@@ -433,14 +446,24 @@ export function AppNav({
               <div className="grid grid-cols-2 gap-2">
                 <Link
                   href="/account"
-                  onClick={() => setPanel(null)}
+                  onPointerDown={() => setPendingHref("/account")}
+                  onClick={() => {
+                    setPendingHref("/account");
+                    startNavigation();
+                    setPanel(null);
+                  }}
                   className="control-raised grid min-h-11 place-items-center rounded-lg border text-xs font-black"
                 >
-                  ENTRY
+                  PROFILE
                 </Link>
                 <Link
-                  href="/account?section=settings"
-                  onClick={() => setPanel(null)}
+                  href="/settings"
+                  onPointerDown={() => setPendingHref("/settings")}
+                  onClick={() => {
+                    setPendingHref("/settings");
+                    startNavigation();
+                    setPanel(null);
+                  }}
                   className="control-raised grid min-h-11 place-items-center rounded-lg border text-xs font-black"
                 >
                   SETTINGS
