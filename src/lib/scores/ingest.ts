@@ -4,9 +4,9 @@ import { fetchNflScores, type ScoreEvent } from "@/lib/odds/provider";
 import { saveFinalGameResult } from "./result";
 
 export const SCORE_QUOTA_RESERVE = 49;
-const MAX_GAME_AGE_MS = 8 * 60 * 60 * 1000;
-const EXPECTED_GAME_LENGTH_MS = 3 * 60 * 60 * 1000;
 const RECONCILIATION_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+const SLATE_KICKOFF_WINDOW_MS = 90 * 60 * 1000;
+const MAX_SLATE_HOLD_MS = 45 * 60 * 1000;
 
 type GameRow = {
   id: number;
@@ -19,6 +19,9 @@ type GameRow = {
   away_score: number | null;
   home_score: number | null;
   score_provider_updated_at: string | null;
+  live_state: string;
+  final_detected_at: string | null;
+  final_validation_attempts: number;
   pool_lines:
     | { away_spread: number | string; total: number | string }
     | Array<{ away_spread: number | string; total: number | string }>;
@@ -72,36 +75,57 @@ export async function ingestScores({
 }: {
   admin: SupabaseClient;
   apiKey: string;
-  mode: "live" | "reconcile";
+  mode: "validate" | "reconcile";
   now?: Date;
 }) {
   const nowMs = now.getTime();
-  const from = new Date(
-    nowMs - (mode === "reconcile" ? RECONCILIATION_AGE_MS : MAX_GAME_AGE_MS),
-  ).toISOString();
+  const from = new Date(nowMs - RECONCILIATION_AGE_MS).toISOString();
   let query = admin
     .from("games")
     .select(
-      "id, week_id, provider_event_id, away_team, home_team, kickoff_at, status, away_score, home_score, score_provider_updated_at, pool_lines(away_spread,total), game_results(source,away_score,home_score)",
+      "id, week_id, provider_event_id, away_team, home_team, kickoff_at, status, away_score, home_score, score_provider_updated_at, live_state, final_detected_at, final_validation_attempts, pool_lines(away_spread,total), game_results(source,away_score,home_score)",
     )
     .not("provider_event_id", "is", null)
     .gte("kickoff_at", from)
     .lte("kickoff_at", now.toISOString())
     .order("kickoff_at");
-  if (mode === "live") query = query.in("status", ["scheduled", "live"]);
+  if (mode === "validate")
+    query = query
+      .in("final_validation_state", ["pending", "retry"])
+      .lte("final_validation_next_at", now.toISOString());
+  else query = query.neq("status", "final");
   const { data, error } = await query;
   if (error) throw error;
-  const games = (data ?? []) as unknown as GameRow[];
+  let games = (data ?? []) as unknown as GameRow[];
   if (!games.length)
     return { status: "skipped" as const, reason: "no_active_games" };
 
-  const includeCompleted =
-    mode === "reconcile" ||
-    games.some(
+  if (mode === "validate") {
+    const weekIds = [...new Set(games.map((game) => game.week_id))];
+    const { data: activeData, error: activeError } = await admin
+      .from("games")
+      .select("id, week_id, kickoff_at, live_state")
+      .in("week_id", weekIds)
+      .eq("status", "live")
+      .neq("live_state", "final_pending");
+    if (activeError) throw activeError;
+    games = games.filter(
       (game) =>
-        nowMs - new Date(game.kickoff_at).getTime() >= EXPECTED_GAME_LENGTH_MS,
+        !shouldHoldForSlate(
+          game,
+          (activeData ?? []) as Array<{
+            id: number;
+            week_id: number;
+            kickoff_at: string;
+            live_state: string;
+          }>,
+          now,
+        ),
     );
-  const quotaRemaining = await latestKnownQuota(admin);
+    if (!games.length)
+      return { status: "skipped" as const, reason: "slate_still_active" };
+  }
+
   const { data: run, error: runError } = await admin
     .from("score_ingestion_runs")
     .insert({ week_id: games[0].week_id, mode, status: "running" })
@@ -110,91 +134,85 @@ export async function ingestScores({
   if (runError || !run)
     throw runError ?? new Error("Could not create score run");
 
-  if (shouldProtectReserve(quotaRemaining, includeCompleted)) {
-    await admin
-      .from("score_ingestion_runs")
-      .update({
-        status: "skipped",
-        completed_at: new Date().toISOString(),
-        quota_remaining: quotaRemaining,
-        skip_reason: "quota_reserve",
-      })
-      .eq("id", run.id);
-    return {
-      status: "skipped" as const,
-      reason: "quota_reserve",
-      runId: run.id,
-    };
-  }
-
   try {
     const response = await fetchNflScores(apiKey, {
-      includeCompleted,
+      includeCompleted: true,
       eventIds: games.map((game) => game.provider_event_id),
     });
-    const gameByProviderId = new Map(
-      games.map((game) => [game.provider_event_id, game]),
-    );
     let gamesUpdated = 0;
     let gamesFinalized = 0;
     const failures: string[] = response.invalidEvents
       ? [`${response.invalidEvents} malformed provider event(s)`]
       : [];
 
-    for (const event of response.events) {
-      const game = gameByProviderId.get(event.id);
-      if (!game) continue;
-      const scores = scoresForEvent(event);
-      if (!scores) continue;
-      const existingResult = first(game.game_results);
-      if (event.completed && existingResult?.source === "commissioner")
+    for (const game of games) {
+      const event = response.events.find(
+        (candidate) => candidate.id === game.provider_event_id,
+      );
+      if (!event?.completed) {
+        if (mode === "validate") {
+          await queueValidationRetry(
+            admin,
+            game,
+            now,
+            event
+              ? "Provider result is not final"
+              : "Provider result unavailable",
+          );
+          failures.push(`${game.provider_event_id}: final result unavailable`);
+        }
         continue;
+      }
+      const scores = scoresForEvent(event);
+      if (!scores) {
+        if (mode === "validate")
+          await queueValidationRetry(
+            admin,
+            game,
+            now,
+            "Provider scores malformed",
+          );
+        failures.push(`${event.id}: provider scores malformed`);
+        continue;
+      }
+      const existingResult = first(game.game_results);
+      if (existingResult?.source === "commissioner") continue;
       const unchanged =
         game.away_score === scores.awayScore &&
         game.home_score === scores.homeScore &&
-        game.status === (event.completed ? "final" : "live");
-      if (unchanged) continue;
+        game.status === "final";
+      if (unchanged) {
+        await markValidated(admin, game.id);
+        continue;
+      }
 
       try {
-        if (event.completed) {
-          const line = first(game.pool_lines);
-          if (!line) throw new Error("frozen line missing");
-          const isCorrection =
-            existingResult?.source === "provider" &&
-            (existingResult.away_score !== scores.awayScore ||
-              existingResult.home_score !== scores.homeScore);
-          await saveFinalGameResult({
-            supabase: admin,
-            source: "provider",
-            providerUpdatedAt: event.last_update,
-            isCorrection,
-            game: {
-              id: game.id,
-              weekId: game.week_id,
-              weekNumber: 0,
-              away: game.away_team,
-              home: game.home_team,
-              awaySpread: Number(line.away_spread),
-              total: Number(line.total),
-              awayScore: scores.awayScore,
-              homeScore: scores.homeScore,
-              status: "final",
-            },
-          });
-          gamesFinalized += 1;
-        } else {
-          const { error: updateError } = await admin
-            .from("games")
-            .update({
-              away_score: scores.awayScore,
-              home_score: scores.homeScore,
-              status: "live",
-              status_detail: "Live",
-              score_provider_updated_at: event.last_update,
-            })
-            .eq("id", game.id);
-          if (updateError) throw updateError;
-        }
+        const line = first(game.pool_lines);
+        if (!line) throw new Error("frozen line missing");
+        const isCorrection =
+          existingResult?.source === "provider" &&
+          (existingResult.away_score !== scores.awayScore ||
+            existingResult.home_score !== scores.homeScore);
+        await saveFinalGameResult({
+          supabase: admin,
+          source: "provider",
+          providerUpdatedAt: event.last_update,
+          isCorrection,
+          game: {
+            id: game.id,
+            weekId: game.week_id,
+            weekNumber: 0,
+            away: game.away_team,
+            home: game.home_team,
+            awaySpread: Number(line.away_spread),
+            total: Number(line.total),
+            awayScore: scores.awayScore,
+            homeScore: scores.homeScore,
+            status: "final",
+          },
+        });
+        await markValidated(admin, game.id);
+        gamesFinalized += 1;
         gamesUpdated += 1;
       } catch (gameError) {
         failures.push(
@@ -222,7 +240,7 @@ export async function ingestScores({
     return {
       status,
       runId: run.id,
-      includeCompleted,
+      includeCompleted: true,
       events: response.events.length,
       gamesUpdated,
       gamesFinalized,
@@ -245,37 +263,82 @@ export async function ingestScores({
   }
 }
 
-function first<T>(value: T | T[] | null): T | null {
-  return Array.isArray(value) ? (value[0] ?? null) : value;
+export function shouldHoldForSlate(
+  game: Pick<GameRow, "id" | "week_id" | "kickoff_at" | "final_detected_at">,
+  activeGames: Array<{
+    id: number;
+    week_id: number;
+    kickoff_at: string;
+    live_state: string;
+  }>,
+  now: Date,
+) {
+  if (
+    !game.final_detected_at ||
+    now.getTime() - new Date(game.final_detected_at).getTime() >=
+      MAX_SLATE_HOLD_MS
+  )
+    return false;
+  const kickoff = new Date(game.kickoff_at).getTime();
+  return activeGames.some(
+    (active) =>
+      active.id !== game.id &&
+      active.week_id === game.week_id &&
+      active.live_state !== "final_pending" &&
+      Math.abs(new Date(active.kickoff_at).getTime() - kickoff) <=
+        SLATE_KICKOFF_WINDOW_MS,
+  );
 }
 
-async function latestKnownQuota(admin: SupabaseClient) {
-  const [{ data: score }, { data: odds }] = await Promise.all([
-    admin
-      .from("score_ingestion_runs")
-      .select("quota_remaining, requested_at")
-      .not("quota_remaining", "is", null)
-      .order("requested_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    admin
-      .from("odds_ingestion_runs")
-      .select("quota_remaining, requested_at")
-      .not("quota_remaining", "is", null)
-      .order("requested_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
-  const values = [
-    score && {
-      remaining: score.quota_remaining as number,
-      at: score.requested_at as string,
-    },
-    odds && {
-      remaining: odds.quota_remaining as number,
-      at: odds.requested_at as string,
-    },
-  ].filter(Boolean) as Array<{ remaining: number; at: string }>;
-  values.sort((a, b) => b.at.localeCompare(a.at));
-  return values[0]?.remaining ?? null;
+async function markValidated(admin: SupabaseClient, gameId: number) {
+  const { error } = await admin
+    .from("games")
+    .update({
+      final_validation_state: "validated",
+      final_validation_next_at: null,
+      final_validation_error: null,
+    })
+    .eq("id", gameId);
+  if (error) throw error;
+}
+
+export function validationRetry(
+  currentAttempts: number,
+  now: Date,
+): {
+  attempts: number;
+  state: "retry" | "reconciliation";
+  nextAt: string | null;
+} {
+  const attempts = currentAttempts + 1;
+  if (attempts >= 3) return { attempts, state: "reconciliation", nextAt: null };
+  const delay = attempts === 1 ? 30 * 60 * 1000 : 2 * 60 * 60 * 1000;
+  return {
+    attempts,
+    state: "retry",
+    nextAt: new Date(now.getTime() + delay).toISOString(),
+  };
+}
+
+async function queueValidationRetry(
+  admin: SupabaseClient,
+  game: Pick<GameRow, "id" | "final_validation_attempts">,
+  now: Date,
+  message: string,
+) {
+  const retry = validationRetry(game.final_validation_attempts, now);
+  const { error } = await admin
+    .from("games")
+    .update({
+      final_validation_attempts: retry.attempts,
+      final_validation_state: retry.state,
+      final_validation_next_at: retry.nextAt,
+      final_validation_error: message.slice(0, 500),
+    })
+    .eq("id", game.id);
+  if (error) throw error;
+}
+
+function first<T>(value: T | T[] | null): T | null {
+  return Array.isArray(value) ? (value[0] ?? null) : value;
 }

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getAppOrigin } from "@/lib/site-url";
 import { phoneSchema } from "@/features/auth/phone";
 import { ingestOdds } from "@/lib/odds/ingest";
+import { ingestScores } from "@/lib/scores/ingest";
 import { saveFinalGameResult } from "@/lib/scores/result";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -167,6 +168,28 @@ export async function saveGame(formData: FormData) {
 
   revalidatePath("/admin");
   redirect("/admin?game_saved=1");
+}
+
+export async function reconcileScores() {
+  await requireCommissioner();
+  const apiKey = process.env.ODDS_API_KEY;
+  if (!apiKey) redirect("/admin?score_error=missing_key");
+  try {
+    await ingestScores({
+      admin: createAdminClient(),
+      apiKey,
+      mode: "reconcile",
+    });
+  } catch (error) {
+    console.error("Manual score reconciliation failed", error);
+    redirect("/admin?score_error=failed");
+  }
+  revalidatePath("/");
+  revalidatePath("/grid");
+  revalidatePath("/standings");
+  revalidatePath("/account");
+  revalidatePath("/admin");
+  redirect("/admin?score_reconciled=1");
 }
 
 export async function inviteEntry(formData: FormData) {

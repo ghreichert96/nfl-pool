@@ -4,17 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Score ingestion mode
+        description: Final-score ingestion mode
         required: true
-        default: live
+        default: validate
         type: choice
         options:
-          - live
+          - validate
           - reconcile
-  schedule:
-    - cron: "*/15 * * * *"
-    # One 6 AM Eastern reconciliation; paired UTC hours cover EDT and EST.
-    - cron: "7 10,11 * * *"
 
 permissions:
   contents: read
@@ -30,22 +26,10 @@ jobs:
       - name: Select ingestion mode
         id: schedule
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_SCHEDULE: ${{ github.event.schedule }}
           REQUESTED_MODE: ${{ inputs.mode }}
         run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "mode=${REQUESTED_MODE:-live}" >> "$GITHUB_OUTPUT"
-          elif [ "$EVENT_SCHEDULE" = "*/15 * * * *" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "mode=live" >> "$GITHUB_OUTPUT"
-          elif [ "$(TZ=America/New_York date '+%H')" = "06" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "mode=reconcile" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          echo "mode=${REQUESTED_MODE:-validate}" >> "$GITHUB_OUTPUT"
       - name: Refresh NFL scores
         if: steps.schedule.outputs.run == 'true'
         env:

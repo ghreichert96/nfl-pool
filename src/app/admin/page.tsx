@@ -11,6 +11,7 @@ import {
   generatePayoutSchedule,
   inviteEntry,
   recordGameResult,
+  reconcileScores,
   releaseGameResultToProvider,
   refreshOdds,
   saveGame,
@@ -35,6 +36,8 @@ export default async function AdminPage({
     odds_error?: string;
     odds_frozen?: string;
     odds_unfrozen?: string;
+    score_reconciled?: string;
+    score_error?: string;
   }>;
 }) {
   const supabase = await createClient();
@@ -78,7 +81,7 @@ export default async function AdminPage({
           ? supabase
               .from("games")
               .select(
-                "id, week_id, away_team, home_team, away_score, home_score, status, game_results(source)",
+                "id, week_id, away_team, home_team, away_score, home_score, status, status_detail, live_status_updated_at, final_validation_state, final_validation_attempts, final_validation_error, game_results(source)",
               )
               .in("week_id", weekIds)
               .order("kickoff_at", { ascending: false })
@@ -117,6 +120,16 @@ export default async function AdminPage({
         .order("requested_at", { ascending: false })
         .limit(5)
     : { data: [] };
+  const { data: liveRuns } = activeWeek
+    ? await supabase
+        .from("live_status_ingestion_runs")
+        .select(
+          "id, status, events_received, games_updated, error_message, requested_at",
+        )
+        .eq("week_id", activeWeek.id)
+        .order("requested_at", { ascending: false })
+        .limit(3)
+    : { data: [] };
   const latestQuota = [
     ...(oddsRuns ?? []).map((run) => ({
       remaining: run.quota_remaining,
@@ -152,9 +165,9 @@ export default async function AdminPage({
       )}
       {latestQuota !== undefined && latestQuota <= 49 && (
         <p className="mb-5 rounded-lg border border-amber-600 bg-amber-950 p-3 text-sm font-bold text-amber-200">
-          Odds API reserve active: {latestQuota} credits remain. Live-only score
-          checks are paused; final results and scheduled line ingestion remain
-          enabled.
+          Odds API reserve active: {latestQuota} credits remain. ESPN live
+          updates continue; only final validation and line ingestion use these
+          credits.
         </p>
       )}
       {activeWeek && (
@@ -462,6 +475,21 @@ export default async function AdminPage({
               Result returned to provider control.
             </p>
           )}
+          {params.score_reconciled && (
+            <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
+              Final-score reconciliation completed.
+            </p>
+          )}
+          {params.score_error && (
+            <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
+              Final-score reconciliation failed.
+            </p>
+          )}
+          <form action={reconcileScores} className="mt-3">
+            <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
+              RECONCILE FINALS
+            </button>
+          </form>
           {(scoreRuns ?? []).length > 0 && (
             <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950 p-3">
               <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -493,6 +521,38 @@ export default async function AdminPage({
               </ol>
             </div>
           )}
+          {(liveRuns ?? []).length > 0 && (
+            <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950 p-3">
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                ESPN live status
+              </h3>
+              <ol className="mt-2 divide-y divide-slate-800">
+                {(liveRuns ?? []).map((run) => (
+                  <li key={run.id} className="py-2 text-[10px] text-slate-300">
+                    <div className="flex justify-between gap-2">
+                      <strong className="uppercase">{run.status}</strong>
+                      <time className="text-slate-500">
+                        {new Date(run.requested_at).toLocaleTimeString(
+                          "en-US",
+                          {
+                            timeZone: "America/New_York",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          },
+                        )}
+                      </time>
+                    </div>
+                    <p className="mt-1 text-slate-500">
+                      {run.events_received} events · {run.games_updated} updated
+                    </p>
+                    {run.error_message && (
+                      <p className="mt-1 text-red-300">{run.error_message}</p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
           <div className="mt-4 max-h-96 space-y-2 overflow-auto">
             {(games ?? []).map((game) => {
               const result = Array.isArray(game.game_results)
@@ -503,6 +563,15 @@ export default async function AdminPage({
                   key={game.id}
                   className="rounded-lg border border-slate-800 p-2"
                 >
+                  {game.final_validation_state !== "none" && (
+                    <p className="mb-2 text-[10px] font-black uppercase text-amber-300">
+                      {game.status_detail ?? game.final_validation_state} ·{" "}
+                      {game.final_validation_attempts} validation attempts
+                      {game.final_validation_error
+                        ? ` · ${game.final_validation_error}`
+                        : ""}
+                    </p>
+                  )}
                   <form
                     action={recordGameResult}
                     className="grid grid-cols-[1fr_58px_12px_58px_64px] items-center gap-1"

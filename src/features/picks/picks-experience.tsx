@@ -1105,6 +1105,7 @@ type PicksExperienceProps = {
   weeks?: { week_number: number; label: string }[];
   linesFrozen?: boolean;
   initialSubmittedPicks?: Picks;
+  scoreFreshness?: { label: string; stale: boolean };
 };
 
 export function PicksExperience({
@@ -1120,6 +1121,7 @@ export function PicksExperience({
   weeks = [{ week_number: weekNumber, label: `Week ${weekNumber}` }],
   linesFrozen = false,
   initialSubmittedPicks,
+  scoreFreshness,
 }: PicksExperienceProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(
@@ -1189,6 +1191,13 @@ export function PicksExperience({
             >
               Picks · {pickStatus}
             </span>
+            {scoreFreshness && (
+              <span
+                className={`whitespace-nowrap text-[8px] normal-case tracking-normal ${scoreFreshness.stale ? "text-amber-300" : "text-slate-400"}`}
+              >
+                {scoreFreshness.label}
+              </span>
+            )}
           </span>
         }
         action={<WeekSelector weeks={weeks} selected={weekNumber} />}
