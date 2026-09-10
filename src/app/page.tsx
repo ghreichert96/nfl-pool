@@ -329,7 +329,12 @@ function scoreFreshnessLabel(updatedAt: string | undefined, now: number) {
     Math.floor((now - new Date(updatedAt).getTime()) / 60_000),
   );
   return {
-    label: minutes < 1 ? "Updated now" : `Updated ${minutes}m ago`,
+    label:
+      minutes < 1
+        ? "Now"
+        : minutes < 60
+          ? `${minutes}m`
+          : `${Math.floor(minutes / 60)}h`,
     stale: minutes >= 20,
   };
 }

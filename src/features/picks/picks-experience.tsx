@@ -7,6 +7,7 @@ import { WeekSelector } from "@/components/week-selector";
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { PREVIEW_MINIMIZED_KEY } from "@/components/profile-preferences";
 import { createClient } from "../../lib/supabase/client";
+import { preserveLockedPicks } from "./submission";
 
 import { MOCK_GAMES } from "./mock-games";
 import {
@@ -83,6 +84,46 @@ function lockedControlClass(
 ) {
   if (!selected) return "border-slate-700 bg-slate-900/70 text-slate-600";
   return status === "final" ? resultClass(result) : liveResultClass(result);
+}
+
+function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
+  if (!result) return null;
+  return (
+    <span
+      aria-label={`${result} result`}
+      title={result}
+      className={`pointer-events-none font-black leading-none ${result === "win" ? "text-emerald-300" : result === "loss" ? "text-red-300" : "text-amber-300"}`}
+    >
+      {result === "win" ? "✓" : result === "loss" ? "✕" : "—"}
+    </span>
+  );
+}
+
+function HeaderStatusIcon({
+  kind,
+  state,
+}: {
+  kind: "lines" | "picks";
+  state: "open" | "frozen" | "empty" | "modified" | "submitted";
+}) {
+  if (kind === "lines" && state === "frozen")
+    return <span aria-hidden="true">❄</span>;
+  if (kind === "lines")
+    return (
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 16 16"
+        className="size-3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M3 6h10v7H3zM5 6V4.5a3 3 0 0 1 5.7-1.3" />
+      </svg>
+    );
+  if (state === "submitted") return <span aria-hidden="true">✓</span>;
+  if (state === "modified") return <span aria-hidden="true">~</span>;
+  return <span aria-hidden="true">○</span>;
 }
 
 function standingForTeam(
@@ -234,6 +275,11 @@ function TeamToggle({
         onClick={onClick}
         className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
       >
+        {status === "final" && (
+          <span className="absolute top-1 right-1 text-[11px]">
+            <ResultMark result={teamResult(game, team, "ats")} />
+          </span>
+        )}
         <Logo
           abbreviation={team}
           logoUrl={
@@ -369,7 +415,10 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
                 key={pick.label}
                 className={`truncate rounded-sm border px-0.5 py-1 text-[8px] font-black ${lockedControlClass(status, pick.selected, pick.result)}`}
               >
-                {pick.label}
+                <span className="inline-flex items-center gap-0.5">
+                  {pick.label}
+                  {status === "final" && <ResultMark result={pick.result} />}
+                </span>
               </span>
             ))}
           </div>
@@ -436,11 +485,10 @@ function GameRow({
       const bestBetStillSelected = current.bestBet
         ? nextAts.some((pick) => pickKey(pick) === pickKey(current.bestBet!))
         : false;
-      const replacementOnGame = nextAts.find((pick) => pick.gameId === game.id);
       let nextBestBet = bestBetStillSelected ? current.bestBet : null;
 
       if (current.bestBet && !bestBetStillSelected) {
-        nextBestBet = replacementOnGame ?? nextAts[0] ?? null;
+        nextBestBet = null;
       }
 
       return {
@@ -580,7 +628,7 @@ function GameRow({
             ▼ U {game.total}
           </SmallToggle>
           <div
-            className={`relative min-h-9 rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+            className={`relative min-h-9 rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${sdUnavailable ? "opacity-45" : ""} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
           >
             <button
               type="button"
@@ -1006,18 +1054,32 @@ function Preview({
           </div>
         </div>
       )}
-      <div className="grid grid-cols-[48px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
-        <div className="grid border-r border-slate-800">
+      <div className="grid grid-cols-[52px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
+        <div className="flex flex-col justify-center gap-1 border-r border-slate-800 px-1">
           <button
             type="button"
             onClick={() => {
-              setPicks(EMPTY_PICKS);
+              setPicks((current) =>
+                preserveLockedPicks(EMPTY_PICKS, current, games),
+              );
               setMessage("Draft cleared");
             }}
             className="text-[10px] font-bold text-slate-300 underline"
           >
             Clear
           </button>
+          {savedPicks && modified && (
+            <button
+              type="button"
+              onClick={() => {
+                setPicks(savedPicks);
+                setMessage("Submission restored");
+              }}
+              className="border-t border-slate-800 pt-1 text-[9px] font-bold text-cyan-300 underline"
+            >
+              Revert
+            </button>
+          )}
         </div>
         <div
           aria-label={submitted ? "Submission saved" : "Submission status"}
@@ -1059,24 +1121,18 @@ function Preview({
           type="button"
           disabled={submitting}
           onClick={async () => {
-            const nextPicks =
-              !picks.bestBet && picks.ats[0]
-                ? { ...picks, bestBet: picks.ats[0] }
-                : picks;
-            setPicks(nextPicks);
-
             if (draftTarget && submitAction) {
               setSubmitting(true);
-              const result = await submitAction(draftTarget, nextPicks);
+              const result = await submitAction(draftTarget, picks);
               setSubmitting(false);
               setMessage(result.message);
               if (!result.ok) return;
             }
 
-            setSubmittedDraft(serializePicks(nextPicks));
+            setSubmittedDraft(serializePicks(picks));
             if (!draftTarget) setMessage("Demo submission recorded");
           }}
-          className="min-h-12 bg-emerald-500 px-3 text-lg font-black text-slate-950 shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)] disabled:opacity-60"
+          className={`min-h-12 px-3 text-lg font-black shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)] disabled:opacity-60 ${submitted ? "bg-emerald-500 text-slate-950" : "bg-emerald-600 text-white"}`}
         >
           {submitting ? "SAVING" : submitted ? "SAVED" : "SUBMIT"}
         </button>
@@ -1167,13 +1223,16 @@ export function PicksExperience({
     return () => window.clearTimeout(timer);
   }, [draftReady, draftTarget, picks]);
 
-  const serializedDraft = serializePicks(picks);
+  const hasDraftSelections =
+    picks.ats.length > 0 ||
+    picks.totals.length > 0 ||
+    Boolean(picks.bestBet || picks.suddenDeath || picks.underdog);
   const pickStatus =
-    submittedDraft === null
-      ? "Not Submitted"
-      : submittedDraft === serializedDraft
-        ? "Submitted"
-        : "Modified";
+    submittedDraft !== null
+      ? "Submitted"
+      : hasDraftSelections
+        ? "Modified"
+        : "Not Submitted";
   return (
     <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
       <CompactPageHeader
@@ -1182,14 +1241,28 @@ export function PicksExperience({
         title={
           <span className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
             <span
-              className={`rounded border px-1.5 py-1 ${linesFrozen ? "border-amber-600 text-amber-300" : "border-cyan-700 text-cyan-300"}`}
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-amber-600 text-amber-300" : "border-cyan-700 text-cyan-300"}`}
             >
-              Lines · {linesFrozen ? "Frozen" : "Unfrozen"}
+              <HeaderStatusIcon
+                kind="lines"
+                state={linesFrozen ? "frozen" : "open"}
+              />
+              {linesFrozen ? "Frozen" : "Open"}
             </span>
             <span
-              className={`rounded border px-1.5 py-1 ${pickStatus === "Submitted" ? "border-emerald-700 text-emerald-300" : pickStatus === "Modified" ? "border-fuchsia-700 text-fuchsia-300" : "border-slate-700 text-slate-300"}`}
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${pickStatus === "Submitted" ? "border-emerald-700 text-emerald-300" : pickStatus === "Modified" ? "border-fuchsia-700 text-fuchsia-300" : "border-slate-700 text-slate-300"}`}
             >
-              Picks · {pickStatus}
+              <HeaderStatusIcon
+                kind="picks"
+                state={
+                  pickStatus === "Submitted"
+                    ? "submitted"
+                    : pickStatus === "Modified"
+                      ? "modified"
+                      : "empty"
+                }
+              />
+              {pickStatus}
             </span>
             {scoreFreshness && (
               <span
