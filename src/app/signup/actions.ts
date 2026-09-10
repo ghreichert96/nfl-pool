@@ -33,7 +33,7 @@ export async function signUp(formData: FormData) {
 
   const origin = getAppOrigin((await headers()).get("origin"));
   const supabase = await createClient();
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
@@ -53,5 +53,8 @@ export async function signUp(formData: FormData) {
     });
     redirect("/signup?error=unavailable");
   }
-  redirect("/signup?sent=1");
+  if (data.user && data.user.identities?.length === 0) {
+    redirect("/signup?exists=1");
+  }
+  redirect("/login?created=1");
 }

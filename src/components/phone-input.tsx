@@ -7,9 +7,11 @@ import { sanitizePhoneInput } from "@/features/auth/phone";
 export function PhoneInput({
   defaultValue = "",
   className,
+  placeholder = "+14344090768",
 }: {
   defaultValue?: string;
   className?: string;
+  placeholder?: string;
 }) {
   const [value, setValue] = useState(defaultValue);
   return (
@@ -21,7 +23,7 @@ export function PhoneInput({
       required
       value={value}
       onChange={(event) => setValue(sanitizePhoneInput(event.target.value))}
-      placeholder="+14344090768"
+      placeholder={placeholder}
       className={className}
     />
   );

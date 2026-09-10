@@ -70,7 +70,7 @@ export function LoginForm({
       </div>
       {invalidCredentials && (
         <p role="alert" className="text-sm text-amber-300">
-          That email, entry name, and password combination was not recognized.
+          Email, entry name, or password is incorrect.
         </p>
       )}
       <button
