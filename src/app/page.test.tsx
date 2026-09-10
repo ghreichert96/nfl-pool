@@ -9,6 +9,11 @@ const liveGames = () =>
     index === 0 ? { ...game, status: "live" as const } : game,
   );
 
+const finalGames = () =>
+  MOCK_GAMES.map((game, index) =>
+    index === 0 ? { ...game, status: "final" as const } : game,
+  );
+
 describe("Home", () => {
   beforeEach(() => window.localStorage.clear());
   afterEach(cleanup);
@@ -30,12 +35,14 @@ describe("Home", () => {
   it("shows inline line and submission status", () => {
     render(<PicksExperience />);
 
-    expect(screen.getByText(/Lines · Unfrozen/)).toBeInTheDocument();
-    expect(screen.getByText(/Picks · Not Submitted/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "SF +8.5" })).toBeInTheDocument();
+    expect(screen.getByText("Open")).toBeInTheDocument();
+    expect(screen.getAllByText("Not Submitted")).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
+    expect(screen.getByText("Modified")).toBeInTheDocument();
   });
 
-  it("offers an in-row BB control and defaults BB only on submission", () => {
+  it("never defaults BB and clears it when its ATS selection changes", () => {
     render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
@@ -44,16 +51,20 @@ describe("Home", () => {
       screen.getByRole("button", { name: "Make SF Best Bet in game row" }),
     ).toHaveAttribute("aria-pressed", "false");
 
+    fireEvent.click(
+      screen.getByRole("button", { name: "Make SF Best Bet in game row" }),
+    );
+    expect(screen.getByRole("button", { name: "SF, Best Bet" })).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "LAR -8.5" }));
+    expect(
+      screen.getByRole("button", { name: "LAR, mark Best Bet" }),
+    ).toBeVisible();
+
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
 
     expect(screen.getByRole("button", { name: "SAVED" })).toBeInTheDocument();
-    expect(screen.getByText("(BB = SF)")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "LAR -8.5" }));
-    expect(screen.getByText("Modified")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "LAR, Best Bet" })).toHaveClass(
-      "pick-modified",
-    );
+    expect(screen.queryByText(/BB =/)).not.toBeInTheDocument();
   });
 
   it("shows the comment editor below the games and highlights incomplete submission status", () => {
@@ -70,8 +81,40 @@ describe("Home", () => {
     expect(screen.getByLabelText("Submission saved")).toHaveClass(
       "bg-amber-950",
     );
+    expect(screen.getAllByText("Submitted")).toHaveLength(2);
+  });
+
+  it("keeps the server status submitted while exposing unsaved changes", () => {
+    render(<PicksExperience />);
+
+    fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
+    fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
+    fireEvent.click(screen.getByRole("button", { name: "LAR -8.5" }));
+
     expect(screen.getByText("Submitted")).toBeInTheDocument();
-    expect(screen.getByText("Submitted")).not.toHaveClass("border");
+    expect(screen.getByText("Modified")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revert" })).toBeEnabled();
+  });
+
+  it("reverts an edited draft to the latest successful submission", () => {
+    render(<PicksExperience />);
+
+    fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
+    fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
+    fireEvent.click(screen.getByRole("button", { name: "LAR -8.5" }));
+    fireEvent.click(screen.getByRole("button", { name: "Revert" }));
+
+    expect(screen.getByRole("button", { name: "SF +8.5" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "LAR -8.5" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Revert" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps the preview toggle clear of actions in both positions", () => {
@@ -94,6 +137,9 @@ describe("Home", () => {
     const { rerender } = render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Make SF Best Bet in game row" }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
     fireEvent.click(screen.getByRole("button", { name: "SF, Best Bet" }));
 
@@ -109,6 +155,50 @@ describe("Home", () => {
     expect(
       screen.getByRole("button", { name: "SF, mark Best Bet" }),
     ).toHaveClass("border-amber-400");
+  });
+
+  it("keeps locked selections when Clear removes the editable draft", () => {
+    const submitted = {
+      ats: [{ gameId: "sf-lar", team: "SF" }],
+      totals: [{ gameId: "sf-lar", direction: "over" as const }],
+      bestBet: null,
+      suddenDeath: null,
+      underdog: null,
+    };
+
+    render(
+      <PicksExperience
+        games={liveGames()}
+        initialPicks={submitted}
+        initialSubmittedPicks={submitted}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.getByRole("button", { name: "SF +8.5" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByText("O45.5")).toBeInTheDocument();
+  });
+
+  it("shows fixed result markers for every completed-game choice", () => {
+    render(<PicksExperience games={finalGames()} />);
+
+    expect(screen.getAllByLabelText("win result").length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText("loss result").length).toBeGreaterThan(0);
+  });
+
+  it("distinguishes the unsaved Submit treatment from Saved", () => {
+    render(<PicksExperience />);
+
+    expect(screen.getByRole("button", { name: "SUBMIT" })).toHaveClass(
+      "text-white",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
+    expect(screen.getByRole("button", { name: "SAVED" })).toHaveClass(
+      "text-slate-950",
+    );
   });
 
   it("offers a keyboard equivalent for switching the SD team", () => {
