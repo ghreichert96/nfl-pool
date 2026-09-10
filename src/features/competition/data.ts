@@ -5,6 +5,7 @@ import {
   gamesBack,
   rankStandings,
   sharedRankPayout,
+  sidePoolPayout,
   type ScoringGame,
   type ScoringPick,
 } from "./scoring";
@@ -175,26 +176,20 @@ export async function loadCompetition(
   const sdWinners = standings.filter((item) => !item.eliminated);
   const maxUd = Math.max(0, ...standings.map((item) => item.underdogPoints));
   const udWinners = standings.filter((item) => item.underdogPoints === maxUd);
-  const sideAmount = (
-    winners: typeof standings,
-    item: (typeof standings)[number],
-  ) =>
-    winners.length === standings.length
-      ? 0
-      : winners.some((winner) => winner.entryId === item.entryId)
-        ? 200 / winners.length
-        : -200 / (standings.length - winners.length);
+  const allEntryIds = standings.map((item) => item.entryId);
+  const sdWinnerIds = sdWinners.map((item) => item.entryId);
+  const udWinnerIds = udWinners.map((item) => item.entryId);
   const financials = new Map(
     standings.map((standing) => [
       standing.entryId,
       {
         main: mainPayout.get(standing.entryId) ?? 0,
-        sd: sideAmount(sdWinners, standing),
-        ud: sideAmount(udWinners, standing),
+        sd: sidePoolPayout(standing.entryId, allEntryIds, sdWinnerIds),
+        ud: sidePoolPayout(standing.entryId, allEntryIds, udWinnerIds),
         net:
           (mainPayout.get(standing.entryId) ?? 0) +
-          sideAmount(sdWinners, standing) +
-          sideAmount(udWinners, standing),
+          sidePoolPayout(standing.entryId, allEntryIds, sdWinnerIds) +
+          sidePoolPayout(standing.entryId, allEntryIds, udWinnerIds),
       },
     ]),
   );

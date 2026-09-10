@@ -97,7 +97,7 @@ export default async function RulesPage() {
               <div className="border-t border-slate-800 px-3 py-3">
                 {section.section_key === "scoring" && (
                   <p className="mb-2 rounded-md border border-slate-700 bg-slate-950 px-2 py-2 text-xs text-slate-200">
-                    Current Main schedule: <strong>{payoutRange}</strong>
+                    Current Main scale: <strong>{payoutRange}</strong>
                   </p>
                 )}
                 <table className="w-full table-fixed text-left text-sm text-slate-200">

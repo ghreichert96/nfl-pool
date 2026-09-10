@@ -17,40 +17,64 @@ type GridPick = ScoringPick & { submissionId: number; kickoff: string };
 function TeamMark({
   team,
   logo,
-  result,
+  spread,
 }: {
   team: string;
   logo?: string | null;
-  result?: string;
+  spread?: number;
 }) {
-  const tone =
-    result === "win"
-      ? "border-emerald-500 bg-emerald-950"
-      : result === "loss"
-        ? "border-red-600 bg-red-950"
-        : result === "tie"
-          ? "border-slate-400 bg-slate-700"
-          : "border-amber-500 bg-amber-950";
   return (
     <span
-      title={`${team}${result ? ` · ${result}` : ""}`}
-      aria-label={`${team}${result ? `, ${result}` : ""}`}
-      className={`mx-auto grid size-8 place-items-center overflow-hidden rounded-full border text-[8px] font-black ${tone}`}
+      title={team}
+      aria-label={team}
+      className="mx-auto grid h-9 place-items-center text-[8px] font-black leading-none"
     >
       {logo ? (
         <Image
           src={logo}
           alt=""
-          width={24}
-          height={24}
+          width={30}
+          height={30}
           unoptimized
-          className="size-6 object-contain"
+          className="size-7 object-contain"
         />
       ) : (
         team
       )}
+      {spread !== undefined && (
+        <small className="-mt-1 text-[8px] font-black text-slate-200">
+          {spread > 0 ? "+" : ""}
+          {spread}
+        </small>
+      )}
     </span>
   );
+}
+
+function resultTone(game: ScoringGame | undefined, pick: ScoringPick) {
+  if (!game) return "";
+  if (game.status === "live")
+    return "bg-amber-950/25 ring-1 ring-inset ring-amber-400";
+  const outcome = pickOutcome(game, pick);
+  return outcome === "win"
+    ? "bg-emerald-950/55 ring-1 ring-inset ring-emerald-700"
+    : outcome === "loss"
+      ? "bg-red-950/55 ring-1 ring-inset ring-red-800"
+      : outcome === "tie"
+        ? "bg-amber-950/40 ring-1 ring-inset ring-amber-700"
+        : "";
+}
+
+function outcomeTextTone(outcome: string) {
+  return outcome === "win"
+    ? "text-emerald-400"
+    : outcome === "loss"
+      ? "text-red-400"
+      : outcome === "tie"
+        ? "text-amber-300"
+        : outcome === "live"
+          ? "text-amber-300"
+          : "";
 }
 
 function leaders(values: string[]) {
@@ -223,6 +247,27 @@ export default async function GridPage({
         .map((pick) => pick.team!),
     ),
   };
+  const mostPickedOutcome = (label: string, name: string) => {
+    const matching = consensusPicks.find((pick) => {
+      if (label === "MAIN") return pick.kind === "ats" && pick.team === name;
+      if (label === "UD") return pick.kind === "underdog" && pick.team === name;
+      if (label === "SD")
+        return pick.kind === "sudden_death" && pick.team === name;
+      const game = gameMap.get(pick.gameId);
+      return (
+        pick.kind === "total" &&
+        `${game?.away}/${game?.home} ${pick.totalDirection === "over" ? "O" : "U"}` ===
+          name
+      );
+    });
+    if (!matching) return "pending";
+    const game = gameMap.get(matching.gameId);
+    return game?.status === "live"
+      ? "live"
+      : game
+        ? pickOutcome(game, matching)
+        : "pending";
+  };
   const weeklyRows = (entries ?? [])
     .map((poolEntry) => {
       const picks = visiblePicks.filter(
@@ -259,7 +304,7 @@ export default async function GridPage({
           }
         />
         <section className="game-card overflow-hidden rounded-xl border shadow-xl">
-          <div className="max-h-[68vh] overflow-auto">
+          <div className="overflow-x-auto overscroll-y-auto sm:max-h-[68vh] sm:overflow-auto">
             <table className="w-full min-w-[720px] border-separate border-spacing-0 text-[11px]">
               <thead className="sticky top-0 z-20 bg-slate-950">
                 <tr>
@@ -280,7 +325,7 @@ export default async function GridPage({
                   ].map((label, index) => (
                     <th
                       key={label}
-                      className={`border-b border-r border-slate-800 px-1 py-2 text-[9px] font-black uppercase text-slate-400 ${index === 0 ? "sticky left-0 z-30 bg-slate-950" : ""}`}
+                      className={`border-b border-r border-slate-800 px-1 py-2 text-left text-[8px] font-black uppercase text-slate-400 ${index === 0 ? "sticky left-0 z-30 bg-slate-950" : ""}`}
                     >
                       {label}
                     </th>
@@ -331,7 +376,7 @@ export default async function GridPage({
                       {cells.map((pick, index) => (
                         <td
                           key={index}
-                          className="h-10 min-w-10 border-b border-r border-slate-800 px-0.5 text-center"
+                          className={`h-10 min-w-10 border-b border-r border-slate-800 px-0.5 text-center ${pick ? resultTone(gameMap.get(pick.gameId), pick) : ""}`}
                         >
                           {pick ? (
                             pick.kind === "total" ? (
@@ -342,7 +387,7 @@ export default async function GridPage({
                                 {gameMap.get(pick.gameId)?.away}/
                                 {gameMap.get(pick.gameId)?.home}
                                 <br />
-                                <b className="text-cyan-300">
+                                <b>
                                   {pick.totalDirection === "over"
                                     ? "OVER"
                                     : "UNDER"}
@@ -352,10 +397,17 @@ export default async function GridPage({
                               <TeamMark
                                 team={pick.team!}
                                 logo={logoMap.get(pick.team!)}
-                                result={pickOutcome(
-                                  gameMap.get(pick.gameId)!,
-                                  pick,
-                                )}
+                                spread={
+                                  pick.kind === "sudden_death"
+                                    ? pick.team ===
+                                      gameMap.get(pick.gameId)?.away
+                                      ? gameMap.get(pick.gameId)?.awaySpread
+                                      : -(
+                                          gameMap.get(pick.gameId)
+                                            ?.awaySpread ?? 0
+                                        )
+                                    : undefined
+                                }
                               />
                             )
                           ) : submittedEntries.has(poolEntry.id) ? (
@@ -373,17 +425,13 @@ export default async function GridPage({
             </table>
           </div>
           <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-[9px] font-bold text-slate-400">
-            <span className="text-emerald-400">Green · win</span>
-            <span className="text-red-400">Red · loss</span>
-            <span>Gray · tie</span>
-            <span className="text-amber-300">Amber · live</span>
-            <span>— · submitted selection hidden until kickoff</span>
+            <span className="text-emerald-400">Win</span>
+            <span className="text-red-400">Loss</span>
+            <span className="text-amber-300">Tie</span>
+            <span className="text-amber-300">Live</span>
+            <span>— = submitted</span>
           </div>
         </section>
-        <p className="mt-2 text-[10px] text-slate-500">
-          Selections and Most Picked totals appear only after each game kicks
-          off. Empty cells indicate no weekly submission.
-        </p>
         <details className="game-card mt-4 rounded-xl border">
           <summary className="cursor-pointer px-3 py-3 text-xs font-black uppercase">
             Most Picked{" "}
@@ -415,7 +463,7 @@ export default async function GridPage({
                     items.map(([name, count]) => (
                       <span
                         key={name}
-                        className="rounded bg-slate-800 px-2 py-1 text-[10px] font-black"
+                        className={`rounded bg-slate-800 px-2 py-1 text-[10px] font-black ${outcomeTextTone(mostPickedOutcome(label, name))}`}
                       >
                         {name}{" "}
                         <em className="not-italic text-cyan-300">{count}</em>

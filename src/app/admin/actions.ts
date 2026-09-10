@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { getAppOrigin } from "@/lib/site-url";
 import { phoneSchema } from "@/features/auth/phone";
+import { generatePayoutScale } from "@/features/competition/payout-scale";
 import { ingestOdds } from "@/lib/odds/ingest";
 import { ingestScores } from "@/lib/scores/ingest";
 import { saveFinalGameResult } from "@/lib/scores/result";
@@ -382,17 +383,16 @@ export async function releaseGameResultToProvider(formData: FormData) {
   redirect("/admin?result_provider=1");
 }
 
-export async function savePayoutSchedule(formData: FormData) {
+export async function savePayoutScale(formData: FormData) {
   const seasonId = Number(formData.get("season_id"));
-  const count = Number(formData.get("rank_count"));
+  const maximum = Number(formData.get("maximum"));
   if (
     !Number.isSafeInteger(seasonId) ||
-    !Number.isSafeInteger(count) ||
-    count < 1 ||
-    count > 100
+    !Number.isSafeInteger(maximum) ||
+    maximum % 25 !== 0
   )
     redirect("/admin?payout_error=invalid");
-  const { supabase, poolId } = await requireCommissioner();
+  const { supabase, poolId, userId } = await requireCommissioner();
   const { data: season } = await supabase
     .from("seasons")
     .select("id")
@@ -400,62 +400,42 @@ export async function savePayoutSchedule(formData: FormData) {
     .eq("pool_id", poolId)
     .maybeSingle();
   if (!season) redirect("/admin?payout_error=season");
-  const rows = Array.from({ length: count }, (_, index) => ({
-    season_id: seasonId,
-    rank: index + 1,
-    amount: Number(formData.get(`rank_${index + 1}`)),
-  }));
-  if (
-    rows.some((row) => !Number.isFinite(row.amount)) ||
-    Math.abs(rows.reduce((sum, row) => sum + row.amount, 0)) > 0.001
-  )
-    redirect("/admin?payout_error=balance");
-  const { data: claims } = await supabase.auth.getClaims();
-  const locked =
-    formData.get("lock") === "on" ? new Date().toISOString() : null;
-  const { error } = await supabase.from("payout_schedules").upsert(
-    rows.map((row) => ({
-      ...row,
-      locked_at: locked,
-      updated_by: claims?.claims?.sub,
+  const { count } = await supabase
+    .from("pool_entries")
+    .select("id", { count: "exact", head: true })
+    .eq("season_id", seasonId)
+    .eq("is_test", false);
+  if (!count || count < 2) redirect("/admin?payout_error=entries");
+  let scale;
+  try {
+    scale = generatePayoutScale(count, maximum);
+  } catch {
+    redirect("/admin?payout_error=invalid");
+  }
+  const { error: deleteError } = await supabase
+    .from("payout_schedules")
+    .delete()
+    .eq("season_id", seasonId);
+  if (deleteError) redirect("/admin?payout_error=save");
+  const { error } = await supabase.from("payout_schedules").insert(
+    scale.map((row) => ({
+      season_id: seasonId,
+      rank: row.rank,
+      amount: row.amount,
+      locked_at: null,
+      updated_by: userId,
     })),
   );
   if (error) redirect("/admin?payout_error=save");
   await supabase.from("commissioner_audit_events").insert({
     pool_id: poolId,
-    actor_id: claims?.claims?.sub,
-    action: locked ? "payout_schedule_locked" : "payout_schedule_saved",
+    actor_id: userId,
+    action: "payout_scale_saved",
     entity_type: "season",
     entity_id: String(seasonId),
-    details: { ranks: count },
+    details: { ranks: count, maximum },
   });
   revalidatePath("/", "layout");
-  redirect("/admin?payout_saved=1");
-}
-
-export async function generatePayoutSchedule(formData: FormData) {
-  const seasonId = Number(formData.get("season_id"));
-  const { supabase, poolId } = await requireCommissioner();
-  const { data: season } = await supabase
-    .from("seasons")
-    .select("id")
-    .eq("id", seasonId)
-    .eq("pool_id", poolId)
-    .maybeSingle();
-  const { count } = await supabase
-    .from("pool_entries")
-    .select("id", { count: "exact", head: true })
-    .eq("season_id", seasonId);
-  if (!season || !count || count < 2) redirect("/admin?payout_error=entries");
-  const rows = Array.from({ length: count }, (_, index) => ({
-    season_id: seasonId,
-    rank: index + 1,
-    amount: Math.round((350 - (700 * index) / (count - 1)) * 100) / 100,
-  }));
-  await supabase.from("payout_schedules").delete().eq("season_id", seasonId);
-  const { error } = await supabase.from("payout_schedules").insert(rows);
-  if (error) redirect("/admin?payout_error=generate");
-  revalidatePath("/admin");
   redirect("/admin?payout_saved=1");
 }
 

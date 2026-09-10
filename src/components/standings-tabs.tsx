@@ -41,7 +41,7 @@ export function StandingsTabs({
           `/standings?view=${next}${weekNumber ? `&week=${weekNumber}` : ""}`,
         );
       }}
-      className="control-raised min-h-9 max-w-28 rounded-md border px-2 text-xs font-black uppercase"
+      className="control-raised min-h-9 w-32 rounded-md border px-2 text-xs font-black"
     >
       {tabs.map(([key, label]) => (
         <option key={key} value={key}>
