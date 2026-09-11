@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   calculateStandings,
   gamesBack,
+  rankStandings,
+  ranksByGamesBack,
   sharedRankPayout,
   sidePoolPayout,
   teamOutcome,
@@ -105,6 +107,43 @@ describe("competition scoring", () => {
         ]),
       ),
     ).toBe(200);
+  });
+  it("shares rank whenever GB matches, even if the underlying records differ", () => {
+    const standings = [
+      {
+        entryId: 1,
+        wins: 1,
+        losses: 0,
+        ties: 0,
+        underdogPoints: 0,
+        suddenDeathStrikes: 0,
+        eliminated: false,
+      },
+      {
+        entryId: 2,
+        wins: 0,
+        losses: 0,
+        ties: 0,
+        underdogPoints: 0,
+        suddenDeathStrikes: 0,
+        eliminated: false,
+      },
+      {
+        entryId: 3,
+        wins: 1,
+        losses: 1,
+        ties: 0,
+        underdogPoints: 0,
+        suddenDeathStrikes: 0,
+        eliminated: false,
+      },
+    ];
+    const ranked = rankStandings(standings);
+    const ranks = ranksByGamesBack(ranked);
+    expect(gamesBack(ranked[1], ranked)).toBe(0.5);
+    expect(gamesBack(ranked[2], ranked)).toBe(0.5);
+    expect(ranks.get(ranked[1].entryId)).toBe(2);
+    expect(ranks.get(ranked[2].entryId)).toBe(2);
   });
   it("balances projected side-pool winners and non-winners", () => {
     const all = [1, 2, 3, 4];

@@ -1056,6 +1056,19 @@ function Preview({
       )}
       <div className="grid grid-cols-[52px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
         <div className="flex flex-col justify-center gap-1 border-r border-slate-800 px-1">
+          {savedPicks && (
+            <button
+              type="button"
+              disabled={!modified}
+              onClick={() => {
+                setPicks(savedPicks);
+                setMessage("Submission restored");
+              }}
+              className="pb-1 text-[9px] font-bold text-cyan-300 underline disabled:text-slate-700 disabled:no-underline"
+            >
+              Revert
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -1068,18 +1081,6 @@ function Preview({
           >
             Clear
           </button>
-          {savedPicks && modified && (
-            <button
-              type="button"
-              onClick={() => {
-                setPicks(savedPicks);
-                setMessage("Submission restored");
-              }}
-              className="border-t border-slate-800 pt-1 text-[9px] font-bold text-cyan-300 underline"
-            >
-              Revert
-            </button>
-          )}
         </div>
         <div
           aria-label={submitted ? "Submission saved" : "Submission status"}

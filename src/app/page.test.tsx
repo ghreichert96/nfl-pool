@@ -112,9 +112,7 @@ describe("Home", () => {
       "aria-pressed",
       "false",
     );
-    expect(
-      screen.queryByRole("button", { name: "Revert" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Revert" })).toBeDisabled();
   });
 
   it("keeps the preview toggle clear of actions in both positions", () => {

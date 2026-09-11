@@ -23,7 +23,7 @@ describe("ESPN live provider", () => {
             events: [
               {
                 id: "401772510",
-                date: "2026-09-10T00:20:00Z",
+                date: "2026-09-10T00:20Z",
                 competitions: [
                   {
                     competitors: [
@@ -61,6 +61,7 @@ describe("ESPN live provider", () => {
     ).resolves.toEqual([
       expect.objectContaining({
         id: "401772510",
+        kickoffAt: "2026-09-10T00:20:00.000Z",
         awayTeam: "NE",
         homeTeam: "SEA",
         awayScore: 17,

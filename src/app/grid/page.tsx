@@ -325,7 +325,7 @@ export default async function GridPage({
                   ].map((label, index) => (
                     <th
                       key={label}
-                      className={`border-b border-r border-slate-800 px-1 py-2 text-left text-[8px] font-black uppercase text-slate-400 ${index === 0 ? "sticky left-0 z-30 bg-slate-950" : ""}`}
+                      className={`border-b border-r border-slate-800 px-1 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "sticky left-0 z-30 bg-slate-950" : ""}`}
                     >
                       {label}
                     </th>
@@ -398,7 +398,7 @@ export default async function GridPage({
                                 team={pick.team!}
                                 logo={logoMap.get(pick.team!)}
                                 spread={
-                                  pick.kind === "sudden_death"
+                                  pick.kind === "underdog"
                                     ? pick.team ===
                                       gameMap.get(pick.gameId)?.away
                                       ? gameMap.get(pick.gameId)?.awaySpread
