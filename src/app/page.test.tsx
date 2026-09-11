@@ -35,11 +35,47 @@ describe("Home", () => {
   it("shows inline line and submission status", () => {
     render(<PicksExperience />);
 
-    expect(screen.getByText("Open")).toBeInTheDocument();
-    expect(screen.getAllByText("Not Submitted")).toHaveLength(2);
+    expect(screen.getByLabelText("Lines unlocked")).toHaveTextContent("Lines");
+    expect(screen.getByLabelText("Picks not submitted")).toHaveTextContent(
+      "Picks",
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
-    expect(screen.getByText("Modified")).toBeInTheDocument();
+    expect(screen.getByLabelText("Picks not submitted")).toBeInTheDocument();
+  });
+
+  it("shows the green Picks check only for a complete saved submission", () => {
+    const complete = {
+      ats: MOCK_GAMES.slice(0, 6).map((game) => ({
+        gameId: game.id,
+        team: game.away.abbreviation,
+      })),
+      totals: MOCK_GAMES.slice(0, 3).map((game) => ({
+        gameId: game.id,
+        direction: "over" as const,
+      })),
+      bestBet: {
+        gameId: MOCK_GAMES[0].id,
+        team: MOCK_GAMES[0].away.abbreviation,
+      },
+      suddenDeath: {
+        gameId: MOCK_GAMES[0].id,
+        team: MOCK_GAMES[0].home.abbreviation,
+      },
+      underdog: {
+        gameId: MOCK_GAMES[0].id,
+        team: MOCK_GAMES[0].away.abbreviation,
+      },
+    };
+
+    render(
+      <PicksExperience
+        initialPicks={complete}
+        initialSubmittedPicks={complete}
+      />,
+    );
+
+    expect(screen.getByLabelText("Picks submitted")).toHaveTextContent("✓");
   });
 
   it("never defaults BB and clears it when its ATS selection changes", () => {
@@ -81,17 +117,18 @@ describe("Home", () => {
     expect(screen.getByLabelText("Submission saved")).toHaveClass(
       "bg-amber-950",
     );
-    expect(screen.getAllByText("Submitted")).toHaveLength(2);
+    expect(screen.getByLabelText("Picks not submitted")).toBeInTheDocument();
+    expect(screen.getByText("Submitted")).toBeInTheDocument();
   });
 
-  it("keeps the server status submitted while exposing unsaved changes", () => {
+  it("keeps incomplete saved picks red while exposing unsaved changes", () => {
     render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
     fireEvent.click(screen.getByRole("button", { name: "LAR -8.5" }));
 
-    expect(screen.getByText("Submitted")).toBeInTheDocument();
+    expect(screen.getByLabelText("Picks not submitted")).toBeInTheDocument();
     expect(screen.getByText("Modified")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Revert" })).toBeEnabled();
   });

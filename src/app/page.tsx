@@ -210,6 +210,8 @@ export default async function Home({
       kickoff: new Intl.DateTimeFormat("en-US", {
         timeZone: "America/New_York",
         weekday: "short",
+        month: "short",
+        day: "numeric",
         hour: "numeric",
         minute: "2-digit",
         timeZoneName: "short",
