@@ -1,5 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
+import { rebuildGameScoreEvents } from "@/features/competition/rebuild-game-score-events";
 import type { Picks } from "@/features/picks/model";
 import { picksSchema, toSubmissionPicks } from "@/features/picks/submission";
 import { requireCommissioner } from "@/lib/admin";
@@ -21,7 +24,7 @@ export async function submitCommissionerPicks(
   )
     return { ok: false as const, message: "Invalid picks" };
 
-  const { poolId } = await requireCommissioner();
+  const { poolId, userId } = await requireCommissioner();
   const admin = createAdminClient();
   const { data: entry } = await admin
     .from("pool_entries")
@@ -31,7 +34,7 @@ export async function submitCommissionerPicks(
     .maybeSingle();
   const { data: week } = await admin
     .from("pool_weeks")
-    .select("id, season_id")
+    .select("id, season_id, week_number")
     .eq("id", weekId)
     .maybeSingle();
   if (!entry || !week || entry.season_id !== week.season_id)
@@ -39,7 +42,9 @@ export async function submitCommissionerPicks(
 
   const { data: games } = await admin
     .from("games")
-    .select("id, away_team, home_team, kickoff_at")
+    .select(
+      "id, away_team, home_team, kickoff_at, status, away_score, home_score, pool_lines(away_spread,total)",
+    )
     .eq("week_id", weekId);
   const gameMap = new Map((games ?? []).map((game) => [game.id, game]));
   const requested = toSubmissionPicks(parsed.data).map((pick) => ({
@@ -76,16 +81,7 @@ export async function submitCommissionerPicks(
         .select("game_id, kind, team, total_direction, is_best_bet")
         .eq("submission_id", latest.id)
     : { data: [] };
-  const now = Date.now();
-  const locked = (previousPicks ?? []).filter(
-    (pick) =>
-      new Date(gameMap.get(pick.game_id)?.kickoff_at ?? 0).getTime() <= now,
-  );
-  const unlocked = requested.filter(
-    (pick) =>
-      new Date(gameMap.get(pick.game_id)?.kickoff_at ?? 0).getTime() > now,
-  );
-  const finalPicks = [...locked, ...unlocked];
+  const finalPicks = requested;
 
   const { data: submission, error: submissionError } = await admin
     .from("weekly_submissions")
@@ -109,5 +105,54 @@ export async function submitCommissionerPicks(
     await admin.from("weekly_submissions").delete().eq("id", submission.id);
     return { ok: false as const, message: "Picks failed validation" };
   }
+  const { error: auditError } = await admin
+    .from("commissioner_audit_events")
+    .insert({
+      pool_id: poolId,
+      actor_id: userId,
+      action: "entrant_picks_overridden",
+      entity_type: "weekly_submission",
+      entity_id: String(submission.id),
+      details: {
+        entry_id: entryId,
+        week_id: weekId,
+        revision: (latest?.revision ?? 0) + 1,
+        previous_picks: previousPicks ?? [],
+        replacement_picks: finalPicks,
+      },
+    });
+  if (auditError) {
+    await admin.from("weekly_submissions").delete().eq("id", submission.id);
+    return { ok: false as const, message: "Revision could not be audited" };
+  }
+
+  for (const game of games ?? []) {
+    const line = Array.isArray(game.pool_lines)
+      ? game.pool_lines[0]
+      : game.pool_lines;
+    if (
+      game.status !== "final" ||
+      game.away_score === null ||
+      game.home_score === null ||
+      !line
+    )
+      continue;
+    await rebuildGameScoreEvents(admin, {
+      id: game.id,
+      weekId,
+      weekNumber: week.week_number,
+      away: game.away_team,
+      home: game.home_team,
+      awaySpread: Number(line.away_spread),
+      total: Number(line.total),
+      awayScore: game.away_score,
+      homeScore: game.home_score,
+      status: "final",
+    });
+  }
+  revalidatePath("/admin/picks");
+  revalidatePath(`/admin/picks/${entryId}`);
+  revalidatePath("/grid");
+  revalidatePath("/standings");
   return { ok: true as const, message: "Commissioner revision submitted" };
 }

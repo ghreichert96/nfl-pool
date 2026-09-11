@@ -119,6 +119,29 @@ select {
   background-color: #f8fafc;
 }
 
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-slate-300 {
+  color: #1e293b;
+}
+
+.light .text-slate-400,
+.light .text-slate-500,
+.light .text-slate-600 {
+  color: #475569;
+}
+
+.light .border-slate-700,
+.light .border-slate-800 {
+  border-color: #94a3b8;
+}
+
+.light .bg-slate-900,
+.light .bg-slate-950\/70,
+.light .bg-slate-950\/80 {
+  background-color: #e2e8f0;
+}
+
 .gunmetal > header,
 .gunmetal aside {
   border-color: #4f5962;
@@ -175,6 +198,39 @@ select {
   background: #111827;
   color: #f8fafc;
   box-shadow: inset 0 1px 4px rgb(0 0 0 / 0.65);
+}
+
+.team-logo-image {
+  object-fit: contain;
+}
+
+.team-logo-on-dark.team-logo-lar,
+.team-logo-on-dark.team-logo-nyg,
+.team-logo-on-dark.team-logo-nyj,
+.gunmetal .control-raised .team-logo-bare .team-logo-lar,
+.gunmetal .control-raised .team-logo-bare .team-logo-nyg,
+.gunmetal .control-raised .team-logo-bare .team-logo-nyj,
+.retro .control-raised .team-logo-bare .team-logo-lar,
+.retro .control-raised .team-logo-bare .team-logo-nyg,
+.retro .control-raised .team-logo-bare .team-logo-nyj,
+.light .control-pressed .team-logo-bare .team-logo-lar,
+.light .control-pressed .team-logo-bare .team-logo-nyg,
+.light .control-pressed .team-logo-bare .team-logo-nyj {
+  filter: brightness(0) invert(1) drop-shadow(0 1px 1px rgb(0 0 0 / 0.55));
+}
+
+.team-logo-on-dark.team-logo-car,
+.gunmetal .control-raised .team-logo-bare .team-logo-car,
+.retro .control-raised .team-logo-bare .team-logo-car,
+.light .control-pressed .team-logo-bare .team-logo-car {
+  filter: drop-shadow(1px 0 0 white) drop-shadow(-1px 0 0 white)
+    drop-shadow(0 1px 0 white) drop-shadow(0 -1px 0 white);
+}
+
+.gunmetal .control-pressed .team-logo-bare .team-logo-contrast,
+.retro .control-pressed .team-logo-bare .team-logo-contrast,
+.light .control-raised .team-logo-bare .team-logo-contrast {
+  filter: none;
 }
 
 .retro .control-raised,

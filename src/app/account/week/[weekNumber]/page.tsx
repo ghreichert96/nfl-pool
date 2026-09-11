@@ -2,16 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeading, PageShell } from "@/components/page-shell";
+import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import { loadCompetition } from "@/features/competition/data";
 import { pickOutcome } from "@/features/competition/scoring";
 import { getPoolContext } from "@/lib/pool-context";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function WeekDetailPage({
   params,
 }: {
   params: Promise<{ weekNumber: string }>;
 }) {
-  const { supabase, entry, isCommissioner } = await getPoolContext();
+  const { supabase, entry, membership, isCommissioner } =
+    await getPoolContext();
   if (!entry) notFound();
   const number = Number((await params).weekNumber);
   const data = await loadCompetition(supabase, entry.season_id, number, {
@@ -29,6 +32,24 @@ export default async function WeekDetailPage({
   const revisions = data.submissions
     .filter((item) => item.entry_id === entry.id && item.week_id === week.id)
     .sort((a, b) => b.revision - a.revision);
+  const revisionIds = revisions.map((revision) => revision.id);
+  const { data: revisionPicks } = revisionIds.length
+    ? await supabase
+        .from("picks")
+        .select(
+          "submission_id, game_id, kind, team, total_direction, is_best_bet",
+        )
+        .in("submission_id", revisionIds)
+    : { data: [] };
+  const { data: overrideEvents } =
+    membership && revisionIds.length
+      ? await createAdminClient()
+          .from("commissioner_audit_events")
+          .select("entity_id")
+          .eq("pool_id", membership.pool_id)
+          .eq("entity_type", "weekly_submission")
+          .in("entity_id", revisionIds.map(String))
+      : { data: [] };
   const comment = data.comments.find(
     (item) => item.entry_id === entry.id && item.week_id === week.id,
   );
@@ -104,19 +125,22 @@ export default async function WeekDetailPage({
       </section>
       <section className="game-card mt-4 rounded-xl border p-4">
         <h2 className="text-sm font-black">Revision timeline</h2>
-        <ol className="mt-3 space-y-2">
-          {revisions.map((revision) => (
-            <li
-              key={revision.id}
-              className="flex justify-between border-t border-slate-800 pt-2 text-xs"
-            >
-              <span>Revision {revision.revision}</span>
-              <time className="text-slate-500">
-                {new Date(revision.submitted_at).toLocaleString("en-US")}
-              </time>
-            </li>
-          ))}
-        </ol>
+        <div className="mt-2">
+          <SubmissionRevisionLog
+            revisions={revisions}
+            picks={revisionPicks ?? []}
+            games={data.games
+              .filter((game) => game.weekId === week.id)
+              .map((game) => ({
+                id: game.id,
+                away_team: game.away,
+                home_team: game.home,
+              }))}
+            commissionerSubmissionIds={(overrideEvents ?? []).map((event) =>
+              Number(event.entity_id),
+            )}
+          />
+        </div>
       </section>
     </PageShell>
   );

@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { TeamLogo } from "@/components/team-logo";
 
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { PageShell } from "@/components/page-shell";
@@ -349,13 +349,12 @@ function SidePoolTable({
                           className={`font-black ${outcome === "win" ? "text-emerald-400" : outcome === "loss" ? "text-red-400" : outcome === "tie" ? "text-slate-300" : "text-slate-600"}`}
                         >
                           {pick?.team && logoMap.get(pick.team) ? (
-                            <Image
+                            <TeamLogo
+                              team={pick.team}
                               src={logoMap.get(pick.team)!}
-                              alt={pick.team}
-                              title={pick.team}
-                              width={20}
-                              height={20}
-                              className="size-5 object-contain object-left"
+                              size={20}
+                              contrast="dark"
+                              className="size-5 object-left"
                             />
                           ) : (
                             (pick?.team ?? "—")

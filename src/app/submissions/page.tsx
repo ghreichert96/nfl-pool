@@ -2,15 +2,18 @@ import Link from "next/link";
 
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { PageShell } from "@/components/page-shell";
+import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import { WeekSelector } from "@/components/week-selector";
 import { getPoolContext } from "@/lib/pool-context";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function SubmissionsPage({
   searchParams,
 }: {
   searchParams: Promise<{ week?: string }>;
 }) {
-  const { supabase, entry, isCommissioner } = await getPoolContext();
+  const { supabase, entry, membership, isCommissioner } =
+    await getPoolContext();
   const { data: weeks } = entry
     ? await supabase
         .from("pool_weeks")
@@ -24,7 +27,7 @@ export default async function SubmissionsPage({
     (weeks ?? []).find((week) => week.week_number === requestedWeek) ??
     weeks?.at(-1) ??
     null;
-  const [{ data: revisions }, { data: comment }] =
+  const [{ data: revisions }, { data: comment }, { data: games }] =
     entry && selectedWeek
       ? await Promise.all([
           supabase
@@ -39,8 +42,30 @@ export default async function SubmissionsPage({
             .eq("entry_id", entry.id)
             .eq("week_id", selectedWeek.id)
             .maybeSingle(),
+          supabase
+            .from("games")
+            .select("id, away_team, home_team")
+            .eq("week_id", selectedWeek.id),
         ])
-      : [{ data: [] }, { data: null }];
+      : [{ data: [] }, { data: null }, { data: [] }];
+  const revisionIds = (revisions ?? []).map((revision) => revision.id);
+  const { data: revisionPicks } = revisionIds.length
+    ? await supabase
+        .from("picks")
+        .select(
+          "submission_id, game_id, kind, team, total_direction, is_best_bet",
+        )
+        .in("submission_id", revisionIds)
+    : { data: [] };
+  const { data: overrideEvents } =
+    entry && membership && revisionIds.length
+      ? await createAdminClient()
+          .from("commissioner_audit_events")
+          .select("entity_id")
+          .eq("pool_id", membership.pool_id)
+          .eq("entity_type", "weekly_submission")
+          .in("entity_id", revisionIds.map(String))
+      : { data: [] };
   const latestSubmission = revisions?.[0];
   const { count: pickCount } = latestSubmission
     ? await supabase
@@ -82,6 +107,18 @@ export default async function SubmissionsPage({
             <p className="border-b border-slate-800 px-4 py-3 text-sm">
               “{comment.body}”
             </p>
+          )}
+          {!!revisions?.length && (
+            <div className="border-b border-slate-800 px-3 py-2">
+              <SubmissionRevisionLog
+                revisions={revisions}
+                picks={revisionPicks ?? []}
+                games={games ?? []}
+                commissionerSubmissionIds={(overrideEvents ?? []).map((event) =>
+                  Number(event.entity_id),
+                )}
+              />
+            </div>
           )}
           {selectedWeek && (
             <Link
