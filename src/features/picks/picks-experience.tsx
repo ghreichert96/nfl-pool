@@ -103,7 +103,7 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
     <span
       aria-label={`${result} result`}
       title={result}
-      className={`pointer-events-none font-black leading-none ${result === "win" ? "text-emerald-300" : result === "loss" ? "text-red-300" : "text-slate-300"}`}
+      className={`pointer-events-none font-black leading-none drop-shadow-[0_1px_1px_rgb(0_0_0/0.9)] ${result === "win" ? "text-emerald-300" : result === "loss" ? "text-red-300" : "text-amber-300"}`}
     >
       {result === "win" ? (
         <svg
@@ -131,7 +131,9 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
           <path d="m7 7 10 10M17 7 7 17" />
         </svg>
       ) : (
-        "—"
+        <span aria-hidden="true" className="block -translate-y-px text-sm">
+          -
+        </span>
       )}
     </span>
   );
@@ -242,22 +244,29 @@ function Logo({
   logoUrl,
   compact = false,
   bare = false,
+  preview = false,
+  contrast = "auto",
 }: {
   abbreviation: string;
   logoUrl?: string | null;
   compact?: boolean;
   bare?: boolean;
+  preview?: boolean;
+  contrast?: "auto" | "dark";
 }) {
   return (
     <span
       aria-hidden="true"
-      className={`${bare ? "team-logo-bare" : "team-logo rounded-full border-2"} grid shrink-0 place-items-center text-[11px] font-black ${compact ? "size-8" : bare ? "size-12" : "size-10"}`}
+      className={`${bare ? "team-logo-bare" : "team-logo rounded-full border-2"} grid shrink-0 place-items-center text-[11px] font-black ${preview ? "size-9" : compact ? "size-8" : bare ? "size-12" : "size-10"}`}
     >
       <TeamLogo
         team={abbreviation}
         src={logoUrl}
-        size={compact ? 28 : bare ? 44 : 32}
-        className={compact ? "size-7" : bare ? "size-11" : "size-8"}
+        size={preview ? 36 : compact ? 28 : bare ? 44 : 32}
+        contrast={contrast}
+        className={
+          preview ? "size-9" : compact ? "size-7" : bare ? "size-11" : "size-8"
+        }
       />
     </span>
   );
@@ -330,8 +339,14 @@ function TeamToggle({
     status === "live"
       ? `${liveResultClass(standingForTeam(game, team, "ats"))} shadow-[inset_0_3px_5px_rgb(0_0_0/0.5)]`
       : status === "final"
-        ? resultClass(teamResult(game, team, "ats"))
+        ? "border-slate-700 bg-slate-900/70 text-slate-500"
         : selectedClass;
+  const tileStateClass =
+    status === "final"
+      ? "border-slate-700 bg-slate-900/70 text-slate-500"
+      : selected
+        ? selectedStateClass
+        : idleClass;
 
   return (
     <div className="relative w-full">
@@ -341,32 +356,27 @@ function TeamToggle({
         aria-pressed={selected}
         disabled={disabled}
         onClick={onClick}
-        className={`relative flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected && status === "upcoming" ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
+        className={`relative flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected && status === "upcoming" ? "disabled:opacity-35" : ""} ${tileStateClass}`}
       >
-        {status === "final" &&
-          !selected &&
-          teamResult(game, team, "ats") !== "tie" && (
-            <span className="absolute top-1 right-1 text-[11px]">
-              <ResultMark result={teamResult(game, team, "ats")} />
-            </span>
-          )}
-        <Logo
-          abbreviation={team}
-          bare
-          logoUrl={
-            (team === game.away.abbreviation ? game.away : game.home).logoUrl
-          }
-        />
-        <span className="mt-1 leading-none">
-          {formatSpread(spreadFor(game, team))}
+        <span
+          className={`grid place-items-center ${status === "final" ? "opacity-35" : ""}`}
+        >
+          <Logo
+            abbreviation={team}
+            bare
+            logoUrl={
+              (team === game.away.abbreviation ? game.away : game.home).logoUrl
+            }
+          />
+          <span className="mt-1 leading-none">
+            {formatSpread(spreadFor(game, team))}
+          </span>
         </span>
-        {status === "final" &&
-          !selected &&
-          teamResult(game, team, "ats") === "tie" && (
-            <span className="absolute right-1 bottom-1">
-              <ResultMark result="tie" />
-            </span>
-          )}
+        {status === "final" && (
+          <span className="absolute right-1 bottom-1 z-10">
+            <ResultMark result={teamResult(game, team, "ats")} />
+          </span>
+        )}
       </button>
       {selected && (status === "upcoming" || allowLockedEdit) && (
         <button
@@ -1071,13 +1081,19 @@ function Preview({
                   className={`relative grid size-10 -translate-y-0.5 justify-self-center place-items-center rounded-lg border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
                 >
                   {bestBet && (
-                    <span className="absolute -top-2.5 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
+                    <span className="absolute -top-2 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
                       <CrownIcon className="h-3.5 w-5" />
                     </span>
                   )}
                   <Logo
                     abbreviation={pick.team}
-                    compact
+                    bare
+                    preview
+                    contrast={
+                      gameMap.get(pick.gameId)?.status === "upcoming"
+                        ? "auto"
+                        : "dark"
+                    }
                     logoUrl={
                       (pick.team === gameMap.get(pick.gameId)?.away.abbreviation
                         ? gameMap.get(pick.gameId)?.away

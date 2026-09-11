@@ -116,9 +116,12 @@ describe("Home", () => {
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     fireEvent.click(screen.getByRole("button", { name: "Over 45.5" }));
 
-    expect(
-      screen.getByRole("button", { name: "SF, mark Best Bet" }),
-    ).toHaveTextContent("+8.5");
+    const preview = screen.getByRole("button", {
+      name: "SF, mark Best Bet",
+    });
+    expect(preview).toHaveTextContent("+8.5");
+    expect(preview.querySelector(".team-logo-bare")).toBeInTheDocument();
+    expect(preview.querySelector(".team-logo")).not.toBeInTheDocument();
     expect(screen.getByLabelText("SF at LAR, over")).toHaveTextContent("O45.5");
   });
 
@@ -245,6 +248,12 @@ describe("Home", () => {
 
     expect(screen.getAllByLabelText("win result").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("loss result").length).toBeGreaterThan(0);
+    const spread = screen.getByRole("button", { name: "SF +8.5" });
+    expect(spread).toHaveClass("bg-slate-900/70");
+    expect(spread.querySelector(".opacity-35")).toBeInTheDocument();
+    expect(spread.querySelector('[aria-label$="result"]')).not.toHaveClass(
+      "opacity-35",
+    );
   });
 
   it("lets a commissioner replace selections in a completed game", () => {
