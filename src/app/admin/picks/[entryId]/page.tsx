@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { PageShell } from "@/components/page-shell";
+import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import type { Game, Picks } from "@/features/picks/model";
 import { EMPTY_PICKS } from "@/features/picks/model";
 import { PicksExperience } from "@/features/picks/picks-experience";
@@ -10,15 +11,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { submitCommissionerPicks } from "../actions";
 
 export const dynamic = "force-dynamic";
-
-type HistoryPick = {
-  submission_id: number;
-  game_id: number;
-  kind: string;
-  team: string | null;
-  total_direction: string | null;
-  is_best_bet: boolean;
-};
 
 function badge(gameType: string, kickoffAt: string) {
   const named: Record<string, string> = {
@@ -113,47 +105,19 @@ export default async function CommissionerPickSheet({
         )
         .in("submission_id", historySubmissionIds)
     : { data: [] };
+  const { data: overrideEvents } = historySubmissionIds.length
+    ? await admin
+        .from("commissioner_audit_events")
+        .select("entity_id")
+        .eq("entity_type", "weekly_submission")
+        .in("entity_id", historySubmissionIds.map(String))
+    : { data: [] };
   const names = new Map(
     (teams ?? []).map((team) => [team.abbreviation, team.name]),
   );
   const logos = new Map(
     (teams ?? []).map((team) => [team.abbreviation, team.logo_url]),
   );
-  const matchupByGame = new Map(
-    (rows ?? []).map((game) => [
-      game.id,
-      `${game.away_team}/${game.home_team}`,
-    ]),
-  );
-  const historyLabels = new Map<number, string[]>();
-  for (const pick of (historyPickRows ?? []) as HistoryPick[]) {
-    const matchup = matchupByGame.get(pick.game_id) ?? `Game ${pick.game_id}`;
-    const label =
-      pick.kind === "ats"
-        ? `${pick.team} ATS${pick.is_best_bet ? " (BB)" : ""} · ${matchup}`
-        : pick.kind === "total"
-          ? `${matchup} · ${pick.total_direction === "over" ? "Over" : "Under"}`
-          : pick.kind === "sudden_death"
-            ? `${pick.team} · SD`
-            : `${pick.team} · UD`;
-    historyLabels.set(pick.submission_id, [
-      ...(historyLabels.get(pick.submission_id) ?? []),
-      label,
-    ]);
-  }
-  const changesBySubmission = new Map<
-    number,
-    { added: string[]; removed: string[] }
-  >();
-  let previous = new Set<string>();
-  for (const submission of [...(submissionHistory ?? [])].reverse()) {
-    const current = new Set(historyLabels.get(submission.id) ?? []);
-    changesBySubmission.set(submission.id, {
-      added: [...current].filter((pick) => !previous.has(pick)).sort(),
-      removed: [...previous].filter((pick) => !current.has(pick)).sort(),
-    });
-    previous = current;
-  }
   // Request-time status is intentionally dynamic for per-game kickoff locks.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
@@ -236,39 +200,16 @@ export default async function CommissionerPickSheet({
           <summary className="cursor-pointer font-black">
             Submission history ({submissionHistory?.length ?? 0})
           </summary>
-          <ol className="mt-2 divide-y divide-slate-800">
-            {(submissionHistory ?? []).map((submission) => {
-              const changes = changesBySubmission.get(submission.id);
-              return (
-                <li key={submission.id} className="py-2">
-                  <div className="flex justify-between gap-3">
-                    <strong>Revision {submission.revision}</strong>
-                    <time className="text-slate-400">
-                      {new Date(submission.submitted_at).toLocaleString(
-                        "en-US",
-                        { timeZone: "America/New_York" },
-                      )}
-                    </time>
-                  </div>
-                  <div className="mt-1 grid gap-0.5 text-[10px]">
-                    {(changes?.added ?? []).map((pick) => (
-                      <span key={`added-${pick}`} className="text-emerald-300">
-                        + {pick}
-                      </span>
-                    ))}
-                    {(changes?.removed ?? []).map((pick) => (
-                      <span key={`removed-${pick}`} className="text-red-300">
-                        − {pick}
-                      </span>
-                    ))}
-                    {!changes?.added.length && !changes?.removed.length && (
-                      <span className="text-slate-500">No pick changes</span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+          <div className="mt-2">
+            <SubmissionRevisionLog
+              revisions={submissionHistory ?? []}
+              picks={historyPickRows ?? []}
+              games={rows ?? []}
+              commissionerSubmissionIds={(overrideEvents ?? []).map((event) =>
+                Number(event.entity_id),
+              )}
+            />
+          </div>
         </details>
       </section>
       <PicksExperience
