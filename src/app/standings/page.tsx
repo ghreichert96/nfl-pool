@@ -89,7 +89,7 @@ export default async function StandingsPage({
         />
         {view === "overall" ? (
           <section className="game-card overflow-hidden rounded-xl border shadow-xl">
-            <div className="max-h-[68vh] overflow-auto">
+            <div className="overflow-x-auto">
               <table className="w-full border-separate border-spacing-0 text-[10px]">
                 <thead className="sticky top-0 z-20 bg-slate-950">
                   <tr>

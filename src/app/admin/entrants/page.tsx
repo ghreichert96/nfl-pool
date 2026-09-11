@@ -66,7 +66,7 @@ export default async function EntrantsPage({
         </p>
       )}
       {(invitations ?? []).some((item) => item.status === "pending") && (
-        <section className="mb-5 rounded-xl border border-slate-800 p-4">
+        <section className="mb-3 rounded-lg border border-slate-800 p-3">
           <h2 className="font-black">Pending invitations</h2>
           <div className="mt-3 grid gap-2">
             {invitations!
@@ -74,7 +74,7 @@ export default async function EntrantsPage({
               .map((item) => (
                 <div
                   key={item.id}
-                  className="game-card grid gap-2 rounded-lg border p-3 text-xs sm:grid-cols-[1fr_auto]"
+                  className="game-card grid gap-1 rounded border p-2 text-[11px] sm:grid-cols-[1fr_auto]"
                 >
                   <div>
                     <strong>{item.email}</strong>
@@ -111,14 +111,14 @@ export default async function EntrantsPage({
         </section>
       )}
       <section className="overflow-x-auto rounded-xl border border-slate-800">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[680px] text-left text-xs">
           <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-400">
             <tr>
-              <th className="p-3">Entry</th>
-              <th className="p-3">Email</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Last sign-in</th>
-              <th className="p-3">Actions</th>
+              <th className="p-2">Entry</th>
+              <th className="p-2">Email</th>
+              <th className="p-2">Status</th>
+              <th className="p-2">Last sign-in</th>
+              <th className="p-2">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
@@ -126,7 +126,7 @@ export default async function EntrantsPage({
               const user = users.get(entry.user_id);
               return (
                 <tr key={entry.id} className="game-card">
-                  <td className="p-3">
+                  <td className="p-2">
                     <form action={updateEntrantCode} className="flex gap-1">
                       <input type="hidden" name="entry_id" value={entry.id} />
                       <input
@@ -145,30 +145,30 @@ export default async function EntrantsPage({
                       </button>
                     </form>
                   </td>
-                  <td className="p-3">{user?.email ?? "No auth account"}</td>
-                  <td className="p-3 text-xs text-slate-400">
+                  <td className="p-2">{user?.email ?? "No auth account"}</td>
+                  <td className="p-2 text-[10px] text-slate-400">
                     {user?.email_confirmed_at ? "Confirmed" : "Unconfirmed"}
                   </td>
-                  <td className="p-3 text-xs text-slate-400">
+                  <td className="p-2 text-[10px] text-slate-400">
                     {user?.last_sign_in_at
                       ? new Date(user.last_sign_in_at).toLocaleString("en-US", {
                           timeZone: "America/New_York",
                         })
                       : "Never"}
                   </td>
-                  <td className="p-3">
+                  <td className="p-2">
                     {user && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <form action={sendMagicLink}>
                           <input type="hidden" name="user_id" value={user.id} />
-                          <button className="control-raised rounded-md border px-3 py-2 text-xs font-black">
-                            MAGIC LINK
+                          <button className="control-raised rounded border px-2 py-1 text-[9px] font-black">
+                            LOGIN
                           </button>
                         </form>
                         <form action={sendPasswordReset}>
                           <input type="hidden" name="user_id" value={user.id} />
-                          <button className="control-raised rounded-md border px-3 py-2 text-xs font-black">
-                            RESET PASSWORD
+                          <button className="control-raised rounded border px-2 py-1 text-[9px] font-black">
+                            RESET
                           </button>
                         </form>
                         <RecoveryLinkButton userId={user.id} />

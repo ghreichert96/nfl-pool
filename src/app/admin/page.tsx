@@ -13,9 +13,7 @@ import {
   recordGameResult,
   reconcileScores,
   releaseGameResultToProvider,
-  refreshOdds,
   saveGame,
-  toggleWeekFreeze,
 } from "./actions";
 
 export default async function AdminPage({
@@ -176,108 +174,58 @@ export default async function AdminPage({
           credits.
         </p>
       )}
-      {activeWeek && (
-        <section className="game-card mb-5 rounded-xl border p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-black tracking-[0.18em] text-slate-300">
-                ODDS INTAKE
-              </p>
-              <h2 className="mt-1 text-xl font-black">{activeWeek.label}</h2>
-              <p className="mt-1 text-sm text-slate-400">
-                Consensus spreads and totals from The Odds API. Frozen weeks
-                retain their published pool lines.
-              </p>
-            </div>
-            <span className="rounded-full border border-slate-700 px-3 py-1 text-xs font-black">
-              {activeWeek.lines_frozen_at ? "FROZEN" : "OPEN"}
+      <details className="game-card mb-3 rounded-lg border p-3">
+        <summary className="cursor-pointer text-sm font-black">
+          Recent activity
+        </summary>
+        <ol className="mt-2 divide-y divide-slate-800">
+          {(audit ?? []).map((event) => (
+            <li
+              key={event.id}
+              className="flex justify-between gap-2 py-1.5 text-[10px]"
+            >
+              <span>
+                {event.action.replaceAll("_", " ")} · {event.entity_type}{" "}
+                {event.entity_id}
+              </span>
+              <time className="text-slate-500">
+                {new Date(event.created_at).toLocaleString("en-US")}
+              </time>
+            </li>
+          ))}
+        </ol>
+      </details>
+      <details className="game-card mb-3 rounded-lg border p-3">
+        <summary className="cursor-pointer text-sm font-black">
+          Season status
+        </summary>
+        <section className="mt-2 grid grid-cols-3 gap-2">
+          <div className="game-card rounded-lg border p-3">
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+              Season
             </span>
+            <strong className="mt-1 block text-lg">
+              {season?.year ?? "—"}
+            </strong>
           </div>
-          {params.odds_refreshed && (
-            <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
-              Odds refreshed successfully.
-            </p>
-          )}
-          {params.odds_error && (
-            <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
-              Odds refresh failed. Check the key and recent ingestion run.
-            </p>
-          )}
-          {(params.odds_frozen || params.odds_unfrozen) && (
-            <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
-              Week lines {params.odds_frozen ? "frozen" : "reopened"}.
-            </p>
-          )}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <form action={refreshOdds}>
-              <input type="hidden" name="week_id" value={activeWeek.id} />
-              <button
-                disabled={Boolean(activeWeek.lines_frozen_at)}
-                className="control-raised min-h-10 rounded border px-4 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                REFRESH ODDS
-              </button>
-            </form>
-            <form action={toggleWeekFreeze}>
-              <input type="hidden" name="week_id" value={activeWeek.id} />
-              <input
-                type="hidden"
-                name="freeze"
-                value={activeWeek.lines_frozen_at ? "0" : "1"}
-              />
-              <button className="control-pressed min-h-10 rounded border px-4 text-xs font-black">
-                {activeWeek.lines_frozen_at ? "REOPEN LINES" : "FREEZE LINES"}
-              </button>
-            </form>
+          <div className="game-card rounded-lg border p-3">
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+              Entrants
+            </span>
+            <strong className="mt-1 block text-lg">{entrantCount ?? 0}</strong>
           </div>
-          {(oddsRuns ?? []).length > 0 && (
-            <ol className="mt-4 divide-y divide-slate-800 border-t border-slate-800">
-              {(oddsRuns ?? []).map((run) => (
-                <li
-                  key={run.id}
-                  className="flex flex-wrap justify-between gap-2 py-2 text-xs"
-                >
-                  <span>
-                    <strong className="mr-2 uppercase">{run.status}</strong>
-                    {run.events_received ?? 0} events ·{" "}
-                    {run.snapshots_written ?? 0} prices
-                  </span>
-                  <span className="text-slate-500">
-                    {run.quota_remaining == null
-                      ? "Quota —"
-                      : `${run.quota_remaining} requests left`}{" "}
-                    · {new Date(run.requested_at).toLocaleString("en-US")}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
+          <div className="game-card rounded-lg border p-3">
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+              Status
+            </span>
+            <strong className="mt-1 block text-lg capitalize">
+              {season?.status ?? "Setup"}
+            </strong>
+          </div>
         </section>
-      )}
-      <section className="mb-5 grid grid-cols-3 gap-2">
-        <div className="game-card rounded-lg border p-3">
-          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-            Season
-          </span>
-          <strong className="mt-1 block text-lg">{season?.year ?? "—"}</strong>
-        </div>
-        <div className="game-card rounded-lg border p-3">
-          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-            Entrants
-          </span>
-          <strong className="mt-1 block text-lg">{entrantCount ?? 0}</strong>
-        </div>
-        <div className="game-card rounded-lg border p-3">
-          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-            Status
-          </span>
-          <strong className="mt-1 block text-lg capitalize">
-            {season?.status ?? "Setup"}
-          </strong>
-        </div>
-      </section>
+      </details>
       <div className="grid gap-5 lg:grid-cols-2">
-        <section className="game-card mx-auto max-w-md rounded-xl border p-5 shadow-xl">
+        <section className="hidden">
           <p className="text-xs font-black tracking-[0.18em] text-slate-300">
             HPPP · WEEKLY SETUP
           </p>
@@ -402,272 +350,294 @@ export default async function AdminPage({
             </button>
           </form>
         </section>
-        <section className="game-card mx-auto max-w-md rounded-xl border p-5 shadow-xl">
-          <p className="text-xs font-black tracking-[0.18em] text-slate-300">
-            HPPP · COMMISSIONER
-          </p>
-          <h1 className="mt-2 text-xl font-black">Invite an entrant</h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Share the public signup link, or send a seven-day invitation to a
-            specific email address.
-          </p>
-          <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950 p-3">
-            <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
-              Self-enrollment
+        <details className="game-card rounded-lg border p-3">
+          <summary className="cursor-pointer text-sm font-black">
+            Invite entrant
+          </summary>
+          <section className="mt-3">
+            <p className="text-xs font-black tracking-[0.18em] text-slate-300">
+              HPPP · COMMISSIONER
             </p>
-            <SignupLinkButton />
-          </div>
-          {params.sent ? (
-            <p className="mt-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">
-              Invitation sent.
+            <h1 className="mt-2 text-xl font-black">Invite an entrant</h1>
+            <p className="mt-2 text-sm text-slate-400">
+              Share the public signup link, or send a seven-day invitation to a
+              specific email address.
             </p>
-          ) : null}
-          {params.error ? (
-            <p className="mt-4 rounded-lg bg-amber-950 p-3 text-sm text-amber-200">
-              We could not create that invitation. Check the email and entry
-              code, then try again.
-            </p>
-          ) : null}
-          <form action={inviteEntry} className="mt-5 grid gap-3">
-            <label className="grid gap-1 text-sm font-bold">
-              Email
-              <input
-                name="email"
-                type="email"
-                required
-                maxLength={254}
-                className="control-raised min-h-11 rounded-lg border bg-transparent px-3"
-                placeholder="entrant@example.com"
-              />
-            </label>
-            <label className="grid gap-1 text-sm font-bold">
-              Phone number
-              <PhoneInput className="control-raised min-h-11 rounded-lg border bg-transparent px-3" />
-              <small className="font-normal text-slate-500">
-                U.S. numbers automatically receive +1.
-              </small>
-            </label>
-            <button
-              type="submit"
-              className="control-raised mt-2 min-h-11 rounded-lg border bg-emerald-600 font-black text-white"
-            >
-              SEND INVITATION
-            </button>
-          </form>
-        </section>
+            <div className="mt-4 rounded-lg border border-slate-700 bg-slate-950 p-3">
+              <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                Self-enrollment
+              </p>
+              <SignupLinkButton />
+            </div>
+            {params.sent ? (
+              <p className="mt-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">
+                Invitation sent.
+              </p>
+            ) : null}
+            {params.error ? (
+              <p className="mt-4 rounded-lg bg-amber-950 p-3 text-sm text-amber-200">
+                We could not create that invitation. Check the email and entry
+                code, then try again.
+              </p>
+            ) : null}
+            <form action={inviteEntry} className="mt-5 grid gap-3">
+              <label className="grid gap-1 text-sm font-bold">
+                Email
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  maxLength={254}
+                  className="control-raised min-h-11 rounded-lg border bg-transparent px-3"
+                  placeholder="entrant@example.com"
+                />
+              </label>
+              <label className="grid gap-1 text-sm font-bold">
+                Phone number
+                <PhoneInput className="control-raised min-h-11 rounded-lg border bg-transparent px-3" />
+                <small className="font-normal text-slate-500">
+                  U.S. numbers automatically receive +1.
+                </small>
+              </label>
+              <button
+                type="submit"
+                className="control-raised mt-2 min-h-11 rounded-lg border bg-emerald-600 font-black text-white"
+              >
+                SEND INVITATION
+              </button>
+            </form>
+          </section>
+        </details>
       </div>
       <div className="mt-5 grid gap-5 lg:grid-cols-2">
-        <section className="game-card rounded-xl border p-5">
-          <p className="text-xs font-black tracking-[0.18em] text-slate-300">
-            RESULTS
-          </p>
-          <h2 className="mt-2 text-xl font-black">Record final scores</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Saving a correction replaces the game’s score events and refreshes
-            standings.
-          </p>
-          {params.result_saved && (
-            <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
-              Result saved and rescored.
+        <details className="game-card rounded-lg border p-3">
+          <summary className="cursor-pointer text-sm font-black">
+            Scores
+          </summary>
+          <section className="mt-3">
+            <p className="text-xs font-black tracking-[0.18em] text-slate-300">
+              RESULTS
             </p>
-          )}
-          {params.result_error && (
-            <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
-              Result could not be saved.
+            <h2 className="mt-2 text-xl font-black">Record final scores</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Saving a correction replaces the game’s score events and refreshes
+              standings.
             </p>
-          )}
-          {params.result_provider && (
-            <p className="mt-3 rounded bg-cyan-950 p-2 text-xs text-cyan-200">
-              Result returned to provider control.
-            </p>
-          )}
-          {params.score_reconciled && (
-            <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
-              Final-score reconciliation completed.
-            </p>
-          )}
-          {params.score_error && (
-            <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
-              Final-score reconciliation failed.
-            </p>
-          )}
-          <form action={reconcileScores} className="mt-3">
-            <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
-              RECONCILE FINALS
-            </button>
-          </form>
-          {(scoreRuns ?? []).length > 0 && (
-            <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950 p-3">
-              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                Automated scoring
-              </h3>
-              <ol className="mt-2 divide-y divide-slate-800">
-                {(scoreRuns ?? []).map((run) => (
-                  <li key={run.id} className="py-2 text-[10px] text-slate-300">
-                    <div className="flex justify-between gap-2">
-                      <strong className="uppercase">
-                        {run.mode} · {run.status}
-                      </strong>
-                      <span className="text-slate-500">
-                        {run.quota_remaining == null
-                          ? "Quota —"
-                          : `${run.quota_remaining} left`}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-slate-500">
-                      {run.events_received} events · {run.games_updated} updated
-                      · {run.games_finalized} final
-                      {run.skip_reason ? ` · ${run.skip_reason}` : ""}
-                    </p>
-                    {run.error_message && (
-                      <p className="mt-1 text-red-300">{run.error_message}</p>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-          {(liveRuns ?? []).length > 0 && (
-            <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950 p-3">
-              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                ESPN live status
-              </h3>
-              <ol className="mt-2 divide-y divide-slate-800">
-                {(liveRuns ?? []).map((run) => (
-                  <li key={run.id} className="py-2 text-[10px] text-slate-300">
-                    <div className="flex justify-between gap-2">
-                      <strong className="uppercase">{run.status}</strong>
-                      <time className="text-slate-500">
-                        {new Date(run.requested_at).toLocaleTimeString(
-                          "en-US",
-                          {
-                            timeZone: "America/New_York",
-                            hour: "numeric",
-                            minute: "2-digit",
-                          },
-                        )}
-                      </time>
-                    </div>
-                    <p className="mt-1 text-slate-500">
-                      {run.events_received} events · {run.games_updated} updated
-                    </p>
-                    {run.error_message && (
-                      <p className="mt-1 text-red-300">{run.error_message}</p>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          )}
-          <div className="mt-4 max-h-96 space-y-2 overflow-auto">
-            {(games ?? []).map((game) => {
-              const result = Array.isArray(game.game_results)
-                ? game.game_results[0]
-                : game.game_results;
-              return (
-                <div
-                  key={game.id}
-                  className="rounded-lg border border-slate-800 p-2"
-                >
-                  {game.final_validation_state !== "none" && (
-                    <p className="mb-2 text-[10px] font-black uppercase text-amber-300">
-                      {game.status_detail ?? game.final_validation_state} ·{" "}
-                      {game.final_validation_attempts} validation attempts
-                      {game.final_validation_error
-                        ? ` · ${game.final_validation_error}`
-                        : ""}
-                    </p>
-                  )}
-                  <form
-                    action={recordGameResult}
-                    className="grid grid-cols-[1fr_58px_12px_58px_64px] items-center gap-1"
+            {params.result_saved && (
+              <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
+                Result saved and rescored.
+              </p>
+            )}
+            {params.result_error && (
+              <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
+                Result could not be saved.
+              </p>
+            )}
+            {params.result_provider && (
+              <p className="mt-3 rounded bg-cyan-950 p-2 text-xs text-cyan-200">
+                Result returned to provider control.
+              </p>
+            )}
+            {params.score_reconciled && (
+              <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
+                Final-score reconciliation completed.
+              </p>
+            )}
+            {params.score_error && (
+              <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
+                Final-score reconciliation failed.
+              </p>
+            )}
+            <form action={reconcileScores} className="mt-3">
+              <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
+                RECONCILE FINALS
+              </button>
+            </form>
+            {(scoreRuns ?? []).length > 0 && (
+              <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950 p-3">
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Automated scoring
+                </h3>
+                <ol className="mt-2 divide-y divide-slate-800">
+                  {(scoreRuns ?? []).map((run) => (
+                    <li
+                      key={run.id}
+                      className="py-2 text-[10px] text-slate-300"
+                    >
+                      <div className="flex justify-between gap-2">
+                        <strong className="uppercase">
+                          {run.mode} · {run.status}
+                        </strong>
+                        <span className="text-slate-500">
+                          {run.quota_remaining == null
+                            ? "Quota —"
+                            : `${run.quota_remaining} left`}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-slate-500">
+                        {run.events_received} events · {run.games_updated}{" "}
+                        updated · {run.games_finalized} final
+                        {run.skip_reason ? ` · ${run.skip_reason}` : ""}
+                      </p>
+                      {run.error_message && (
+                        <p className="mt-1 text-red-300">{run.error_message}</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {(liveRuns ?? []).length > 0 && (
+              <div className="mt-3 rounded-lg border border-slate-800 bg-slate-950 p-3">
+                <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  ESPN live status
+                </h3>
+                <ol className="mt-2 divide-y divide-slate-800">
+                  {(liveRuns ?? []).map((run) => (
+                    <li
+                      key={run.id}
+                      className="py-2 text-[10px] text-slate-300"
+                    >
+                      <div className="flex justify-between gap-2">
+                        <strong className="uppercase">{run.status}</strong>
+                        <time className="text-slate-500">
+                          {new Date(run.requested_at).toLocaleTimeString(
+                            "en-US",
+                            {
+                              timeZone: "America/New_York",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </time>
+                      </div>
+                      <p className="mt-1 text-slate-500">
+                        {run.events_received} events · {run.games_updated}{" "}
+                        updated
+                      </p>
+                      {run.error_message && (
+                        <p className="mt-1 text-red-300">{run.error_message}</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            <div className="mt-4 max-h-96 space-y-2 overflow-auto">
+              {(games ?? []).map((game) => {
+                const result = Array.isArray(game.game_results)
+                  ? game.game_results[0]
+                  : game.game_results;
+                return (
+                  <div
+                    key={game.id}
+                    className="rounded-lg border border-slate-800 p-2"
                   >
-                    <input type="hidden" name="game_id" value={game.id} />
-                    <label className="text-xs font-black">
-                      {game.away_team} @ {game.home_team}
-                      <small className="block font-normal text-slate-500">
-                        {game.status}
-                        {result?.source ? ` · ${result.source}` : ""}
-                      </small>
-                    </label>
-                    <input
-                      aria-label={`${game.away_team} score`}
-                      name="away_score"
-                      type="number"
-                      min="0"
-                      max="255"
-                      defaultValue={game.away_score ?? ""}
-                      required
-                      className="control-raised min-h-9 rounded border px-1 text-center"
-                    />
-                    <span>–</span>
-                    <input
-                      aria-label={`${game.home_team} score`}
-                      name="home_score"
-                      type="number"
-                      min="0"
-                      max="255"
-                      defaultValue={game.home_score ?? ""}
-                      required
-                      className="control-raised min-h-9 rounded border px-1 text-center"
-                    />
-                    <button className="control-pressed min-h-9 rounded border text-[9px] font-black">
-                      FINAL
-                    </button>
-                  </form>
-                  {result?.source === "commissioner" && (
+                    {game.final_validation_state !== "none" && (
+                      <p className="mb-2 text-[10px] font-black uppercase text-amber-300">
+                        {game.status_detail ?? game.final_validation_state} ·{" "}
+                        {game.final_validation_attempts} validation attempts
+                        {game.final_validation_error
+                          ? ` · ${game.final_validation_error}`
+                          : ""}
+                      </p>
+                    )}
                     <form
-                      action={releaseGameResultToProvider}
-                      className="mt-2 text-right"
+                      action={recordGameResult}
+                      className="grid grid-cols-[1fr_58px_12px_58px_64px] items-center gap-1"
                     >
                       <input type="hidden" name="game_id" value={game.id} />
-                      <button className="text-[9px] font-black uppercase text-cyan-300 underline">
-                        Return to provider control
+                      <label className="text-xs font-black">
+                        {game.away_team} @ {game.home_team}
+                        <small className="block font-normal text-slate-500">
+                          {game.status}
+                          {result?.source ? ` · ${result.source}` : ""}
+                        </small>
+                      </label>
+                      <input
+                        aria-label={`${game.away_team} score`}
+                        name="away_score"
+                        type="number"
+                        min="0"
+                        max="255"
+                        defaultValue={game.away_score ?? ""}
+                        required
+                        className="control-raised min-h-9 rounded border px-1 text-center"
+                      />
+                      <span>–</span>
+                      <input
+                        aria-label={`${game.home_team} score`}
+                        name="home_score"
+                        type="number"
+                        min="0"
+                        max="255"
+                        defaultValue={game.home_score ?? ""}
+                        required
+                        className="control-raised min-h-9 rounded border px-1 text-center"
+                      />
+                      <button className="control-pressed min-h-9 rounded border text-[9px] font-black">
+                        FINAL
                       </button>
                     </form>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-        <section className="game-card rounded-xl border p-5">
-          <p className="text-xs font-black tracking-[0.18em] text-slate-300">
-            MAIN POOL
-          </p>
-          <h2 className="mt-2 text-xl font-black">Payout scale</h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Set the maximum gain and loss. The complete zero-sum scale updates
-            to match the competitive field.
-          </p>
-          {params.payout_saved && (
-            <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
-              Payout scale saved.
+                    {result?.source === "commissioner" && (
+                      <form
+                        action={releaseGameResultToProvider}
+                        className="mt-2 text-right"
+                      >
+                        <input type="hidden" name="game_id" value={game.id} />
+                        <button className="text-[9px] font-black uppercase text-cyan-300 underline">
+                          Return to provider control
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </details>
+        <details className="game-card rounded-lg border p-3">
+          <summary className="cursor-pointer text-sm font-black">
+            Payout scale
+          </summary>
+          <section className="mt-3">
+            <p className="text-xs font-black tracking-[0.18em] text-slate-300">
+              MAIN POOL
             </p>
-          )}
-          {params.payout_error && (
-            <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
-              Scale could not be saved. Check the field count and maximum.
+            <h2 className="mt-2 text-xl font-black">Payout scale</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              Set the maximum gain and loss. The complete zero-sum scale updates
+              to match the competitive field.
             </p>
-          )}
-          {season && (competitiveEntryCount ?? 0) >= 2 && (
-            <PayoutScaleEditor
-              seasonId={season.id}
-              entryCount={competitiveEntryCount ?? 0}
-              currentMaximum={Math.max(
-                0,
-                ...(payouts ?? []).map((row) => Number(row.amount)),
-              )}
-            />
-          )}
-          {season && (competitiveEntryCount ?? 0) < 2 && (
-            <p className="mt-4 text-xs text-amber-300">
-              At least two competitive entries are required.
-            </p>
-          )}
-        </section>
+            {params.payout_saved && (
+              <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
+                Payout scale saved.
+              </p>
+            )}
+            {params.payout_error && (
+              <p className="mt-3 rounded bg-red-950 p-2 text-xs text-red-300">
+                Scale could not be saved. Check the field count and maximum.
+              </p>
+            )}
+            {season && (competitiveEntryCount ?? 0) >= 2 && (
+              <PayoutScaleEditor
+                seasonId={season.id}
+                entryCount={competitiveEntryCount ?? 0}
+                currentMaximum={Math.max(
+                  0,
+                  ...(payouts ?? []).map((row) => Number(row.amount)),
+                )}
+              />
+            )}
+            {season && (competitiveEntryCount ?? 0) < 2 && (
+              <p className="mt-4 text-xs text-amber-300">
+                At least two competitive entries are required.
+              </p>
+            )}
+          </section>
+        </details>
       </div>
-      <section className="game-card mt-5 rounded-xl border p-5">
+      <section className="hidden">
         <h2 className="text-sm font-black">Recent commissioner activity</h2>
         <ol className="mt-3 divide-y divide-slate-800">
           {(audit ?? []).map((event) => (

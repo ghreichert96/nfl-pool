@@ -103,13 +103,13 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
     <span
       aria-label={`${result} result`}
       title={result}
-      className={`pointer-events-none font-black leading-none ${result === "win" ? "text-emerald-300" : result === "loss" ? "text-red-300" : "text-amber-300"}`}
+      className={`pointer-events-none font-black leading-none ${result === "win" ? "text-emerald-300" : result === "loss" ? "text-red-300" : "text-slate-300"}`}
     >
       {result === "win" ? (
         <svg
           aria-hidden="true"
           viewBox="0 0 24 24"
-          className="size-3.5"
+          className="size-3"
           fill="none"
           stroke="currentColor"
           strokeWidth="3.25"
@@ -122,7 +122,7 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
         <svg
           aria-hidden="true"
           viewBox="0 0 24 24"
-          className="size-3.5"
+          className="size-3"
           fill="none"
           stroke="currentColor"
           strokeWidth="3.25"
@@ -140,9 +140,11 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
 function HeaderStatusIcon({
   kind,
   active,
+  partial = false,
 }: {
   kind: "lines" | "picks";
   active: boolean;
+  partial?: boolean;
 }) {
   if (kind === "lines")
     return (
@@ -160,6 +162,12 @@ function HeaderStatusIcon({
         />
       </svg>
     );
+  if (partial)
+    return (
+      <span aria-hidden="true" className="text-sm leading-none">
+        —
+      </span>
+    );
   return active ? (
     <svg
       aria-hidden="true"
@@ -174,7 +182,17 @@ function HeaderStatusIcon({
       <path d="m5 12.5 4.2 4.2L19 7" />
     </svg>
   ) : (
-    <span aria-hidden="true">○</span>
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+    >
+      <path d="m7 7 10 10M17 7 7 17" />
+    </svg>
   );
 }
 
@@ -323,13 +341,15 @@ function TeamToggle({
         aria-pressed={selected}
         disabled={disabled}
         onClick={onClick}
-        className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
+        className={`relative flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected && status === "upcoming" ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
       >
-        {status === "final" && teamResult(game, team, "ats") !== "tie" && (
-          <span className="absolute top-1 right-1 text-[11px]">
-            <ResultMark result={teamResult(game, team, "ats")} />
-          </span>
-        )}
+        {status === "final" &&
+          !selected &&
+          teamResult(game, team, "ats") !== "tie" && (
+            <span className="absolute top-1 right-1 text-[11px]">
+              <ResultMark result={teamResult(game, team, "ats")} />
+            </span>
+          )}
         <Logo
           abbreviation={team}
           bare
@@ -337,12 +357,16 @@ function TeamToggle({
             (team === game.away.abbreviation ? game.away : game.home).logoUrl
           }
         />
-        <span className="mt-1 inline-flex items-center gap-1 leading-none">
+        <span className="mt-1 leading-none">
           {formatSpread(spreadFor(game, team))}
-          {status === "final" && teamResult(game, team, "ats") === "tie" && (
-            <ResultMark result="tie" />
-          )}
         </span>
+        {status === "final" &&
+          !selected &&
+          teamResult(game, team, "ats") === "tie" && (
+            <span className="absolute right-1 bottom-1">
+              <ResultMark result="tie" />
+            </span>
+          )}
       </button>
       {selected && (status === "upcoming" || allowLockedEdit) && (
         <button
@@ -446,9 +470,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
         >
           {game.badge}
         </span>
-        <span
-          className={status === "live" ? "text-amber-300" : "text-slate-300"}
-        >
+        <span className="text-slate-300">
           <LockIcon locked={lineLocked} />
         </span>
         {locked && (
@@ -471,7 +493,9 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
               >
                 <span className="inline-flex items-center gap-0.5">
                   {pick.label}
-                  {status === "final" && <ResultMark result={pick.result} />}
+                  {status === "final" && !pick.selected && (
+                    <ResultMark result={pick.result} />
+                  )}
                 </span>
               </span>
             ))}
@@ -608,7 +632,7 @@ function GameRow({
     <article
       className={`game-card rounded-xl border p-1.5 ${game.status === "live" ? "game-card-live" : ""} ${game.status === "final" ? "game-card-final" : ""}`}
     >
-      <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-2">
+      <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
         <TeamToggle
           game={game}
           team={game.away.abbreviation}
@@ -990,7 +1014,7 @@ function Preview({
             </svg>
           </button>
           <div
-            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-0.5 pt-1.5"
+            className="grid grid-cols-[48px_repeat(6,minmax(0,1fr))] items-center gap-0.5 pt-0.5"
             aria-label="Main picks"
           >
             <span aria-hidden="true" />
@@ -1008,7 +1032,7 @@ function Preview({
                 return (
                   <span
                     key={index}
-                    className={`size-9 justify-self-center rounded-full border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
+                    className={`size-10 justify-self-center rounded-lg border border-dashed border-slate-700 ${removedPick ? "pick-modified" : ""}`}
                   />
                 );
               const bestBet = Boolean(
@@ -1044,7 +1068,7 @@ function Preview({
                       bestBet: bestBet ? null : pick,
                     }))
                   }
-                  className={`relative grid size-9 justify-self-center place-items-center rounded-full border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
+                  className={`relative grid size-10 -translate-y-0.5 justify-self-center place-items-center rounded-lg border text-[10px] font-black ${previewResultClass(gameMap.get(pick.gameId), standingForTeam(gameMap.get(pick.gameId), pick.team, "ats"))} ${pickModified ? "pick-modified" : ""}`}
                 >
                   {bestBet && (
                     <span className="absolute -top-2.5 z-10 text-amber-300 drop-shadow-[0_1px_1px_#000]">
@@ -1297,6 +1321,7 @@ export function PicksExperience({
     [submittedDraft],
   );
   const allPicksSubmitted = picksAreComplete(submittedPicks);
+  const hasSubmittedPicks = submittedPicks !== null;
   return (
     <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
       <CompactPageHeader
@@ -1313,12 +1338,20 @@ export function PicksExperience({
             </span>
             <span
               aria-label={
-                allPicksSubmitted ? "Picks submitted" : "Picks not submitted"
+                allPicksSubmitted
+                  ? "Picks submitted"
+                  : hasSubmittedPicks
+                    ? "Picks submitted incomplete"
+                    : "Picks not submitted"
               }
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : "border-red-700 text-red-300"}`}
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-amber-600 text-amber-300" : "border-red-700 text-red-300"}`}
             >
               Picks
-              <HeaderStatusIcon kind="picks" active={allPicksSubmitted} />
+              <HeaderStatusIcon
+                kind="picks"
+                active={allPicksSubmitted}
+                partial={hasSubmittedPicks && !allPicksSubmitted}
+              />
             </span>
             {scoreFreshness && (
               <span

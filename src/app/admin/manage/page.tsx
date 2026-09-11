@@ -38,14 +38,17 @@ export default async function ManagePoolPage({
           <form
             key={section.id}
             action={saveRuleSection}
-            className="game-card grid gap-3 rounded-xl border p-5"
+            className="game-card grid gap-3 rounded-xl border p-3"
           >
             <input type="hidden" name="id" value={section.id} />
-            <div className="flex justify-between">
-              <strong>Section {section.position}</strong>
-              <small className="text-slate-500">
-                Revision {section.revision}
-              </small>
+            <div className="flex items-center justify-between gap-2">
+              <span>
+                <strong>Section {section.position}</strong>
+                <small className="ml-2 text-slate-500">
+                  Revision {section.revision}
+                </small>
+              </span>
+              <PublishButton />
             </div>
             <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
               Title
@@ -78,7 +81,6 @@ export default async function ManagePoolPage({
                 className="control-raised rounded-lg border p-3 text-sm normal-case"
               />
             </label>
-            <PublishButton />
           </form>
         ))}
       </div>

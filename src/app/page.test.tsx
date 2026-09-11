@@ -136,18 +136,22 @@ describe("Home", () => {
     expect(screen.getByLabelText("Submission saved")).toHaveClass(
       "bg-amber-950",
     );
-    expect(screen.getByLabelText("Picks not submitted")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Picks submitted incomplete"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Submitted")).toBeInTheDocument();
   });
 
-  it("keeps incomplete saved picks red while exposing unsaved changes", () => {
+  it("keeps incomplete saved picks gold while exposing unsaved changes", () => {
     render(<PicksExperience />);
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
     fireEvent.click(screen.getByRole("button", { name: "LAR -8.5" }));
 
-    expect(screen.getByLabelText("Picks not submitted")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Picks submitted incomplete"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Modified")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Revert" })).toBeEnabled();
   });
