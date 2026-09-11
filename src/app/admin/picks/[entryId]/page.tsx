@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { PageShell } from "@/components/page-shell";
-import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import type { Game, Picks } from "@/features/picks/model";
 import { EMPTY_PICKS } from "@/features/picks/model";
 import { PicksExperience } from "@/features/picks/picks-experience";
@@ -59,58 +58,31 @@ export default async function CommissionerPickSheet({
   const week =
     (weeks ?? []).find((item) => item.id === requestedWeek) ?? weeks?.[0];
   if (!week) notFound();
-  const [
-    { data: rows },
-    { data: teams },
-    { data: latest },
-    { data: submissionHistory },
-  ] = await Promise.all([
-    admin
-      .from("games")
-      .select(
-        "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread,total)",
-      )
-      .eq("week_id", week.id)
-      .order("kickoff_at"),
-    admin.from("teams").select("abbreviation, name, logo_url"),
-    admin
-      .from("weekly_submissions")
-      .select("id, revision")
-      .eq("entry_id", entry.id)
-      .eq("week_id", week.id)
-      .order("revision", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    admin
-      .from("weekly_submissions")
-      .select("id, revision, submitted_at")
-      .eq("entry_id", entry.id)
-      .eq("week_id", week.id)
-      .order("revision", { ascending: false }),
-  ]);
+  const [{ data: rows }, { data: teams }, { data: latest }] = await Promise.all(
+    [
+      admin
+        .from("games")
+        .select(
+          "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread,total)",
+        )
+        .eq("week_id", week.id)
+        .order("kickoff_at"),
+      admin.from("teams").select("abbreviation, name, logo_url"),
+      admin
+        .from("weekly_submissions")
+        .select("id, revision")
+        .eq("entry_id", entry.id)
+        .eq("week_id", week.id)
+        .order("revision", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ],
+  );
   const { data: savedRows } = latest
     ? await admin
         .from("picks")
         .select("game_id, kind, team, total_direction, is_best_bet")
         .eq("submission_id", latest.id)
-    : { data: [] };
-  const historySubmissionIds = (submissionHistory ?? []).map(
-    (submission) => submission.id,
-  );
-  const { data: historyPickRows } = historySubmissionIds.length
-    ? await admin
-        .from("picks")
-        .select(
-          "submission_id, game_id, kind, team, total_direction, is_best_bet",
-        )
-        .in("submission_id", historySubmissionIds)
-    : { data: [] };
-  const { data: overrideEvents } = historySubmissionIds.length
-    ? await admin
-        .from("commissioner_audit_events")
-        .select("entity_id")
-        .eq("entity_type", "weekly_submission")
-        .in("entity_id", historySubmissionIds.map(String))
     : { data: [] };
   const names = new Map(
     (teams ?? []).map((team) => [team.abbreviation, team.name]),
@@ -196,21 +168,6 @@ export default async function CommissionerPickSheet({
           All picks are editable, including locked and completed games. Every
           save creates an audited revision.
         </span>
-        <details className="mt-2">
-          <summary className="cursor-pointer font-black">
-            Submission history ({submissionHistory?.length ?? 0})
-          </summary>
-          <div className="mt-2">
-            <SubmissionRevisionLog
-              revisions={submissionHistory ?? []}
-              picks={historyPickRows ?? []}
-              games={rows ?? []}
-              commissionerSubmissionIds={(overrideEvents ?? []).map((event) =>
-                Number(event.entity_id),
-              )}
-            />
-          </div>
-        </details>
       </section>
       <PicksExperience
         games={games}

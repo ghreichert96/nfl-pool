@@ -60,7 +60,7 @@ function resultTone(game: ScoringGame | undefined, pick: ScoringPick) {
     : outcome === "loss"
       ? "bg-red-950/55 ring-1 ring-inset ring-red-800"
       : outcome === "tie"
-        ? "bg-amber-950/40 ring-1 ring-inset ring-amber-700"
+        ? "bg-slate-700/60 ring-1 ring-inset ring-slate-500"
         : "";
 }
 
@@ -70,17 +70,20 @@ function outcomeTextTone(outcome: string) {
     : outcome === "loss"
       ? "text-red-400"
       : outcome === "tie"
-        ? "text-amber-300"
+        ? "text-slate-300"
         : outcome === "live"
           ? "text-amber-300"
           : "";
 }
 
-function leaders(values: string[]) {
+function ranked(values: string[]) {
   const counts = new Map<string, number>();
   values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
-  const max = Math.max(0, ...counts.values());
-  return [...counts.entries()].filter(([, count]) => count === max && max > 0);
+  return [...counts.entries()]
+    .sort(([leftName, left], [rightName, right]) =>
+      right === left ? leftName.localeCompare(rightName) : right - left,
+    )
+    .slice(0, 5);
 }
 
 export default async function GridPage({
@@ -222,12 +225,12 @@ export default async function GridPage({
     (pick) => new Date(pick.kickoff).getTime() <= now,
   );
   const most = {
-    ats: leaders(
+    ats: ranked(
       consensusPicks
         .filter((pick) => pick.kind === "ats")
         .map((pick) => pick.team!),
     ),
-    totals: leaders(
+    totals: ranked(
       consensusPicks
         .filter((pick) => pick.kind === "total")
         .map(
@@ -235,12 +238,19 @@ export default async function GridPage({
             `${gameMap.get(pick.gameId)?.away}/${gameMap.get(pick.gameId)?.home} ${pick.totalDirection === "over" ? "O" : "U"}`,
         ),
     ),
-    ud: leaders(
+    ud: ranked(
       consensusPicks
         .filter((pick) => pick.kind === "underdog")
-        .map((pick) => pick.team!),
+        .map((pick) => {
+          const game = gameMap.get(pick.gameId);
+          const spread =
+            pick.team === game?.away
+              ? game.awaySpread
+              : -(game?.awaySpread ?? 0);
+          return `${pick.team} ${spread > 0 ? "+" : ""}${spread}`;
+        }),
     ),
-    sd: leaders(
+    sd: ranked(
       consensusPicks
         .filter((pick) => pick.kind === "sudden_death")
         .map((pick) => pick.team!),
@@ -249,7 +259,8 @@ export default async function GridPage({
   const mostPickedOutcome = (label: string, name: string) => {
     const matching = consensusPicks.find((pick) => {
       if (label === "MAIN") return pick.kind === "ats" && pick.team === name;
-      if (label === "UD") return pick.kind === "underdog" && pick.team === name;
+      if (label === "UD")
+        return pick.kind === "underdog" && pick.team === name.split(" ", 1)[0];
       if (label === "SD")
         return pick.kind === "sudden_death" && pick.team === name;
       const game = gameMap.get(pick.gameId);
@@ -426,7 +437,7 @@ export default async function GridPage({
           <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-[9px] font-bold text-slate-400">
             <span className="text-emerald-400">Win</span>
             <span className="text-red-400">Loss</span>
-            <span className="text-amber-300">Tie</span>
+            <span className="text-slate-300">Tie</span>
             <span className="text-amber-300">Live</span>
             <span>— = submitted</span>
           </div>
@@ -464,21 +475,9 @@ export default async function GridPage({
                         key={name}
                         className={`rounded bg-slate-800 px-2 py-1 text-[10px] font-black ${outcomeTextTone(mostPickedOutcome(label, name))}`}
                       >
-                        {name}{" "}
-                        <em className="not-italic text-cyan-300">{count}</em>
-                        {label === "MAIN" && (
-                          <small className="ml-1 text-amber-300">
-                            {
-                              consensusPicks.filter(
-                                (pick) =>
-                                  pick.kind === "ats" &&
-                                  pick.team === name &&
-                                  pick.isBestBet,
-                              ).length
-                            }{" "}
-                            BB
-                          </small>
-                        )}
+                        {count} {name}
+                        {label === "MAIN" &&
+                          ` (${consensusPicks.filter((pick) => pick.kind === "ats" && pick.team === name && pick.isBestBet).length} BB)`}
                       </span>
                     ))
                   ) : (

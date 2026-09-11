@@ -8,9 +8,9 @@ export function PublishButton() {
         if (!window.confirm("Publish this rule change immediately?"))
           event.preventDefault();
       }}
-      className="control-pressed min-h-11 rounded-lg border text-xs font-black"
+      className="control-pressed min-h-8 rounded border px-2 text-[9px] font-black"
     >
-      PUBLISH SECTION
+      PUBLISH
     </button>
   );
 }

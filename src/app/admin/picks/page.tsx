@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { PageShell } from "@/components/page-shell";
+import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import { WeekSelector } from "@/components/week-selector";
 import { requireCommissioner } from "@/lib/admin";
 
@@ -38,18 +39,40 @@ export default async function AdminPicksPage({
   const currentWeek =
     (weeks ?? []).find((week) => week.week_number === requestedWeek) ??
     weeks?.[0];
-  const { data: latestSubmissions } = currentWeek
-    ? await supabase
-        .from("weekly_submissions")
-        .select("entry_id, revision, submitted_at")
-        .eq("week_id", currentWeek.id)
-        .order("revision", { ascending: false })
-    : { data: [] };
+  const [{ data: submissions }, { data: games }] = currentWeek
+    ? await Promise.all([
+        supabase
+          .from("weekly_submissions")
+          .select("id, entry_id, revision, submitted_at")
+          .eq("week_id", currentWeek.id)
+          .order("revision", { ascending: false }),
+        supabase
+          .from("games")
+          .select("id, away_team, home_team")
+          .eq("week_id", currentWeek.id),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const submissionIds = (submissions ?? []).map((submission) => submission.id);
+  const [{ data: pickRows }, { data: overrideEvents }] = submissionIds.length
+    ? await Promise.all([
+        supabase
+          .from("picks")
+          .select(
+            "submission_id, game_id, kind, team, total_direction, is_best_bet",
+          )
+          .in("submission_id", submissionIds),
+        supabase
+          .from("commissioner_audit_events")
+          .select("entity_id")
+          .eq("entity_type", "weekly_submission")
+          .in("entity_id", submissionIds.map(String)),
+      ])
+    : [{ data: [] }, { data: [] }];
   const latestByEntry = new Map<
     number,
     { revision: number; submitted_at: string }
   >();
-  for (const submission of latestSubmissions ?? [])
+  for (const submission of submissions ?? [])
     if (!latestByEntry.has(submission.entry_id))
       latestByEntry.set(submission.entry_id, submission);
   return (
@@ -66,33 +89,65 @@ export default async function AdminPicksPage({
           ) : null
         }
       />
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {currentWeek && (
+        <p className="mb-2 rounded border border-amber-900 bg-amber-950/40 px-2 py-1.5 text-xs text-amber-200">
+          <strong>Not submitted:</strong>{" "}
+          {(entries ?? [])
+            .filter((entry) => !latestByEntry.has(entry.id))
+            .map((entry) => entry.entry_code)
+            .join(", ") || "None"}
+        </p>
+      )}
+      <section className="grid gap-1.5">
         {(entries ?? []).map((entry) => {
           const latest = latestByEntry.get(entry.id);
+          const history = (submissions ?? []).filter(
+            (submission) => submission.entry_id === entry.id,
+          );
           return (
-            <div key={entry.id} className="game-card rounded-xl border p-3">
-              <div className="flex items-baseline justify-between gap-2">
+            <div
+              key={entry.id}
+              className="game-card rounded-lg border px-2 py-1.5"
+            >
+              <div className="flex items-center gap-2">
                 <strong className="text-lg">{entry.entry_code}</strong>
                 <small className="text-slate-400">
                   {latest ? `Rev ${latest.revision}` : "No submission"}
                 </small>
+                {latest && (
+                  <time className="ml-auto text-[9px] text-slate-500">
+                    {new Date(latest.submitted_at).toLocaleString("en-US", {
+                      timeZone: "America/New_York",
+                      month: "numeric",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                )}
+                {currentWeek ? (
+                  <Link
+                    href={`/admin/picks/${entry.id}?week=${currentWeek.id}`}
+                    className="control-raised grid min-h-7 place-items-center rounded border px-2 text-[9px] font-black"
+                  >
+                    EDIT
+                  </Link>
+                ) : null}
               </div>
-              {latest && (
-                <time className="mt-1 block text-[10px] text-slate-500">
-                  {new Date(latest.submitted_at).toLocaleString("en-US", {
-                    timeZone: "America/New_York",
-                  })}
-                </time>
-              )}
-              {currentWeek ? (
-                <Link
-                  href={`/admin/picks/${entry.id}?week=${currentWeek.id}`}
-                  className="control-raised mt-3 grid min-h-10 place-items-center rounded-md border text-xs font-black"
-                >
-                  EDIT {currentWeek.label.toUpperCase()}
-                </Link>
-              ) : (
-                <p className="mt-2 text-sm text-slate-500">No week available</p>
+              {history.length > 0 && (
+                <details className="mt-1 border-t border-slate-800 pt-1">
+                  <summary className="cursor-pointer text-[10px] font-black text-slate-400">
+                    Submission history ({history.length})
+                  </summary>
+                  <SubmissionRevisionLog
+                    revisions={history}
+                    picks={pickRows ?? []}
+                    games={games ?? []}
+                    commissionerSubmissionIds={(overrideEvents ?? []).map(
+                      (event) => Number(event.entity_id),
+                    )}
+                  />
+                </details>
               )}
             </div>
           );
