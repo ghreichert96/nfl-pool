@@ -383,7 +383,7 @@ export function AppNav({
           </div>
           {panel === "menu" && (
             <nav className="grid gap-1.5" aria-label="Secondary">
-              {menuItems.map((item, index) => (
+              {menuItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -392,9 +392,6 @@ export function AppNav({
                     setPendingHref(item.href);
                     startNavigation();
                     setPanel(null);
-                  }}
-                  style={{
-                    transform: `translateX(-${(menuItems.length - index - 1) * 3}px)`,
                   }}
                   className={`${active(item.href) ? "control-pressed" : "control-raised"} flex min-h-10 items-center gap-2 rounded-lg border px-3 text-[11px] font-black uppercase transition-[color,background-color,transform]`}
                 >

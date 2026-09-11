@@ -23,7 +23,10 @@ const competitionSchema = z.object({
 
 const eventSchema = z.object({
   id: z.string().min(1),
-  date: z.string().datetime(),
+  date: z
+    .string()
+    .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid datetime")
+    .transform((value) => new Date(value).toISOString()),
   competitions: z.array(competitionSchema).min(1),
 });
 

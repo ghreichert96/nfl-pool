@@ -46,6 +46,17 @@ function serializePicks(picks: Picks) {
   });
 }
 
+function picksAreComplete(picks: Picks | null) {
+  return Boolean(
+    picks &&
+    picks.ats.length === 6 &&
+    picks.totals.length === 3 &&
+    picks.bestBet &&
+    picks.suddenDeath &&
+    picks.underdog,
+  );
+}
+
 function isTeamSelected(pick: TeamPick | null, gameId: string, team: string) {
   return pick?.gameId === gameId && pick.team === team;
 }
@@ -101,13 +112,11 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
 
 function HeaderStatusIcon({
   kind,
-  state,
+  active,
 }: {
   kind: "lines" | "picks";
-  state: "open" | "frozen" | "empty" | "modified" | "submitted";
+  active: boolean;
 }) {
-  if (kind === "lines" && state === "frozen")
-    return <span aria-hidden="true">❄</span>;
   if (kind === "lines")
     return (
       <svg
@@ -118,12 +127,13 @@ function HeaderStatusIcon({
         stroke="currentColor"
         strokeWidth="1.5"
       >
-        <path d="M3 6h10v7H3zM5 6V4.5a3 3 0 0 1 5.7-1.3" />
+        <path d="M3 6h10v7H3z" />
+        <path
+          d={active ? "M5 6V4.5a3 3 0 0 1 6 0V6" : "M5 6V4.5a3 3 0 0 1 5.7-1.3"}
+        />
       </svg>
     );
-  if (state === "submitted") return <span aria-hidden="true">✓</span>;
-  if (state === "modified") return <span aria-hidden="true">~</span>;
-  return <span aria-hidden="true">○</span>;
+  return <span aria-hidden="true">{active ? "✓" : "○"}</span>;
 }
 
 function standingForTeam(
@@ -341,6 +351,7 @@ function SmallToggle({
 function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
   const status = game.status ?? "upcoming";
   const locked = status !== "upcoming";
+  const lineLocked = locked || Boolean(game.lineFrozen);
   const favorite = favoriteFor(game);
   const underdog = underdogFor(game);
   const awayIsFavorite = favorite === game.away.abbreviation;
@@ -385,21 +396,20 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
     <div
       className={`flex h-full min-w-0 flex-col items-center text-center ${locked ? "" : "justify-between py-0.5"}`}
     >
-      <div className="flex items-center gap-1">
+      <div className="flex min-h-5 items-center gap-1">
         <span
           className={`${badgeColorClass(game.badge)} rounded px-1.5 py-0.5 text-[9px] font-black`}
         >
           {game.badge}
         </span>
-        <LockIcon locked={locked} />
-        {!locked && game.lineFrozen && (
-          <span className="text-[8px] font-black uppercase text-amber-300">
-            Line frozen
-          </span>
-        )}
+        <span
+          className={status === "live" ? "text-amber-300" : "text-slate-300"}
+        >
+          <LockIcon locked={lineLocked} />
+        </span>
         {locked && (
           <span className="whitespace-nowrap text-[10px] font-black uppercase text-amber-300">
-            {status === "final" ? "Final" : game.score?.detail}
+            {status === "final" ? "Final" : game.score?.detail || "Live"}
           </span>
         )}
       </div>
@@ -425,15 +435,13 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
         </>
       ) : (
         <>
-          <strong className="mt-0.5 whitespace-nowrap text-xs">
+          <strong className="mt-0.5 whitespace-nowrap text-[11px]">
             {game.away.abbreviation} {formatSpread(game.awaySpread)} @{" "}
-            {game.home.abbreviation}
+            {game.home.abbreviation} · O/U {game.total}
           </strong>
-          <span className="whitespace-nowrap text-[11px] text-slate-300">
-            O/U {game.total}
-          </span>
           <span className="max-w-full truncate whitespace-nowrap text-[9px] text-slate-400">
             {game.kickoff}
+            {game.location ? ` · ${game.location}` : ""}
           </span>
         </>
       )}
@@ -1056,6 +1064,19 @@ function Preview({
       )}
       <div className="grid grid-cols-[52px_1fr_minmax(112px,1.25fr)] border-t border-slate-800">
         <div className="flex flex-col justify-center gap-1 border-r border-slate-800 px-1">
+          {savedPicks && (
+            <button
+              type="button"
+              disabled={!modified}
+              onClick={() => {
+                setPicks(savedPicks);
+                setMessage("Submission restored");
+              }}
+              className="pb-1 text-[9px] font-bold text-cyan-300 underline disabled:text-slate-700 disabled:no-underline"
+            >
+              Revert
+            </button>
+          )}
           <button
             type="button"
             onClick={() => {
@@ -1068,18 +1089,6 @@ function Preview({
           >
             Clear
           </button>
-          {savedPicks && modified && (
-            <button
-              type="button"
-              onClick={() => {
-                setPicks(savedPicks);
-                setMessage("Submission restored");
-              }}
-              className="border-t border-slate-800 pt-1 text-[9px] font-bold text-cyan-300 underline"
-            >
-              Revert
-            </button>
-          )}
         </div>
         <div
           aria-label={submitted ? "Submission saved" : "Submission status"}
@@ -1223,16 +1232,11 @@ export function PicksExperience({
     return () => window.clearTimeout(timer);
   }, [draftReady, draftTarget, picks]);
 
-  const hasDraftSelections =
-    picks.ats.length > 0 ||
-    picks.totals.length > 0 ||
-    Boolean(picks.bestBet || picks.suddenDeath || picks.underdog);
-  const pickStatus =
-    submittedDraft !== null
-      ? "Submitted"
-      : hasDraftSelections
-        ? "Modified"
-        : "Not Submitted";
+  const submittedPicks = useMemo(
+    () => (submittedDraft ? (JSON.parse(submittedDraft) as Picks) : null),
+    [submittedDraft],
+  );
+  const allPicksSubmitted = picksAreComplete(submittedPicks);
   return (
     <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
       <CompactPageHeader
@@ -1241,28 +1245,20 @@ export function PicksExperience({
         title={
           <span className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
             <span
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-amber-600 text-amber-300" : "border-cyan-700 text-cyan-300"}`}
+              aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-red-700 text-red-300" : "border-cyan-700 text-cyan-300"}`}
             >
-              <HeaderStatusIcon
-                kind="lines"
-                state={linesFrozen ? "frozen" : "open"}
-              />
-              {linesFrozen ? "Frozen" : "Open"}
+              Lines
+              <HeaderStatusIcon kind="lines" active={linesFrozen} />
             </span>
             <span
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${pickStatus === "Submitted" ? "border-emerald-700 text-emerald-300" : pickStatus === "Modified" ? "border-fuchsia-700 text-fuchsia-300" : "border-slate-700 text-slate-300"}`}
+              aria-label={
+                allPicksSubmitted ? "Picks submitted" : "Picks not submitted"
+              }
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : "border-red-700 text-red-300"}`}
             >
-              <HeaderStatusIcon
-                kind="picks"
-                state={
-                  pickStatus === "Submitted"
-                    ? "submitted"
-                    : pickStatus === "Modified"
-                      ? "modified"
-                      : "empty"
-                }
-              />
-              {pickStatus}
+              Picks
+              <HeaderStatusIcon kind="picks" active={allPicksSubmitted} />
             </span>
             {scoreFreshness && (
               <span

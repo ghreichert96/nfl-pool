@@ -218,6 +218,21 @@ export function rankStandings(standings: EntryStanding[]) {
   );
 }
 
+export function ranksByGamesBack(standings: EntryStanding[]) {
+  const ranks = new Map<number, number>();
+  standings.forEach((standing, index) => {
+    const currentGamesBack = gamesBack(standing, standings);
+    const priorEntry = index > 0 ? standings[index - 1] : undefined;
+    ranks.set(
+      standing.entryId,
+      priorEntry && gamesBack(priorEntry, standings) === currentGamesBack
+        ? ranks.get(priorEntry.entryId)!
+        : index + 1,
+    );
+  });
+  return ranks;
+}
+
 export function payoutForRank(rank: number, schedule: Map<number, number>) {
   return schedule.get(rank) ?? 0;
 }

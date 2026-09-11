@@ -162,10 +162,7 @@ export async function loadCompetition(
     let count = 1;
     while (
       index + count < standings.length &&
-      gamesBack(standings[index + count], standings) === gb &&
-      standings[index + count].wins === standings[index].wins &&
-      standings[index + count].losses === standings[index].losses &&
-      standings[index + count].ties === standings[index].ties
+      gamesBack(standings[index + count], standings) === gb
     )
       count += 1;
     const amount = sharedRankPayout(index + 1, count, schedule);

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageShell } from "@/components/page-shell";
-import type { Game } from "@/features/picks/model";
+import { deriveGameResult, type Game } from "@/features/picks/model";
 import type { Picks } from "@/features/picks/model";
 import { PicksExperience } from "@/features/picks/picks-experience";
 import { picksSchema } from "@/features/picks/submission";
@@ -192,45 +192,47 @@ export default async function Home({
           ? "live"
           : "upcoming";
 
-    return [
-      {
-        id: String(row.id),
-        away: {
-          abbreviation: row.away_team,
-          name: teamNames.get(row.away_team) ?? row.away_team,
-          logoUrl: teamLogos.get(row.away_team),
-        },
-        home: {
-          abbreviation: row.home_team,
-          name: teamNames.get(row.home_team) ?? row.home_team,
-          logoUrl: teamLogos.get(row.home_team),
-        },
-        awaySpread: Number(line.away_spread),
-        total: Number(line.total),
-        badge: gameBadge(row.game_type, row.kickoff_at),
-        kickoff: new Intl.DateTimeFormat("en-US", {
-          timeZone: "America/New_York",
-          weekday: "short",
-          hour: "numeric",
-          minute: "2-digit",
-          timeZoneName: "short",
-        }).format(kickoff),
-        location: row.venue ?? "",
-        status,
-        lineFrozen:
-          new Date(row.line_lock_at).getTime() <= now ||
-          Boolean(week.lines_frozen_at),
-        ...(row.away_score !== null && row.home_score !== null
-          ? {
-              score: {
-                away: row.away_score,
-                home: row.home_score,
-                detail: row.status_detail ?? status.toUpperCase(),
-              },
-            }
-          : {}),
+    const mappedGame: Game = {
+      id: String(row.id),
+      away: {
+        abbreviation: row.away_team,
+        name: teamNames.get(row.away_team) ?? row.away_team,
+        logoUrl: teamLogos.get(row.away_team),
       },
-    ];
+      home: {
+        abbreviation: row.home_team,
+        name: teamNames.get(row.home_team) ?? row.home_team,
+        logoUrl: teamLogos.get(row.home_team),
+      },
+      awaySpread: Number(line.away_spread),
+      total: Number(line.total),
+      badge: gameBadge(row.game_type, row.kickoff_at),
+      kickoff: new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        timeZoneName: "short",
+      }).format(kickoff),
+      location: row.venue ?? "",
+      status,
+      lineFrozen:
+        new Date(row.line_lock_at).getTime() <= now ||
+        Boolean(week.lines_frozen_at),
+      ...(row.away_score !== null && row.home_score !== null
+        ? {
+            score: {
+              away: row.away_score,
+              home: row.home_score,
+              detail: row.status_detail ?? status.toUpperCase(),
+            },
+          }
+        : {}),
+    };
+    if (status === "final") mappedGame.result = deriveGameResult(mappedGame);
+    return [mappedGame];
   });
   const parsedDraft = picksSchema.safeParse(draft?.payload);
   const hasLiveGames = games.some((game) => game.status === "live");

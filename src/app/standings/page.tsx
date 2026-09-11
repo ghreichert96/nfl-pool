@@ -8,6 +8,7 @@ import { loadCompetition } from "@/features/competition/data";
 import {
   gamesBack,
   pickOutcome,
+  ranksByGamesBack,
   recordForPicks,
   type ScoringGame,
 } from "@/features/competition/scoring";
@@ -54,15 +55,7 @@ export default async function StandingsPage({
   const logoMap = new Map(
     data?.teams.map((team) => [team.abbreviation, team.logo_url]),
   );
-  const ranks = new Map<number, number>();
-  let priorKey = "",
-    rank = 0;
-  data?.standings.forEach((standing, index) => {
-    const key = `${standing.wins}:${standing.losses}:${standing.ties}`;
-    if (key !== priorKey) rank = index + 1;
-    ranks.set(standing.entryId, rank);
-    priorKey = key;
-  });
+  const ranks = ranksByGamesBack(data?.standings ?? []);
 
   return (
     <PageShell
@@ -111,7 +104,7 @@ export default async function StandingsPage({
                     ].map((header, index) => (
                       <th
                         key={header}
-                        className={`whitespace-nowrap border-b border-slate-800 px-0.5 py-2 text-left text-[8px] font-black uppercase text-slate-400 ${index === 0 ? "w-5" : ""} ${index === 1 ? "sticky left-0 z-30 w-9 bg-slate-950" : ""} ${index === 2 ? "w-11" : ""} ${index === 3 ? "w-6" : ""} ${index >= 4 ? "w-10" : ""}`}
+                        className={`whitespace-nowrap border-b border-slate-800 px-0.5 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "w-5" : ""} ${index === 1 ? "sticky left-0 z-30 w-9 bg-slate-950" : ""} ${index === 2 ? "w-11" : ""} ${index === 3 ? "w-6" : ""} ${index >= 4 ? "w-10" : ""}`}
                       >
                         {header}
                       </th>
@@ -205,7 +198,7 @@ function MainBreakdownTable({
                 (header, index) => (
                   <th
                     key={header}
-                    className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-left text-[8px] font-black uppercase text-slate-400 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 w-10 bg-slate-950" : ""} ${index >= 2 ? "w-12" : ""}`}
+                    className={`whitespace-nowrap border-b border-slate-800 px-1 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "w-6" : ""} ${index === 1 ? "sticky left-0 w-10 bg-slate-950" : ""} ${index >= 2 ? "w-12" : ""}`}
                   >
                     {header}
                   </th>
@@ -358,13 +351,15 @@ function SidePoolTable({
                           {pick?.team && logoMap.get(pick.team) ? (
                             <Image
                               src={logoMap.get(pick.team)!}
-                              alt=""
+                              alt={pick.team}
+                              title={pick.team}
                               width={20}
                               height={20}
                               className="size-5 object-contain object-left"
                             />
-                          ) : null}
-                          {pick?.team ?? "—"}
+                          ) : (
+                            (pick?.team ?? "—")
+                          )}
                         </span>
                         {pick && (
                           <small

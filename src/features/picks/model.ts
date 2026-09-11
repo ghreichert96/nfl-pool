@@ -69,6 +69,34 @@ export function formatSpread(spread: number) {
   return spread > 0 ? `+${spread}` : String(spread);
 }
 
+export function deriveGameResult(
+  game: Pick<Game, "away" | "home" | "awaySpread" | "total" | "score">,
+): Game["result"] {
+  if (!game.score) return undefined;
+  const awayAts = game.score.away + game.awaySpread;
+  const totalScore = game.score.away + game.score.home;
+  return {
+    atsWinner:
+      awayAts === game.score.home
+        ? null
+        : awayAts > game.score.home
+          ? game.away.abbreviation
+          : game.home.abbreviation,
+    totalWinner:
+      totalScore === game.total
+        ? null
+        : totalScore > game.total
+          ? "over"
+          : "under",
+    winner:
+      game.score.away === game.score.home
+        ? null
+        : game.score.away > game.score.home
+          ? game.away.abbreviation
+          : game.home.abbreviation,
+  };
+}
+
 export function toggleTeamPick(
   picks: TeamPick[],
   next: TeamPick,
