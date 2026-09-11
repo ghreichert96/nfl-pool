@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { TeamLogo } from "@/components/team-logo";
 import { WeekSelector } from "@/components/week-selector";
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { PREVIEW_MINIMIZED_KEY } from "@/components/profile-preferences";
@@ -105,7 +105,34 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
       title={result}
       className={`pointer-events-none font-black leading-none ${result === "win" ? "text-emerald-300" : result === "loss" ? "text-red-300" : "text-amber-300"}`}
     >
-      {result === "win" ? "✓" : result === "loss" ? "✕" : "—"}
+      {result === "win" ? (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="size-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="m5 12.5 4.2 4.2L19 7" />
+        </svg>
+      ) : result === "loss" ? (
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          className="size-3.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3.25"
+          strokeLinecap="round"
+        >
+          <path d="m7 7 10 10M17 7 7 17" />
+        </svg>
+      ) : (
+        "—"
+      )}
     </span>
   );
 }
@@ -133,7 +160,22 @@ function HeaderStatusIcon({
         />
       </svg>
     );
-  return <span aria-hidden="true">{active ? "✓" : "○"}</span>;
+  return active ? (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-3"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m5 12.5 4.2 4.2L19 7" />
+    </svg>
+  ) : (
+    <span aria-hidden="true">○</span>
+  );
 }
 
 function standingForTeam(
@@ -181,28 +223,24 @@ function Logo({
   abbreviation,
   logoUrl,
   compact = false,
+  bare = false,
 }: {
   abbreviation: string;
   logoUrl?: string | null;
   compact?: boolean;
+  bare?: boolean;
 }) {
   return (
     <span
       aria-hidden="true"
-      className={`team-logo grid shrink-0 place-items-center rounded-full border-2 text-[11px] font-black ${compact ? "size-8" : "size-10"}`}
+      className={`${bare ? "team-logo-bare" : "team-logo rounded-full border-2"} grid shrink-0 place-items-center text-[11px] font-black ${compact ? "size-8" : bare ? "size-12" : "size-10"}`}
     >
-      {logoUrl ? (
-        <Image
-          src={logoUrl}
-          alt=""
-          width={compact ? 26 : 32}
-          height={compact ? 26 : 32}
-          unoptimized
-          className={`${compact ? "size-7" : "size-8"} object-contain`}
-        />
-      ) : (
-        abbreviation
-      )}
+      <TeamLogo
+        team={abbreviation}
+        src={logoUrl}
+        size={compact ? 28 : bare ? 44 : 32}
+        className={compact ? "size-7" : bare ? "size-11" : "size-8"}
+      />
     </span>
   );
 }
@@ -257,6 +295,7 @@ function TeamToggle({
   side,
   bestBet,
   onBestBet,
+  allowLockedEdit = false,
 }: {
   game: Game;
   team: string;
@@ -266,6 +305,7 @@ function TeamToggle({
   side: "away" | "home";
   bestBet: boolean;
   onBestBet: () => void;
+  allowLockedEdit?: boolean;
 }) {
   const status = game.status ?? "upcoming";
   const selectedStateClass =
@@ -285,22 +325,26 @@ function TeamToggle({
         onClick={onClick}
         className={`flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected ? "disabled:opacity-35" : ""} ${selected ? selectedStateClass : idleClass}`}
       >
-        {status === "final" && (
+        {status === "final" && teamResult(game, team, "ats") !== "tie" && (
           <span className="absolute top-1 right-1 text-[11px]">
             <ResultMark result={teamResult(game, team, "ats")} />
           </span>
         )}
         <Logo
           abbreviation={team}
+          bare
           logoUrl={
             (team === game.away.abbreviation ? game.away : game.home).logoUrl
           }
         />
-        <span className="mt-1 leading-none">
+        <span className="mt-1 inline-flex items-center gap-1 leading-none">
           {formatSpread(spreadFor(game, team))}
+          {status === "final" && teamResult(game, team, "ats") === "tie" && (
+            <ResultMark result="tie" />
+          )}
         </span>
       </button>
-      {selected && status === "upcoming" && (
+      {selected && (status === "upcoming" || allowLockedEdit) && (
         <button
           type="button"
           aria-label={
@@ -454,11 +498,13 @@ function GameRow({
   picks,
   setPicks,
   usedSuddenDeathTeams,
+  allowLockedEdits,
 }: {
   game: Game;
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
   usedSuddenDeathTeams: string[];
+  allowLockedEdits: boolean;
 }) {
   const [sdDisplayOverride, setSdDisplayOverride] = useState<string | null>(
     null,
@@ -482,7 +528,7 @@ function GameRow({
   const sdUnavailable = Boolean(
     picks.suddenDeath && picks.suddenDeath.gameId !== game.id,
   );
-  const sdTeamUsed = usedSuddenDeathTeams.includes(sdTeam);
+  const sdTeamUsed = !allowLockedEdits && usedSuddenDeathTeams.includes(sdTeam);
   const udUnavailable = Boolean(
     picks.underdog && picks.underdog.gameId !== game.id,
   );
@@ -567,7 +613,7 @@ function GameRow({
           game={game}
           team={game.away.abbreviation}
           selected={ats?.team === game.away.abbreviation}
-          disabled={Boolean(locked || atsAtLimit)}
+          disabled={Boolean((locked && !allowLockedEdits) || atsAtLimit)}
           onClick={() => toggleAts(game.away.abbreviation)}
           side="away"
           bestBet={isTeamSelected(
@@ -587,13 +633,14 @@ function GameRow({
                 : { gameId: game.id, team: game.away.abbreviation },
             }))
           }
+          allowLockedEdit={allowLockedEdits}
         />
         <GameInfo game={game} picks={picks} />
         <TeamToggle
           game={game}
           team={game.home.abbreviation}
           selected={ats?.team === game.home.abbreviation}
-          disabled={Boolean(locked || atsAtLimit)}
+          disabled={Boolean((locked && !allowLockedEdits) || atsAtLimit)}
           onClick={() => toggleAts(game.home.abbreviation)}
           side="home"
           bestBet={isTeamSelected(
@@ -613,15 +660,16 @@ function GameRow({
                 : { gameId: game.id, team: game.home.abbreviation },
             }))
           }
+          allowLockedEdit={allowLockedEdits}
         />
       </div>
-      {!locked && (
+      {(!locked || allowLockedEdits) && (
         <div className="mt-1 grid grid-cols-4 gap-1">
           <SmallToggle
             className="order-2"
             label={`Over ${game.total}`}
             selected={total?.direction === "over"}
-            disabled={Boolean(locked || totalsAtLimit)}
+            disabled={Boolean((locked && !allowLockedEdits) || totalsAtLimit)}
             onClick={() => toggleTotal("over")}
           >
             ▲ O {game.total}
@@ -630,7 +678,7 @@ function GameRow({
             className="order-3"
             label={`Under ${game.total}`}
             selected={total?.direction === "under"}
-            disabled={Boolean(locked || totalsAtLimit)}
+            disabled={Boolean((locked && !allowLockedEdits) || totalsAtLimit)}
             onClick={() => toggleTotal("under")}
           >
             ▼ U {game.total}
@@ -643,7 +691,7 @@ function GameRow({
               aria-label={`Sudden Death ${sdTeam}`}
               title="Double-tap or press and hold to show the other team"
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
-              disabled={Boolean(locked || sdUnavailable)}
+              disabled={Boolean((locked && !allowLockedEdits) || sdUnavailable)}
               onPointerDown={startSdHold}
               onPointerUp={cancelSdHold}
               onPointerCancel={cancelSdHold}
@@ -680,7 +728,7 @@ function GameRow({
             className={awayIsFavorite ? "order-4" : "order-1"}
             label={`Underdog ${underdog}`}
             selected={isTeamSelected(picks.underdog, game.id, underdog)}
-            disabled={Boolean(locked || udUnavailable)}
+            disabled={Boolean((locked && !allowLockedEdits) || udUnavailable)}
             onClick={() =>
               setPicks((current) => ({
                 ...current,
@@ -841,6 +889,7 @@ function Preview({
   submitAction,
   submittedDraft,
   setSubmittedDraft,
+  allowLockedEdits,
 }: {
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
@@ -852,6 +901,7 @@ function Preview({
   ) => Promise<{ ok: boolean; message: string }>;
   submittedDraft: string | null;
   setSubmittedDraft: React.Dispatch<React.SetStateAction<string | null>>;
+  allowLockedEdits: boolean;
 }) {
   const [message, setMessage] = useState(
     draftTarget ? "Draft saved" : "Draft saved on this device",
@@ -1011,6 +1061,11 @@ function Preview({
                       )?.logoUrl
                     }
                   />
+                  <small className="absolute -bottom-0.5 rounded-sm bg-slate-950/80 px-0.5 text-[7px] leading-none text-white">
+                    {formatSpread(
+                      spreadFor(gameMap.get(pick.gameId)!, pick.team),
+                    )}
+                  </small>
                 </button>
               );
             })}
@@ -1036,6 +1091,7 @@ function Preview({
                 >
                   {game?.away.abbreviation}/{game?.home.abbreviation}{" "}
                   {pick.direction === "over" ? "O" : "U"}
+                  {game?.total}
                 </span>
               );
             })}
@@ -1081,7 +1137,9 @@ function Preview({
             type="button"
             onClick={() => {
               setPicks((current) =>
-                preserveLockedPicks(EMPTY_PICKS, current, games),
+                allowLockedEdits
+                  ? EMPTY_PICKS
+                  : preserveLockedPicks(EMPTY_PICKS, current, games),
               );
               setMessage("Draft cleared");
             }}
@@ -1171,6 +1229,7 @@ type PicksExperienceProps = {
   linesFrozen?: boolean;
   initialSubmittedPicks?: Picks;
   scoreFreshness?: { label: string; stale: boolean };
+  allowLockedEdits?: boolean;
 };
 
 export function PicksExperience({
@@ -1187,6 +1246,7 @@ export function PicksExperience({
   linesFrozen = false,
   initialSubmittedPicks,
   scoreFreshness,
+  allowLockedEdits = false,
 }: PicksExperienceProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(
@@ -1282,6 +1342,7 @@ export function PicksExperience({
             picks={picks}
             setPicks={setPicks}
             usedSuddenDeathTeams={usedSuddenDeathTeams}
+            allowLockedEdits={allowLockedEdits}
           />
         ))}
         <WeeklyCommentEditor
@@ -1299,6 +1360,7 @@ export function PicksExperience({
         submitAction={submitAction}
         submittedDraft={submittedDraft}
         setSubmittedDraft={setSubmittedDraft}
+        allowLockedEdits={allowLockedEdits}
       />
     </div>
   );

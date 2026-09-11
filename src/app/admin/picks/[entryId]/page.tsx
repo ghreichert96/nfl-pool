@@ -58,26 +58,35 @@ export default async function CommissionerPickSheet({
   const week =
     (weeks ?? []).find((item) => item.id === requestedWeek) ?? weeks?.[0];
   if (!week) notFound();
-  const [{ data: rows }, { data: teams }, { data: latest }] = await Promise.all(
-    [
-      admin
-        .from("games")
-        .select(
-          "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread,total)",
-        )
-        .eq("week_id", week.id)
-        .order("kickoff_at"),
-      admin.from("teams").select("abbreviation, name"),
-      admin
-        .from("weekly_submissions")
-        .select("id, revision")
-        .eq("entry_id", entry.id)
-        .eq("week_id", week.id)
-        .order("revision", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ],
-  );
+  const [
+    { data: rows },
+    { data: teams },
+    { data: latest },
+    { data: submissionHistory },
+  ] = await Promise.all([
+    admin
+      .from("games")
+      .select(
+        "id, away_team, home_team, kickoff_at, venue, game_type, status, away_score, home_score, status_detail, pool_lines(away_spread,total)",
+      )
+      .eq("week_id", week.id)
+      .order("kickoff_at"),
+    admin.from("teams").select("abbreviation, name, logo_url"),
+    admin
+      .from("weekly_submissions")
+      .select("id, revision")
+      .eq("entry_id", entry.id)
+      .eq("week_id", week.id)
+      .order("revision", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    admin
+      .from("weekly_submissions")
+      .select("id, revision, submitted_at")
+      .eq("entry_id", entry.id)
+      .eq("week_id", week.id)
+      .order("revision", { ascending: false }),
+  ]);
   const { data: savedRows } = latest
     ? await admin
         .from("picks")
@@ -86,6 +95,9 @@ export default async function CommissionerPickSheet({
     : { data: [] };
   const names = new Map(
     (teams ?? []).map((team) => [team.abbreviation, team.name]),
+  );
+  const logos = new Map(
+    (teams ?? []).map((team) => [team.abbreviation, team.logo_url]),
   );
   // Request-time status is intentionally dynamic for per-game kickoff locks.
   // eslint-disable-next-line react-hooks/purity
@@ -108,10 +120,12 @@ export default async function CommissionerPickSheet({
         away: {
           abbreviation: row.away_team,
           name: names.get(row.away_team) ?? row.away_team,
+          logoUrl: logos.get(row.away_team),
         },
         home: {
           abbreviation: row.home_team,
           name: names.get(row.home_team) ?? row.home_team,
+          logoUrl: logos.get(row.home_team),
         },
         awaySpread: Number(line.away_spread),
         total: Number(line.total),
@@ -157,6 +171,33 @@ export default async function CommissionerPickSheet({
 
   return (
     <PageShell entryCode={entry.entry_code} isCommissioner compact>
+      <section className="game-card mx-auto mb-2 max-w-2xl rounded-lg border px-3 py-2 text-xs">
+        <strong className="text-amber-300">Commissioner override</strong>
+        <span className="ml-2 text-slate-300">
+          All picks are editable, including locked and completed games. Every
+          save creates an audited revision.
+        </span>
+        <details className="mt-2">
+          <summary className="cursor-pointer font-black">
+            Submission history ({submissionHistory?.length ?? 0})
+          </summary>
+          <ol className="mt-2 divide-y divide-slate-800">
+            {(submissionHistory ?? []).map((submission) => (
+              <li
+                key={submission.id}
+                className="flex justify-between gap-3 py-1.5"
+              >
+                <span>Revision {submission.revision}</span>
+                <time className="text-slate-400">
+                  {new Date(submission.submitted_at).toLocaleString("en-US", {
+                    timeZone: "America/New_York",
+                  })}
+                </time>
+              </li>
+            ))}
+          </ol>
+        </details>
+      </section>
       <PicksExperience
         games={games}
         initialPicks={initial}
@@ -164,6 +205,7 @@ export default async function CommissionerPickSheet({
         entryCode={entry.entry_code}
         weekNumber={week.week_number}
         submitAction={submitCommissionerPicks}
+        allowLockedEdits
       />
     </PageShell>
   );

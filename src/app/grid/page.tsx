@@ -1,7 +1,7 @@
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
-import Image from "next/image";
+import { TeamLogo } from "@/components/team-logo";
 import {
   pickOutcome,
   recordForPicks,
@@ -30,13 +30,12 @@ function TeamMark({
       className="mx-auto grid h-9 place-items-center text-[8px] font-black leading-none"
     >
       {logo ? (
-        <Image
+        <TeamLogo
+          team={team}
           src={logo}
-          alt=""
-          width={30}
-          height={30}
-          unoptimized
-          className="size-7 object-contain"
+          size={30}
+          contrast="dark"
+          className="size-7"
         />
       ) : (
         team

@@ -30,6 +30,11 @@ describe("Home", () => {
     expect(screen.getByText("TNF")).toHaveClass("bg-teal-400");
     expect(screen.getByText("INTL")).toHaveClass("bg-cyan-400");
     expect(screen.getAllByText("1 PM")[0]).toHaveClass("bg-blue-400");
+    expect(
+      screen
+        .getByRole("button", { name: "LAR -8.5" })
+        .querySelector(".team-logo-bare"),
+    ).toBeInTheDocument();
   });
 
   it("shows inline line and submission status", () => {
@@ -75,7 +80,9 @@ describe("Home", () => {
       />,
     );
 
-    expect(screen.getByLabelText("Picks submitted")).toHaveTextContent("✓");
+    const submittedStatus = screen.getByLabelText("Picks submitted");
+    expect(submittedStatus).toHaveClass("text-emerald-300");
+    expect(submittedStatus.querySelector("svg")).toBeInTheDocument();
   });
 
   it("never defaults BB and clears it when its ATS selection changes", () => {
@@ -101,6 +108,18 @@ describe("Home", () => {
 
     expect(screen.getByRole("button", { name: "SAVED" })).toBeInTheDocument();
     expect(screen.queryByText(/BB =/)).not.toBeInTheDocument();
+  });
+
+  it("includes ATS spreads and total numbers in the picks preview", () => {
+    render(<PicksExperience />);
+
+    fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
+    fireEvent.click(screen.getByRole("button", { name: "Over 45.5" }));
+
+    expect(
+      screen.getByRole("button", { name: "SF, mark Best Bet" }),
+    ).toHaveTextContent("+8.5");
+    expect(screen.getByLabelText("SF at LAR, over")).toHaveTextContent("O45.5");
   });
 
   it("shows the comment editor below the games and highlights incomplete submission status", () => {
@@ -222,6 +241,20 @@ describe("Home", () => {
 
     expect(screen.getAllByLabelText("win result").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("loss result").length).toBeGreaterThan(0);
+  });
+
+  it("lets a commissioner replace selections in a completed game", () => {
+    render(<PicksExperience games={finalGames()} allowLockedEdits />);
+
+    const away = screen.getByRole("button", { name: "SF +8.5" });
+    const over = screen.getByRole("button", { name: "Over 45.5" });
+    expect(away).toBeEnabled();
+    expect(over).toBeEnabled();
+
+    fireEvent.click(away);
+    fireEvent.click(over);
+    expect(away).toHaveAttribute("aria-pressed", "true");
+    expect(over).toHaveAttribute("aria-pressed", "true");
   });
 
   it("distinguishes the unsaved Submit treatment from Saved", () => {
