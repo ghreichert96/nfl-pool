@@ -1477,7 +1477,7 @@ export function PicksExperience({
           <span className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
             <span
               aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-red-700 text-red-300" : "border-cyan-700 text-cyan-300"}`}
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-blue-600 text-blue-300" : "border-amber-600 text-amber-300"}`}
             >
               Lines
               <HeaderStatusIcon kind="lines" active={linesFrozen} />
@@ -1490,7 +1490,7 @@ export function PicksExperience({
                     ? "Picks submitted incomplete"
                     : "Picks not submitted"
               }
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-amber-600 text-amber-300" : "border-red-700 text-red-300"}`}
+              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-violet-600 text-violet-300" : "border-red-700 text-red-300"}`}
             >
               Picks
               <HeaderStatusIcon

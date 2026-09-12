@@ -40,13 +40,21 @@ describe("Home", () => {
   it("shows inline line and submission status", () => {
     render(<PicksExperience />);
 
-    expect(screen.getByLabelText("Lines unlocked")).toHaveTextContent("Lines");
-    expect(screen.getByLabelText("Picks not submitted")).toHaveTextContent(
-      "Picks",
+    expect(screen.getByLabelText("Lines unlocked")).toHaveClass(
+      "text-amber-300",
+    );
+    expect(screen.getByLabelText("Picks not submitted")).toHaveClass(
+      "text-red-300",
     );
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     expect(screen.getByLabelText("Picks not submitted")).toBeInTheDocument();
+  });
+
+  it("shows frozen lines in blue", () => {
+    render(<PicksExperience linesFrozen />);
+
+    expect(screen.getByLabelText("Lines locked")).toHaveClass("text-blue-300");
   });
 
   it("shows the green Picks check only for a complete saved submission", () => {
@@ -139,9 +147,9 @@ describe("Home", () => {
     expect(screen.getByLabelText("Submission saved")).toHaveClass(
       "bg-amber-950",
     );
-    expect(
-      screen.getByLabelText("Picks submitted incomplete"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Picks submitted incomplete")).toHaveClass(
+      "text-violet-300",
+    );
     expect(screen.getByText("Submitted")).toBeInTheDocument();
   });
 
