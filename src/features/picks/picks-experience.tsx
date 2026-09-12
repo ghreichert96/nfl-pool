@@ -727,17 +727,23 @@ function GameRow({
     );
     return (
       <article className="game-card game-card-final relative rounded-xl border p-1.5">
-        <button
-          type="button"
-          aria-label="Expand final game"
-          onClick={() => setFinalCollapsed(false)}
-          className="control-raised absolute top-2 left-2 z-20 grid size-5 place-items-center rounded border text-[10px]"
-        >
-          ⌄
-        </button>
         <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
           {compactTeam(game.away.abbreviation)}
-          <CompactFinalInfo game={game} picks={picks} />
+          <button
+            type="button"
+            aria-label="Expand final game"
+            aria-expanded="false"
+            onClick={() => setFinalCollapsed(false)}
+            className="relative h-full min-w-0 cursor-pointer rounded text-inherit transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-400"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute top-0.5 left-1 text-[11px] leading-none text-slate-500"
+            >
+              ⌄
+            </span>
+            <CompactFinalInfo game={game} picks={picks} />
+          </button>
           {compactTeam(game.home.abbreviation)}
         </div>
       </article>
@@ -748,16 +754,6 @@ function GameRow({
     <article
       className={`game-card relative rounded-xl border p-1.5 ${game.status === "live" ? "game-card-live" : ""} ${game.status === "final" ? "game-card-final" : ""}`}
     >
-      {game.status === "final" && (
-        <button
-          type="button"
-          aria-label="Collapse final game"
-          onClick={() => setFinalCollapsed(true)}
-          className="control-raised absolute top-2 left-2 z-20 grid size-5 place-items-center rounded border text-[10px]"
-        >
-          ⌃
-        </button>
-      )}
       <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
         <TeamToggle
           game={game}
@@ -785,7 +781,25 @@ function GameRow({
           }
           allowLockedEdit={allowLockedEdits}
         />
-        <GameInfo game={game} picks={picks} />
+        {game.status === "final" ? (
+          <button
+            type="button"
+            aria-label="Collapse final game"
+            aria-expanded="true"
+            onClick={() => setFinalCollapsed(true)}
+            className="relative h-full min-w-0 cursor-pointer rounded text-inherit transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-400"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute top-1 left-1 text-[11px] leading-none text-slate-500"
+            >
+              ⌃
+            </span>
+            <GameInfo game={game} picks={picks} />
+          </button>
+        ) : (
+          <GameInfo game={game} picks={picks} />
+        )}
         <TeamToggle
           game={game}
           team={game.home.abbreviation}
@@ -1409,6 +1423,24 @@ export function PicksExperience({
     initialSubmittedPicks ? serializePicks(initialSubmittedPicks) : null,
   );
   const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
+  const [statusKey, setStatusKey] = useState<"lines" | "picks" | null>(null);
+  const statusKeyRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    function closeOnOutside(event: PointerEvent) {
+      if (!statusKeyRef.current?.contains(event.target as Node))
+        setStatusKey(null);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setStatusKey(null);
+    }
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
 
   useEffect(() => {
     if (draftTarget) return;
@@ -1460,30 +1492,113 @@ export function PicksExperience({
         sticky
         className="-mx-2"
         title={
-          <span className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
-            <span
-              aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-red-700 text-red-300" : "border-cyan-700 text-cyan-300"}`}
-            >
-              Lines
-              <HeaderStatusIcon kind="lines" active={linesFrozen} />
+          <span
+            ref={statusKeyRef}
+            className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase"
+          >
+            <span className="relative">
+              <button
+                type="button"
+                aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
+                aria-expanded={statusKey === "lines"}
+                aria-controls="lines-status-key"
+                onClick={() =>
+                  setStatusKey((current) =>
+                    current === "lines" ? null : "lines",
+                  )
+                }
+                className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-blue-600 text-blue-300" : "border-amber-600 text-amber-300"}`}
+              >
+                Lines
+                <HeaderStatusIcon kind="lines" active={linesFrozen} />
+              </button>
+              {statusKey === "lines" && (
+                <span
+                  id="lines-status-key"
+                  role="note"
+                  className="game-card absolute top-full left-0 z-50 mt-1 grid w-36 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
+                >
+                  <span
+                    aria-current={!linesFrozen ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-amber-300 ${!linesFrozen ? "border-amber-500 bg-amber-950/50" : "border-transparent opacity-70"}`}
+                  >
+                    <span className="uppercase">Lines</span>
+                    <HeaderStatusIcon kind="lines" active={false} />
+                    <span className="text-slate-200">= Lines open</span>
+                  </span>
+                  <span
+                    aria-current={linesFrozen ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-blue-300 ${linesFrozen ? "border-blue-500 bg-blue-950/50" : "border-transparent opacity-70"}`}
+                  >
+                    <span className="uppercase">Lines</span>
+                    <HeaderStatusIcon kind="lines" active />
+                    <span className="text-slate-200">= Lines frozen</span>
+                  </span>
+                </span>
+              )}
             </span>
-            <span
-              aria-label={
-                allPicksSubmitted
-                  ? "Picks submitted"
-                  : hasSubmittedPicks
-                    ? "Picks submitted incomplete"
-                    : "Picks not submitted"
-              }
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-amber-600 text-amber-300" : "border-red-700 text-red-300"}`}
-            >
-              Picks
-              <HeaderStatusIcon
-                kind="picks"
-                active={allPicksSubmitted}
-                partial={hasSubmittedPicks && !allPicksSubmitted}
-              />
+            <span className="relative">
+              <button
+                type="button"
+                aria-label={
+                  allPicksSubmitted
+                    ? "Picks submitted"
+                    : hasSubmittedPicks
+                      ? "Picks submitted incomplete"
+                      : "Picks not submitted"
+                }
+                aria-expanded={statusKey === "picks"}
+                aria-controls="picks-status-key"
+                onClick={() =>
+                  setStatusKey((current) =>
+                    current === "picks" ? null : "picks",
+                  )
+                }
+                className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-violet-600 text-violet-300" : "border-red-700 text-red-300"}`}
+              >
+                Picks
+                <HeaderStatusIcon
+                  kind="picks"
+                  active={allPicksSubmitted}
+                  partial={hasSubmittedPicks && !allPicksSubmitted}
+                />
+              </button>
+              {statusKey === "picks" && (
+                <span
+                  id="picks-status-key"
+                  role="note"
+                  className="game-card absolute top-full left-0 z-50 mt-1 grid w-40 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
+                >
+                  <span
+                    aria-current={!hasSubmittedPicks ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-red-300 ${!hasSubmittedPicks ? "border-red-500 bg-red-950/50" : "border-transparent opacity-70"}`}
+                  >
+                    <span className="uppercase">Picks</span>
+                    <HeaderStatusIcon kind="picks" active={false} />
+                    <span className="text-slate-200">= Not submitted</span>
+                  </span>
+                  <span
+                    aria-current={
+                      hasSubmittedPicks && !allPicksSubmitted
+                        ? "true"
+                        : undefined
+                    }
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-violet-300 ${hasSubmittedPicks && !allPicksSubmitted ? "border-violet-500 bg-violet-950/50" : "border-transparent opacity-70"}`}
+                  >
+                    <span className="uppercase">Picks</span>
+                    <HeaderStatusIcon kind="picks" active={false} partial />
+                    <span className="text-slate-200">= Incomplete</span>
+                  </span>
+                  <span
+                    aria-current={allPicksSubmitted ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-emerald-300 ${allPicksSubmitted ? "border-emerald-500 bg-emerald-950/50" : "border-transparent opacity-70"}`}
+                  >
+                    <span className="uppercase">Picks</span>
+                    <HeaderStatusIcon kind="picks" active />
+                    <span className="text-slate-200">= Submitted</span>
+                  </span>
+                </span>
+              )}
             </span>
             {scoreFreshness && (
               <span

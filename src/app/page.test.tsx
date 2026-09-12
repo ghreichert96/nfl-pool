@@ -40,13 +40,49 @@ describe("Home", () => {
   it("shows inline line and submission status", () => {
     render(<PicksExperience />);
 
-    expect(screen.getByLabelText("Lines unlocked")).toHaveTextContent("Lines");
-    expect(screen.getByLabelText("Picks not submitted")).toHaveTextContent(
-      "Picks",
+    expect(screen.getByLabelText("Lines unlocked")).toHaveClass(
+      "text-amber-300",
+    );
+    expect(screen.getByLabelText("Picks not submitted")).toHaveClass(
+      "text-red-300",
     );
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     expect(screen.getByLabelText("Picks not submitted")).toBeInTheDocument();
+  });
+
+  it("shows frozen lines in blue", () => {
+    render(<PicksExperience linesFrozen />);
+
+    expect(screen.getByLabelText("Lines locked")).toHaveClass("text-blue-300");
+  });
+
+  it("opens anchored status keys and dismisses them with Escape", () => {
+    render(<PicksExperience />);
+
+    fireEvent.click(screen.getByLabelText("Lines unlocked"));
+    expect(screen.getByText("= Lines open")).toBeInTheDocument();
+    expect(screen.getByText("= Lines frozen")).toBeInTheDocument();
+    expect(screen.getByText("= Lines open").parentElement).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(
+      screen.getByText("= Lines frozen").parentElement,
+    ).not.toHaveAttribute("aria-current");
+
+    fireEvent.click(screen.getByLabelText("Picks not submitted"));
+    expect(screen.queryByText("= Lines open")).not.toBeInTheDocument();
+    expect(screen.getByText("= Not submitted")).toBeInTheDocument();
+    expect(screen.getByText("= Incomplete")).toBeInTheDocument();
+    expect(screen.getByText("= Submitted")).toBeInTheDocument();
+    expect(screen.getByText("= Not submitted").parentElement).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("= Submitted")).not.toBeInTheDocument();
   });
 
   it("shows the green Picks check only for a complete saved submission", () => {
@@ -139,9 +175,9 @@ describe("Home", () => {
     expect(screen.getByLabelText("Submission saved")).toHaveClass(
       "bg-amber-950",
     );
-    expect(
-      screen.getByLabelText("Picks submitted incomplete"),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Picks submitted incomplete")).toHaveClass(
+      "text-violet-300",
+    );
     expect(screen.getByText("Submitted")).toBeInTheDocument();
   });
 
