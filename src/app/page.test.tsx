@@ -63,12 +63,23 @@ describe("Home", () => {
     fireEvent.click(screen.getByLabelText("Lines unlocked"));
     expect(screen.getByText("= Lines open")).toBeInTheDocument();
     expect(screen.getByText("= Lines frozen")).toBeInTheDocument();
+    expect(screen.getByText("= Lines open").parentElement).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(
+      screen.getByText("= Lines frozen").parentElement,
+    ).not.toHaveAttribute("aria-current");
 
     fireEvent.click(screen.getByLabelText("Picks not submitted"));
     expect(screen.queryByText("= Lines open")).not.toBeInTheDocument();
     expect(screen.getByText("= Not submitted")).toBeInTheDocument();
     expect(screen.getByText("= Incomplete")).toBeInTheDocument();
     expect(screen.getByText("= Submitted")).toBeInTheDocument();
+    expect(screen.getByText("= Not submitted").parentElement).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByText("= Submitted")).not.toBeInTheDocument();

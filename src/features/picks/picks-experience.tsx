@@ -1518,12 +1518,18 @@ export function PicksExperience({
                   role="note"
                   className="game-card absolute top-full left-0 z-50 mt-1 grid w-36 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
                 >
-                  <span className="flex items-center gap-1.5 text-amber-300">
+                  <span
+                    aria-current={!linesFrozen ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-amber-300 ${!linesFrozen ? "border-amber-500 bg-amber-950/50" : "border-transparent opacity-70"}`}
+                  >
                     <span className="uppercase">Lines</span>
                     <HeaderStatusIcon kind="lines" active={false} />
                     <span className="text-slate-200">= Lines open</span>
                   </span>
-                  <span className="flex items-center gap-1.5 text-blue-300">
+                  <span
+                    aria-current={linesFrozen ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-blue-300 ${linesFrozen ? "border-blue-500 bg-blue-950/50" : "border-transparent opacity-70"}`}
+                  >
                     <span className="uppercase">Lines</span>
                     <HeaderStatusIcon kind="lines" active />
                     <span className="text-slate-200">= Lines frozen</span>
@@ -1563,17 +1569,30 @@ export function PicksExperience({
                   role="note"
                   className="game-card absolute top-full left-0 z-50 mt-1 grid w-40 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
                 >
-                  <span className="flex items-center gap-1.5 text-red-300">
+                  <span
+                    aria-current={!hasSubmittedPicks ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-red-300 ${!hasSubmittedPicks ? "border-red-500 bg-red-950/50" : "border-transparent opacity-70"}`}
+                  >
                     <span className="uppercase">Picks</span>
                     <HeaderStatusIcon kind="picks" active={false} />
                     <span className="text-slate-200">= Not submitted</span>
                   </span>
-                  <span className="flex items-center gap-1.5 text-violet-300">
+                  <span
+                    aria-current={
+                      hasSubmittedPicks && !allPicksSubmitted
+                        ? "true"
+                        : undefined
+                    }
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-violet-300 ${hasSubmittedPicks && !allPicksSubmitted ? "border-violet-500 bg-violet-950/50" : "border-transparent opacity-70"}`}
+                  >
                     <span className="uppercase">Picks</span>
                     <HeaderStatusIcon kind="picks" active={false} partial />
                     <span className="text-slate-200">= Incomplete</span>
                   </span>
-                  <span className="flex items-center gap-1.5 text-emerald-300">
+                  <span
+                    aria-current={allPicksSubmitted ? "true" : undefined}
+                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-emerald-300 ${allPicksSubmitted ? "border-emerald-500 bg-emerald-950/50" : "border-transparent opacity-70"}`}
+                  >
                     <span className="uppercase">Picks</span>
                     <HeaderStatusIcon kind="picks" active />
                     <span className="text-slate-200">= Submitted</span>
