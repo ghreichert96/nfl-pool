@@ -256,6 +256,31 @@ describe("Home", () => {
     );
   });
 
+  it("collapses a final game into its compact score row", () => {
+    render(<PicksExperience games={finalGames()} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse final game" }),
+    );
+
+    expect(screen.getByText("SF 24, LAR 21 F")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Expand final game" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Final")).not.toBeInTheDocument();
+  });
+
+  it("uses P for an ATS push marker", () => {
+    const pushed = finalGames().map((game, index) =>
+      index === 0 && game.result
+        ? { ...game, result: { ...game.result, atsWinner: null } }
+        : game,
+    );
+    render(<PicksExperience games={pushed} />);
+
+    expect(screen.getAllByLabelText("tie result")[0]).toHaveTextContent("P");
+  });
+
   it("lets a commissioner replace selections in a completed game", () => {
     render(<PicksExperience games={finalGames()} allowLockedEdits />);
 
