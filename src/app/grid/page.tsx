@@ -520,36 +520,34 @@ export default async function GridPage({
                 </tr>
               </thead>
               <tbody>
-                {weeklyRows.map(
-                  ({ poolEntry, overall, ats, totals }) => {
-                    const show = (record: typeof overall) =>
-                      `${record.wins}-${record.losses}-${record.ties}`;
-                    return (
-                      <tr
-                        key={poolEntry.id}
-                        className={
-                          poolEntry.id === entry?.id ? "bg-slate-800/50" : ""
-                        }
-                      >
-                        <td className="border-t border-slate-800 px-2 py-2 text-slate-500">
-                          {weeklyRanks.get(poolEntry.id)}
-                        </td>
-                        <th className="border-t border-slate-800 px-2 py-2 text-left">
-                          {poolEntry.entry_code}
-                        </th>
-                        <td className="border-t border-slate-800 px-2 py-2">
-                          {show(overall)}
-                        </td>
-                        <td className="border-t border-slate-800 px-2 py-2">
-                          {show(ats)}
-                        </td>
-                        <td className="border-t border-slate-800 px-2 py-2">
-                          {show(totals)}
-                        </td>
-                      </tr>
-                    );
-                  },
-                )}
+                {weeklyRows.map(({ poolEntry, overall, ats, totals }) => {
+                  const show = (record: typeof overall) =>
+                    `${record.wins}-${record.losses}-${record.ties}`;
+                  return (
+                    <tr
+                      key={poolEntry.id}
+                      className={
+                        poolEntry.id === entry?.id ? "bg-slate-800/50" : ""
+                      }
+                    >
+                      <td className="border-t border-slate-800 px-2 py-2 text-slate-500">
+                        {weeklyRanks.get(poolEntry.id)}
+                      </td>
+                      <th className="border-t border-slate-800 px-2 py-2 text-left">
+                        {poolEntry.entry_code}
+                      </th>
+                      <td className="border-t border-slate-800 px-2 py-2">
+                        {show(overall)}
+                      </td>
+                      <td className="border-t border-slate-800 px-2 py-2">
+                        {show(ats)}
+                      </td>
+                      <td className="border-t border-slate-800 px-2 py-2">
+                        {show(totals)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
