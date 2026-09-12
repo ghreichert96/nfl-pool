@@ -210,14 +210,14 @@ export function decidedPicks(record: RecordSummary) {
 export function compareRecords(a: RecordSummary, b: RecordSummary) {
   return (
     recordMargin(b) - recordMargin(a) ||
-    decidedPicks(b) - decidedPicks(a) ||
     b.wins - a.wins ||
+    decidedPicks(b) - decidedPicks(a) ||
     b.ties - a.ties
   );
 }
 
 export function sameRank(a: RecordSummary, b: RecordSummary) {
-  return compareRecords(a, b) === 0;
+  return recordMargin(a) === recordMargin(b);
 }
 
 export function gamesBack(standing: EntryStanding, all: EntryStanding[]) {
