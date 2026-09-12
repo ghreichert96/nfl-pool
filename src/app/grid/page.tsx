@@ -521,7 +521,7 @@ export default async function GridPage({
               </thead>
               <tbody>
                 {weeklyRows.map(
-                  ({ poolEntry, overall, ats, totals }, index) => {
+                  ({ poolEntry, overall, ats, totals }) => {
                     const show = (record: typeof overall) =>
                       `${record.wins}-${record.losses}-${record.ties}`;
                     return (
