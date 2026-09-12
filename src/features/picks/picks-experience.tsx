@@ -727,17 +727,23 @@ function GameRow({
     );
     return (
       <article className="game-card game-card-final relative rounded-xl border p-1.5">
-        <button
-          type="button"
-          aria-label="Expand final game"
-          onClick={() => setFinalCollapsed(false)}
-          className="control-raised absolute top-2 left-2 z-20 grid size-5 place-items-center rounded border text-[10px]"
-        >
-          ⌄
-        </button>
         <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
           {compactTeam(game.away.abbreviation)}
-          <CompactFinalInfo game={game} picks={picks} />
+          <button
+            type="button"
+            aria-label="Expand final game"
+            aria-expanded="false"
+            onClick={() => setFinalCollapsed(false)}
+            className="relative h-full min-w-0 cursor-pointer rounded text-inherit transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-400"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute top-0.5 left-1 text-[11px] leading-none text-slate-500"
+            >
+              ⌄
+            </span>
+            <CompactFinalInfo game={game} picks={picks} />
+          </button>
           {compactTeam(game.home.abbreviation)}
         </div>
       </article>
@@ -748,16 +754,6 @@ function GameRow({
     <article
       className={`game-card relative rounded-xl border p-1.5 ${game.status === "live" ? "game-card-live" : ""} ${game.status === "final" ? "game-card-final" : ""}`}
     >
-      {game.status === "final" && (
-        <button
-          type="button"
-          aria-label="Collapse final game"
-          onClick={() => setFinalCollapsed(true)}
-          className="control-raised absolute top-2 left-2 z-20 grid size-5 place-items-center rounded border text-[10px]"
-        >
-          ⌃
-        </button>
-      )}
       <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
         <TeamToggle
           game={game}
@@ -785,7 +781,25 @@ function GameRow({
           }
           allowLockedEdit={allowLockedEdits}
         />
-        <GameInfo game={game} picks={picks} />
+        {game.status === "final" ? (
+          <button
+            type="button"
+            aria-label="Collapse final game"
+            aria-expanded="true"
+            onClick={() => setFinalCollapsed(true)}
+            className="relative h-full min-w-0 cursor-pointer rounded text-inherit transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-400"
+          >
+            <span
+              aria-hidden="true"
+              className="absolute top-1 left-1 text-[11px] leading-none text-slate-500"
+            >
+              ⌃
+            </span>
+            <GameInfo game={game} picks={picks} />
+          </button>
+        ) : (
+          <GameInfo game={game} picks={picks} />
+        )}
         <TeamToggle
           game={game}
           team={game.home.abbreviation}
