@@ -296,6 +296,18 @@ export default async function GridPage({
         compareRecords(a.overall, b.overall) ||
         a.poolEntry.entry_code.localeCompare(b.poolEntry.entry_code),
     );
+  const weeklyRanks = new Map<number, number>();
+  weeklyRows.forEach((row, index) => {
+    const prior = index > 0 ? weeklyRows[index - 1] : undefined;
+    weeklyRanks.set(
+      row.poolEntry.id,
+      prior &&
+        row.overall.wins - row.overall.losses ===
+          prior.overall.wins - prior.overall.losses
+        ? weeklyRanks.get(prior.poolEntry.id)!
+        : index + 1,
+    );
+  });
 
   return (
     <PageShell
@@ -520,7 +532,7 @@ export default async function GridPage({
                         }
                       >
                         <td className="border-t border-slate-800 px-2 py-2 text-slate-500">
-                          {index + 1}
+                          {weeklyRanks.get(poolEntry.id)}
                         </td>
                         <th className="border-t border-slate-800 px-2 py-2 text-left">
                           {poolEntry.entry_code}
