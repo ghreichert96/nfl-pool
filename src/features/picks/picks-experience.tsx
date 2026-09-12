@@ -131,8 +131,8 @@ function ResultMark({ result }: { result?: "win" | "loss" | "tie" }) {
           <path d="m7 7 10 10M17 7 7 17" />
         </svg>
       ) : (
-        <span aria-hidden="true" className="block -translate-y-px text-sm">
-          -
+        <span aria-hidden="true" className="block text-[9px] leading-none">
+          P
         </span>
       )}
     </span>
@@ -364,6 +364,7 @@ function TeamToggle({
           <Logo
             abbreviation={team}
             bare
+            contrast={status === "final" ? "dark" : "auto"}
             logoUrl={
               (team === game.away.abbreviation ? game.away : game.home).logoUrl
             }
@@ -527,6 +528,71 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
   );
 }
 
+function CompactFinalInfo({ game, picks }: { game: Game; picks: Picks }) {
+  const favorite = favoriteFor(game);
+  const underdog = underdogFor(game);
+  const total = picks.totals.find((pick) => pick.gameId === game.id);
+  const sdSelected = picks.suddenDeath?.gameId === game.id;
+  const udSelected = picks.underdog?.gameId === game.id;
+  const sdTeam = sdSelected ? picks.suddenDeath!.team : favorite;
+  const controls = [
+    {
+      label: `${sdTeam}·SD`,
+      selected: sdSelected,
+      result: standingForTeam(game, sdTeam, "side"),
+    },
+    {
+      label: `O${game.total}`,
+      selected: total?.direction === "over",
+      result: standingForTotal(game, "over"),
+    },
+    {
+      label: `U${game.total}`,
+      selected: total?.direction === "under",
+      result: standingForTotal(game, "under"),
+    },
+    {
+      label: `${underdog}·UD`,
+      selected: udSelected,
+      result: standingForTeam(game, underdog, "side"),
+    },
+  ];
+  if (favorite !== game.away.abbreviation)
+    [controls[0], controls[3]] = [controls[3], controls[0]];
+
+  return (
+    <div className="grid min-w-0 gap-1">
+      <div className="flex min-w-0 items-center justify-center gap-1">
+        <span
+          className={`${badgeColorClass(game.badge)} rounded px-1 py-0.5 text-[8px] font-black`}
+        >
+          {game.badge}
+        </span>
+        <span className="text-slate-300">
+          <LockIcon locked />
+        </span>
+        <strong className="truncate text-[9px] text-amber-300">
+          {game.away.abbreviation} {game.score?.away ?? 0},{" "}
+          {game.home.abbreviation} {game.score?.home ?? 0} F
+        </strong>
+      </div>
+      <div className="grid grid-cols-4 gap-0.5">
+        {controls.map((pick) => (
+          <span
+            key={pick.label}
+            className={`truncate rounded-sm border px-0.5 py-1 text-center text-[8px] font-black ${lockedControlClass("final", pick.selected, pick.result)}`}
+          >
+            <span className="inline-flex items-center gap-0.5">
+              {pick.label}
+              {!pick.selected && <ResultMark result={pick.result} />}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function GameRow({
   game,
   picks,
@@ -540,6 +606,7 @@ function GameRow({
   usedSuddenDeathTeams: string[];
   allowLockedEdits: boolean;
 }) {
+  const [finalCollapsed, setFinalCollapsed] = useState(false);
   const [sdDisplayOverride, setSdDisplayOverride] = useState<string | null>(
     null,
   );
@@ -638,10 +705,59 @@ function GameRow({
     [],
   );
 
+  if (game.status === "final" && finalCollapsed) {
+    const compactTeam = (team: string) => (
+      <div className="relative">
+        <button
+          type="button"
+          disabled={!allowLockedEdits}
+          aria-label={`${team} ${formatSpread(spreadFor(game, team))}`}
+          className="relative flex min-h-12 w-full flex-col items-center justify-center rounded-md border border-slate-700 bg-slate-900/70 text-[10px] font-black text-slate-500 disabled:cursor-not-allowed"
+          onClick={() => toggleAts(team)}
+        >
+          <span className="opacity-45">{team}</span>
+          <span className="opacity-45">
+            {formatSpread(spreadFor(game, team))}
+          </span>
+          <span className="absolute right-1 bottom-1 z-10">
+            <ResultMark result={teamResult(game, team, "ats")} />
+          </span>
+        </button>
+      </div>
+    );
+    return (
+      <article className="game-card game-card-final relative rounded-xl border p-1.5">
+        <button
+          type="button"
+          aria-label="Expand final game"
+          onClick={() => setFinalCollapsed(false)}
+          className="control-raised absolute top-2 left-2 z-20 grid size-5 place-items-center rounded border text-[10px]"
+        >
+          ⌄
+        </button>
+        <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
+          {compactTeam(game.away.abbreviation)}
+          <CompactFinalInfo game={game} picks={picks} />
+          {compactTeam(game.home.abbreviation)}
+        </div>
+      </article>
+    );
+  }
+
   return (
     <article
-      className={`game-card rounded-xl border p-1.5 ${game.status === "live" ? "game-card-live" : ""} ${game.status === "final" ? "game-card-final" : ""}`}
+      className={`game-card relative rounded-xl border p-1.5 ${game.status === "live" ? "game-card-live" : ""} ${game.status === "final" ? "game-card-final" : ""}`}
     >
+      {game.status === "final" && (
+        <button
+          type="button"
+          aria-label="Collapse final game"
+          onClick={() => setFinalCollapsed(true)}
+          className="control-raised absolute top-2 left-2 z-20 grid size-5 place-items-center rounded border text-[10px]"
+        >
+          ⌃
+        </button>
+      )}
       <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
         <TeamToggle
           game={game}
