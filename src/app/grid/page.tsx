@@ -3,6 +3,7 @@ import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
 import { TeamLogo } from "@/components/team-logo";
 import {
+  compareRecords,
   pickOutcome,
   recordForPicks,
   type ScoringGame,
@@ -292,7 +293,8 @@ export default async function GridPage({
     })
     .sort(
       (a, b) =>
-        b.overall.wins - a.overall.wins || a.overall.losses - b.overall.losses,
+        compareRecords(a.overall, b.overall) ||
+        a.poolEntry.entry_code.localeCompare(b.poolEntry.entry_code),
     );
 
   return (
