@@ -1423,6 +1423,24 @@ export function PicksExperience({
     initialSubmittedPicks ? serializePicks(initialSubmittedPicks) : null,
   );
   const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
+  const [statusKey, setStatusKey] = useState<"lines" | "picks" | null>(null);
+  const statusKeyRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    function closeOnOutside(event: PointerEvent) {
+      if (!statusKeyRef.current?.contains(event.target as Node))
+        setStatusKey(null);
+    }
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setStatusKey(null);
+    }
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
 
   useEffect(() => {
     if (draftTarget) return;
@@ -1474,30 +1492,94 @@ export function PicksExperience({
         sticky
         className="-mx-2"
         title={
-          <span className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase">
-            <span
-              aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-blue-600 text-blue-300" : "border-amber-600 text-amber-300"}`}
-            >
-              Lines
-              <HeaderStatusIcon kind="lines" active={linesFrozen} />
+          <span
+            ref={statusKeyRef}
+            className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase"
+          >
+            <span className="relative">
+              <button
+                type="button"
+                aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
+                aria-expanded={statusKey === "lines"}
+                aria-controls="lines-status-key"
+                onClick={() =>
+                  setStatusKey((current) =>
+                    current === "lines" ? null : "lines",
+                  )
+                }
+                className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-blue-600 text-blue-300" : "border-amber-600 text-amber-300"}`}
+              >
+                Lines
+                <HeaderStatusIcon kind="lines" active={linesFrozen} />
+              </button>
+              {statusKey === "lines" && (
+                <span
+                  id="lines-status-key"
+                  role="note"
+                  className="game-card absolute top-full left-0 z-50 mt-1 grid w-36 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
+                >
+                  <span className="flex items-center gap-1.5 text-amber-300">
+                    <span className="uppercase">Lines</span>
+                    <HeaderStatusIcon kind="lines" active={false} />
+                    <span className="text-slate-200">= Lines open</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-blue-300">
+                    <span className="uppercase">Lines</span>
+                    <HeaderStatusIcon kind="lines" active />
+                    <span className="text-slate-200">= Lines frozen</span>
+                  </span>
+                </span>
+              )}
             </span>
-            <span
-              aria-label={
-                allPicksSubmitted
-                  ? "Picks submitted"
-                  : hasSubmittedPicks
-                    ? "Picks submitted incomplete"
-                    : "Picks not submitted"
-              }
-              className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-violet-600 text-violet-300" : "border-red-700 text-red-300"}`}
-            >
-              Picks
-              <HeaderStatusIcon
-                kind="picks"
-                active={allPicksSubmitted}
-                partial={hasSubmittedPicks && !allPicksSubmitted}
-              />
+            <span className="relative">
+              <button
+                type="button"
+                aria-label={
+                  allPicksSubmitted
+                    ? "Picks submitted"
+                    : hasSubmittedPicks
+                      ? "Picks submitted incomplete"
+                      : "Picks not submitted"
+                }
+                aria-expanded={statusKey === "picks"}
+                aria-controls="picks-status-key"
+                onClick={() =>
+                  setStatusKey((current) =>
+                    current === "picks" ? null : "picks",
+                  )
+                }
+                className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-violet-600 text-violet-300" : "border-red-700 text-red-300"}`}
+              >
+                Picks
+                <HeaderStatusIcon
+                  kind="picks"
+                  active={allPicksSubmitted}
+                  partial={hasSubmittedPicks && !allPicksSubmitted}
+                />
+              </button>
+              {statusKey === "picks" && (
+                <span
+                  id="picks-status-key"
+                  role="note"
+                  className="game-card absolute top-full left-0 z-50 mt-1 grid w-40 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
+                >
+                  <span className="flex items-center gap-1.5 text-red-300">
+                    <span className="uppercase">Picks</span>
+                    <HeaderStatusIcon kind="picks" active={false} />
+                    <span className="text-slate-200">= Not submitted</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-violet-300">
+                    <span className="uppercase">Picks</span>
+                    <HeaderStatusIcon kind="picks" active={false} partial />
+                    <span className="text-slate-200">= Incomplete</span>
+                  </span>
+                  <span className="flex items-center gap-1.5 text-emerald-300">
+                    <span className="uppercase">Picks</span>
+                    <HeaderStatusIcon kind="picks" active />
+                    <span className="text-slate-200">= Submitted</span>
+                  </span>
+                </span>
+              )}
             </span>
             {scoreFreshness && (
               <span

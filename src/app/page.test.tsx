@@ -57,6 +57,23 @@ describe("Home", () => {
     expect(screen.getByLabelText("Lines locked")).toHaveClass("text-blue-300");
   });
 
+  it("opens anchored status keys and dismisses them with Escape", () => {
+    render(<PicksExperience />);
+
+    fireEvent.click(screen.getByLabelText("Lines unlocked"));
+    expect(screen.getByText("= Lines open")).toBeInTheDocument();
+    expect(screen.getByText("= Lines frozen")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Picks not submitted"));
+    expect(screen.queryByText("= Lines open")).not.toBeInTheDocument();
+    expect(screen.getByText("= Not submitted")).toBeInTheDocument();
+    expect(screen.getByText("= Incomplete")).toBeInTheDocument();
+    expect(screen.getByText("= Submitted")).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("= Submitted")).not.toBeInTheDocument();
+  });
+
   it("shows the green Picks check only for a complete saved submission", () => {
     const complete = {
       ats: MOCK_GAMES.slice(0, 6).map((game) => ({
