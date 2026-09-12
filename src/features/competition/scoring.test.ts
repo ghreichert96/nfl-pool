@@ -108,7 +108,7 @@ describe("competition scoring", () => {
       ),
     ).toBe(200);
   });
-  it("ranks equal-GB records by more decided picks and keeps the leader at 0 GB", () => {
+  it("orders equal-GB records by wins then decided picks while sharing rank", () => {
     const standings = [
       {
         entryId: 1,
@@ -146,7 +146,7 @@ describe("competition scoring", () => {
     expect(gamesBack(ranked[2], ranked)).toBe(0.5);
     expect(ranks.get(1)).toBe(1);
     expect(ranks.get(3)).toBe(2);
-    expect(ranks.get(2)).toBe(3);
+    expect(ranks.get(2)).toBe(2);
   });
   it("balances projected side-pool winners and non-winners", () => {
     const all = [1, 2, 3, 4];
