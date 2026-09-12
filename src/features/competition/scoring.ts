@@ -199,33 +199,46 @@ export function calculateStandings(
   return standings;
 }
 
+export function recordMargin(record: RecordSummary) {
+  return record.wins - record.losses;
+}
+
+export function decidedPicks(record: RecordSummary) {
+  return record.wins + record.losses + record.ties;
+}
+
+export function compareRecords(a: RecordSummary, b: RecordSummary) {
+  return (
+    recordMargin(b) - recordMargin(a) ||
+    b.wins - a.wins ||
+    decidedPicks(b) - decidedPicks(a) ||
+    b.ties - a.ties
+  );
+}
+
+export function sameRank(a: RecordSummary, b: RecordSummary) {
+  return recordMargin(a) === recordMargin(b);
+}
+
 export function gamesBack(standing: EntryStanding, all: EntryStanding[]) {
   if (!all.length) return 0;
-  return (
-    (Math.max(...all.map((item) => item.wins)) -
-      standing.wins +
-      (standing.losses - Math.min(...all.map((item) => item.losses)))) /
-    2
-  );
+  const leaderMargin = Math.max(...all.map(recordMargin));
+  return (leaderMargin - recordMargin(standing)) / 2;
 }
 
 export function rankStandings(standings: EntryStanding[]) {
   return [...standings].sort(
-    (a, b) =>
-      gamesBack(a, standings) - gamesBack(b, standings) ||
-      b.wins - a.wins ||
-      a.entryId - b.entryId,
+    (a, b) => compareRecords(a, b) || a.entryId - b.entryId,
   );
 }
 
 export function ranksByGamesBack(standings: EntryStanding[]) {
   const ranks = new Map<number, number>();
   standings.forEach((standing, index) => {
-    const currentGamesBack = gamesBack(standing, standings);
     const priorEntry = index > 0 ? standings[index - 1] : undefined;
     ranks.set(
       standing.entryId,
-      priorEntry && gamesBack(priorEntry, standings) === currentGamesBack
+      priorEntry && sameRank(priorEntry, standing)
         ? ranks.get(priorEntry.entryId)!
         : index + 1,
     );

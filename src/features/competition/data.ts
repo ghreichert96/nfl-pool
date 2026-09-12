@@ -2,8 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   calculateStandings,
-  gamesBack,
   rankStandings,
+  sameRank,
   sharedRankPayout,
   sidePoolPayout,
   type ScoringGame,
@@ -158,11 +158,10 @@ export async function loadCompetition(
   );
   const mainPayout = new Map<number, number>();
   for (let index = 0; index < standings.length;) {
-    const gb = gamesBack(standings[index], standings);
     let count = 1;
     while (
       index + count < standings.length &&
-      gamesBack(standings[index + count], standings) === gb
+      sameRank(standings[index], standings[index + count])
     )
       count += 1;
     const amount = sharedRankPayout(index + 1, count, schedule);

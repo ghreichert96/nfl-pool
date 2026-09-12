@@ -3,6 +3,7 @@ import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
 import { TeamLogo } from "@/components/team-logo";
 import {
+  compareRecords,
   pickOutcome,
   recordForPicks,
   type ScoringGame,
@@ -292,8 +293,21 @@ export default async function GridPage({
     })
     .sort(
       (a, b) =>
-        b.overall.wins - a.overall.wins || a.overall.losses - b.overall.losses,
+        compareRecords(a.overall, b.overall) ||
+        a.poolEntry.entry_code.localeCompare(b.poolEntry.entry_code),
     );
+  const weeklyRanks = new Map<number, number>();
+  weeklyRows.forEach((row, index) => {
+    const prior = index > 0 ? weeklyRows[index - 1] : undefined;
+    weeklyRanks.set(
+      row.poolEntry.id,
+      prior &&
+        row.overall.wins - row.overall.losses ===
+          prior.overall.wins - prior.overall.losses
+        ? weeklyRanks.get(prior.poolEntry.id)!
+        : index + 1,
+    );
+  });
 
   return (
     <PageShell
@@ -506,36 +520,34 @@ export default async function GridPage({
                 </tr>
               </thead>
               <tbody>
-                {weeklyRows.map(
-                  ({ poolEntry, overall, ats, totals }, index) => {
-                    const show = (record: typeof overall) =>
-                      `${record.wins}-${record.losses}-${record.ties}`;
-                    return (
-                      <tr
-                        key={poolEntry.id}
-                        className={
-                          poolEntry.id === entry?.id ? "bg-slate-800/50" : ""
-                        }
-                      >
-                        <td className="border-t border-slate-800 px-2 py-2 text-slate-500">
-                          {index + 1}
-                        </td>
-                        <th className="border-t border-slate-800 px-2 py-2 text-left">
-                          {poolEntry.entry_code}
-                        </th>
-                        <td className="border-t border-slate-800 px-2 py-2">
-                          {show(overall)}
-                        </td>
-                        <td className="border-t border-slate-800 px-2 py-2">
-                          {show(ats)}
-                        </td>
-                        <td className="border-t border-slate-800 px-2 py-2">
-                          {show(totals)}
-                        </td>
-                      </tr>
-                    );
-                  },
-                )}
+                {weeklyRows.map(({ poolEntry, overall, ats, totals }) => {
+                  const show = (record: typeof overall) =>
+                    `${record.wins}-${record.losses}-${record.ties}`;
+                  return (
+                    <tr
+                      key={poolEntry.id}
+                      className={
+                        poolEntry.id === entry?.id ? "bg-slate-800/50" : ""
+                      }
+                    >
+                      <td className="border-t border-slate-800 px-2 py-2 text-slate-500">
+                        {weeklyRanks.get(poolEntry.id)}
+                      </td>
+                      <th className="border-t border-slate-800 px-2 py-2 text-left">
+                        {poolEntry.entry_code}
+                      </th>
+                      <td className="border-t border-slate-800 px-2 py-2">
+                        {show(overall)}
+                      </td>
+                      <td className="border-t border-slate-800 px-2 py-2">
+                        {show(ats)}
+                      </td>
+                      <td className="border-t border-slate-800 px-2 py-2">
+                        {show(totals)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

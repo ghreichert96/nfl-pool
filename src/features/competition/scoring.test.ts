@@ -108,7 +108,7 @@ describe("competition scoring", () => {
       ),
     ).toBe(200);
   });
-  it("shares rank whenever GB matches, even if the underlying records differ", () => {
+  it("orders equal-GB records by wins then decided picks while sharing rank", () => {
     const standings = [
       {
         entryId: 1,
@@ -140,10 +140,13 @@ describe("competition scoring", () => {
     ];
     const ranked = rankStandings(standings);
     const ranks = ranksByGamesBack(ranked);
+    expect(ranked.map((item) => item.entryId)).toEqual([1, 3, 2]);
+    expect(gamesBack(ranked[0], ranked)).toBe(0);
     expect(gamesBack(ranked[1], ranked)).toBe(0.5);
     expect(gamesBack(ranked[2], ranked)).toBe(0.5);
-    expect(ranks.get(ranked[1].entryId)).toBe(2);
-    expect(ranks.get(ranked[2].entryId)).toBe(2);
+    expect(ranks.get(1)).toBe(1);
+    expect(ranks.get(3)).toBe(2);
+    expect(ranks.get(2)).toBe(2);
   });
   it("balances projected side-pool winners and non-winners", () => {
     const all = [1, 2, 3, 4];
