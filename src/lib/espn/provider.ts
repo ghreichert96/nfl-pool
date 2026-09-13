@@ -109,7 +109,7 @@ export function liveDetail(
   period: number,
   clock: string,
 ) {
-  if (state === "final") return "Final · Verifying";
+  if (state === "final") return "Final";
   if (state === "halftime") return "Halftime";
   if (state === "postponed") return "Postponed";
   if (state === "cancelled") return "Cancelled";

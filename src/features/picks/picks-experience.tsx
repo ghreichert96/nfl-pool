@@ -1400,6 +1400,7 @@ type PicksExperienceProps = {
   initialSubmittedPicks?: Picks;
   scoreFreshness?: { label: string; stale: boolean };
   allowLockedEdits?: boolean;
+  persistDraft?: boolean;
 };
 
 export function PicksExperience({
@@ -1417,6 +1418,7 @@ export function PicksExperience({
   initialSubmittedPicks,
   scoreFreshness,
   allowLockedEdits = false,
+  persistDraft = true,
 }: PicksExperienceProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(
@@ -1458,7 +1460,7 @@ export function PicksExperience({
   }, [draftTarget]);
 
   useEffect(() => {
-    if (!draftReady) return;
+    if (!draftReady || !persistDraft) return;
     if (!draftTarget) {
       window.localStorage.setItem(draftStorageKey, JSON.stringify(picks));
       return;
@@ -1478,7 +1480,7 @@ export function PicksExperience({
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [draftReady, draftTarget, picks]);
+  }, [draftReady, draftTarget, persistDraft, picks]);
 
   const submittedPicks = useMemo(
     () => (submittedDraft ? (JSON.parse(submittedDraft) as Picks) : null),

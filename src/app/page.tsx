@@ -38,23 +38,19 @@ function gameBadge(gameType: string, kickoffAt: string) {
   return hour < 16 ? "1 PM" : "4 PM";
 }
 
-function EmptyState({ commissioner = false }: { commissioner?: boolean }) {
+function EmptyState() {
   return (
     <main className="pick-shell gunmetal mx-auto grid min-h-screen max-w-2xl place-items-center bg-slate-950 px-4 text-slate-100">
       <section className="game-card w-full max-w-sm rounded-xl border p-5 text-center shadow-xl">
-        <h1 className="text-xl font-black">
-          {commissioner ? "Your entry is not enrolled" : "No pool entry yet"}
-        </h1>
+        <h1 className="text-xl font-black">No pool entry yet</h1>
         <p className="mt-2 text-sm text-slate-400">
-          {commissioner
-            ? "Commissioner tools are ready. Add your entrant record before testing picks."
-            : "Use the invitation sent by the commissioner to join the 2026 pool."}
+          Use the invitation sent by the commissioner to join the 2026 pool.
         </p>
         <Link
-          href={commissioner ? "/admin" : "/account"}
+          href="/account"
           className="control-raised mt-5 grid min-h-11 place-items-center rounded-lg border text-sm font-black"
         >
-          {commissioner ? "OPEN COMMISSIONER" : "OPEN ACCOUNT"}
+          OPEN ACCOUNT
         </Link>
       </section>
     </main>
@@ -86,7 +82,10 @@ export default async function Home({
       .limit(1)
       .maybeSingle(),
   ]);
-  if (!entry) return <EmptyState commissioner={Boolean(commissioner)} />;
+  if (!entry) {
+    if (commissioner) redirect("/admin/picks");
+    return <EmptyState />;
+  }
 
   const { data: availableWeeks } = await supabase
     .from("pool_weeks")
@@ -99,7 +98,7 @@ export default async function Home({
     (availableWeeks ?? []).find((item) => item.week_number === requestedWeek) ??
     availableWeeks?.at(-1) ??
     null;
-  if (!week) return <EmptyState commissioner={Boolean(commissioner)} />;
+  if (!week) return <EmptyState />;
 
   const [
     { data: gameRows },
@@ -226,7 +225,12 @@ export default async function Home({
             score: {
               away: row.away_score,
               home: row.home_score,
-              detail: row.status_detail ?? status.toUpperCase(),
+              // Final validation is an internal workflow. Existing rows may
+              // still carry the old provisional label until the next sync.
+              detail:
+                status === "final"
+                  ? "Final"
+                  : (row.status_detail ?? status.toUpperCase()),
             },
           }
         : {}),
