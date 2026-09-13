@@ -12,7 +12,7 @@ describe("ESPN live provider", () => {
     expect(liveDetail("live", 2, "6:54")).toBe("Q2 · 6:54");
     expect(liveDetail("halftime", 2, "0:00")).toBe("Halftime");
     expect(liveDetail("live", 5, "4:12")).toBe("OT · 4:12");
-    expect(liveDetail("final", 4, "0:00")).toBe("Final · Verifying");
+    expect(liveDetail("final", 4, "0:00")).toBe("Final");
   });
 
   it("parses teams, scores, clock, and a provisional final", async () => {
@@ -67,7 +67,7 @@ describe("ESPN live provider", () => {
         awayScore: 17,
         homeScore: 20,
         state: "final",
-        detail: "Final · Verifying",
+        detail: "Final",
       }),
     ]);
   });

@@ -5,6 +5,7 @@ import { PageShell } from "@/components/page-shell";
 import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import { WeekSelector } from "@/components/week-selector";
 import { requireCommissioner } from "@/lib/admin";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function AdminPicksPage({
   searchParams: Promise<{ week?: string }>;
 }) {
   const { supabase, poolId } = await requireCommissioner();
+  const admin = createAdminClient();
   const { data: season } = await supabase
     .from("seasons")
     .select("id, year")
@@ -55,15 +57,19 @@ export default async function AdminPicksPage({
   const submissionIds = (submissions ?? []).map((submission) => submission.id);
   const [{ data: pickRows }, { data: overrideEvents }] = submissionIds.length
     ? await Promise.all([
-        supabase
+        // These IDs came from the commissioner-authorized, pool-scoped query
+        // above. The service client is required because entrant-facing RLS only
+        // exposes another entrant's latest public revision.
+        admin
           .from("picks")
           .select(
             "submission_id, game_id, kind, team, total_direction, is_best_bet",
           )
           .in("submission_id", submissionIds),
-        supabase
+        admin
           .from("commissioner_audit_events")
           .select("entity_id")
+          .eq("pool_id", poolId)
           .eq("entity_type", "weekly_submission")
           .in("entity_id", submissionIds.map(String)),
       ])

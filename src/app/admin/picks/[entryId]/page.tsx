@@ -135,7 +135,10 @@ export default async function CommissionerPickSheet({
               score: {
                 away: row.away_score,
                 home: row.home_score,
-                detail: row.status_detail ?? status.toUpperCase(),
+                detail:
+                  status === "final"
+                    ? "Final"
+                    : (row.status_detail ?? status.toUpperCase()),
               },
             }
           : {}),
@@ -161,9 +164,11 @@ export default async function CommissionerPickSheet({
   }, structuredClone(EMPTY_PICKS));
 
   return (
-    <PageShell entryCode={entry.entry_code} isCommissioner compact>
+    <PageShell isCommissioner compact>
       <section className="game-card mx-auto mb-2 max-w-2xl rounded-lg border px-3 py-2 text-xs">
-        <strong className="text-amber-300">Commissioner override</strong>
+        <strong className="text-amber-300">
+          Commissioner override · {entry.entry_code}
+        </strong>
         <span className="ml-2 text-slate-300">
           All picks are editable, including locked and completed games. Every
           save creates an audited revision.
@@ -177,6 +182,7 @@ export default async function CommissionerPickSheet({
         weekNumber={week.week_number}
         submitAction={submitCommissionerPicks}
         allowLockedEdits
+        persistDraft={false}
       />
     </PageShell>
   );
