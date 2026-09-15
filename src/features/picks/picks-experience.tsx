@@ -67,7 +67,7 @@ function isTeamSelected(pick: TeamPick | null, gameId: string, team: string) {
 function resultClass(result?: "win" | "loss" | "tie") {
   if (result === "win") return "border-emerald-400 bg-emerald-700 text-white";
   if (result === "loss") return "border-red-400 bg-red-800 text-white";
-  if (result === "tie") return "border-slate-400 bg-slate-600 text-white";
+  if (result === "tie") return "border-slate-700 bg-slate-900/70 text-white";
   return idleClass;
 }
 
@@ -346,7 +346,9 @@ function TeamToggle({
         : selectedClass;
   const tileStateClass =
     status === "live" || status === "final"
-      ? selectedStateClass
+      ? selected
+        ? selectedStateClass
+        : "border-slate-700 bg-slate-900/70 text-slate-500"
       : selected
         ? selectedStateClass
         : idleClass;
@@ -362,7 +364,7 @@ function TeamToggle({
         className={`relative flex aspect-square w-full flex-col items-center justify-center rounded-lg border text-xs font-black transition-[transform,box-shadow,background-color] disabled:cursor-not-allowed ${!selected && status === "upcoming" ? "disabled:opacity-35" : ""} ${tileStateClass}`}
       >
         <span
-          className={`grid place-items-center ${status === "final" ? "opacity-35" : ""}`}
+          className={`relative z-10 grid place-items-center ${status === "final" && !selected ? "opacity-35" : ""}`}
         >
           <Logo
             abbreviation={team}
@@ -376,8 +378,8 @@ function TeamToggle({
             {formatSpread(spreadFor(game, team))}
           </span>
         </span>
-        {status === "final" && (
-          <span className="absolute right-1 bottom-1 z-10">
+        {status === "final" && !selected && (
+          <span className="absolute right-1 bottom-1 z-20">
             <ResultMark result={teamResult(game, team, "ats")} />
           </span>
         )}

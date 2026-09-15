@@ -22,7 +22,7 @@ export function CollapsiblePanel({
 
   return (
     <section
-      className={`game-card overflow-hidden rounded-xl border ${className}`}
+      className={`game-card overflow-clip rounded-xl border ${className}`}
     >
       <button
         type="button"

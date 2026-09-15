@@ -285,11 +285,29 @@ describe("Home", () => {
     expect(screen.getAllByLabelText("win result").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("loss result").length).toBeGreaterThan(0);
     const spread = screen.getByRole("button", { name: "SF +8.5" });
-    expect(spread).toHaveClass("bg-emerald-700");
+    expect(spread).toHaveClass("bg-slate-900/70");
     expect(spread.querySelector(".opacity-35")).toBeInTheDocument();
     expect(spread.querySelector('[aria-label$="result"]')).not.toHaveClass(
       "opacity-35",
     );
+  });
+
+  it("shades only the selected final ATS tile and omits its result icon", () => {
+    const selected = {
+      ats: [{ gameId: "sf-lar", team: "SF" }],
+      totals: [],
+      bestBet: null,
+      suddenDeath: null,
+      underdog: null,
+    };
+    render(<PicksExperience games={finalGames()} initialPicks={selected} />);
+
+    const picked = screen.getByRole("button", { name: "SF +8.5" });
+    const unpicked = screen.getByRole("button", { name: "LAR -8.5" });
+    expect(picked).toHaveClass("bg-emerald-700");
+    expect(picked.querySelector('[aria-label$="result"]')).toBeNull();
+    expect(unpicked).toHaveClass("bg-slate-900/70");
+    expect(unpicked.querySelector('[aria-label$="result"]')).not.toBeNull();
   });
 
   it("collapses a final game into its compact score row", () => {
