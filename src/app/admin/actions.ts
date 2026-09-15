@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getAppOrigin } from "@/lib/site-url";
 import { phoneSchema } from "@/features/auth/phone";
 import { generatePayoutScale } from "@/features/competition/payout-scale";
+import { easternLocalToIso } from "@/lib/eastern-time";
 import { ingestOdds } from "@/lib/odds/ingest";
 import { ingestScores } from "@/lib/scores/ingest";
 import { saveFinalGameResult } from "@/lib/scores/result";
@@ -46,48 +47,6 @@ const resultSchema = z.object({
   awayScore: z.coerce.number().int().min(0).max(255),
   homeScore: z.coerce.number().int().min(0).max(255),
 });
-
-function easternLocalToIso(value: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
-  if (!match) throw new Error("Invalid local date and time");
-
-  const desired = Date.UTC(
-    Number(match[1]),
-    Number(match[2]) - 1,
-    Number(match[3]),
-    Number(match[4]),
-    Number(match[5]),
-  );
-  let instant = desired;
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  });
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    const parts = Object.fromEntries(
-      formatter
-        .formatToParts(new Date(instant))
-        .filter((part) => part.type !== "literal")
-        .map((part) => [part.type, part.value]),
-    );
-    const rendered = Date.UTC(
-      Number(parts.year),
-      Number(parts.month) - 1,
-      Number(parts.day),
-      Number(parts.hour),
-      Number(parts.minute),
-    );
-    instant += desired - rendered;
-  }
-
-  return new Date(instant).toISOString();
-}
 
 async function requireCommissioner() {
   const supabase = await createClient();

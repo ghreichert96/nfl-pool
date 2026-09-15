@@ -4,6 +4,7 @@ import { CompactPageHeader } from "@/components/compact-page-header";
 import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
 import { StandingsTabs } from "@/components/standings-tabs";
+import { StickyTableHeader } from "@/components/sticky-table-header";
 import { loadCompetition } from "@/features/competition/data";
 import {
   gamesBack,
@@ -13,6 +14,7 @@ import {
   type ScoringGame,
 } from "@/features/competition/scoring";
 import { getPoolContext } from "@/lib/pool-context";
+import { selectPoolWeek } from "@/lib/pool-weeks";
 
 export const dynamic = "force-dynamic";
 
@@ -27,16 +29,13 @@ export default async function StandingsPage({
   const { data: availableWeeks } = entry
     ? await supabase
         .from("pool_weeks")
-        .select("id, week_number, label")
+        .select("id, week_number, label, lines_freeze_at")
         .eq("season_id", entry.season_id)
         .not("published_at", "is", null)
         .order("week_number")
     : { data: [] };
   const requestedWeek = Number(params.week);
-  const selectedWeek =
-    (availableWeeks ?? []).find((week) => week.week_number === requestedWeek) ??
-    availableWeeks?.at(-1) ??
-    null;
+  const selectedWeek = selectPoolWeek(availableWeeks ?? [], requestedWeek);
   const data =
     entry && selectedWeek
       ? await loadCompetition(
@@ -89,7 +88,7 @@ export default async function StandingsPage({
         />
         {view === "overall" ? (
           <section className="game-card overflow-hidden rounded-xl border shadow-xl">
-            <div className="overflow-x-auto">
+            <StickyTableHeader>
               <table className="w-full border-separate border-spacing-0 text-[10px]">
                 <thead className="sticky top-0 z-20 bg-slate-950">
                   <tr>
@@ -154,7 +153,7 @@ export default async function StandingsPage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </StickyTableHeader>
             <p className="border-t border-slate-800 px-3 py-2 text-[9px] text-slate-500">
               Dollar values are projected until the season is finalized.
             </p>
@@ -190,7 +189,7 @@ function MainBreakdownTable({
 }) {
   return (
     <section className="game-card overflow-hidden rounded-xl border">
-      <div className="overflow-auto">
+      <StickyTableHeader>
         <table className="w-full border-separate border-spacing-0 text-[10px]">
           <thead className="sticky top-0 z-20 bg-slate-950">
             <tr>
@@ -252,7 +251,7 @@ function MainBreakdownTable({
             })}
           </tbody>
         </table>
-      </div>
+      </StickyTableHeader>
     </section>
   );
 }
@@ -286,7 +285,7 @@ function SidePoolTable({
   });
   return (
     <section className="game-card overflow-hidden rounded-xl border">
-      <div className="overflow-auto">
+      <StickyTableHeader>
         <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">
           <thead className="bg-slate-950">
             <tr>
@@ -388,7 +387,7 @@ function SidePoolTable({
             })}
           </tbody>
         </table>
-      </div>
+      </StickyTableHeader>
     </section>
   );
 }

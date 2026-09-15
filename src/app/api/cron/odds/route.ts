@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 
 import { ingestOdds } from "@/lib/odds/ingest";
+import { ensureUpcomingWeek } from "@/lib/odds/upcoming-week";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const mode = new URL(request.url).searchParams.get("mode") ?? "refresh";
+  if (mode !== "refresh" && mode !== "initialize")
+    return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
   const apiKey = process.env.ODDS_API_KEY;
   if (!apiKey)
     return NextResponse.json(
@@ -14,6 +18,8 @@ export async function POST(request: Request) {
       { status: 503 },
     );
   const admin = createAdminClient();
+  const initialized =
+    mode === "initialize" ? await ensureUpcomingWeek(admin) : null;
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: weeks, error } = await admin
     .from("pool_weeks")
@@ -66,7 +72,12 @@ export async function POST(request: Request) {
       }
     }
   }
-  return NextResponse.json({ ok: true, froze: shouldFreeze, results });
+  return NextResponse.json({
+    ok: true,
+    froze: shouldFreeze,
+    initializedWeek: initialized?.week_number ?? null,
+    results,
+  });
 }
 
 function isThursdayFreezeWindow(now: Date) {
