@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateStandings,
   gamesBack,
+  recordForPicks,
   rankStandings,
   ranksByGamesBack,
   sharedRankPayout,
@@ -29,6 +30,24 @@ describe("competition scoring", () => {
     expect(teamOutcome(game, "DOG", true)).toBe("win");
     expect(teamOutcome(game, "DOG")).toBe("win");
     expect(totalOutcome(game, "over")).toBe("tie");
+  });
+  it("counts a decided losing pick in weekly records", () => {
+    expect(
+      recordForPicks(
+        [game],
+        [
+          {
+            entryId: 1,
+            gameId: 1,
+            kind: "ats",
+            team: "FAV",
+            totalDirection: null,
+            isBestBet: false,
+          },
+        ],
+        ["ats"],
+      ),
+    ).toEqual({ wins: 0, losses: 1, ties: 0 });
   });
   it("weights BB and awards a winning underdog its frozen spread", () => {
     const [standing] = calculateStandings(

@@ -285,7 +285,7 @@ describe("Home", () => {
     expect(screen.getAllByLabelText("win result").length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("loss result").length).toBeGreaterThan(0);
     const spread = screen.getByRole("button", { name: "SF +8.5" });
-    expect(spread).toHaveClass("bg-slate-900/70");
+    expect(spread).toHaveClass("bg-emerald-700");
     expect(spread.querySelector(".opacity-35")).toBeInTheDocument();
     expect(spread.querySelector('[aria-label$="result"]')).not.toHaveClass(
       "opacity-35",
@@ -304,6 +304,15 @@ describe("Home", () => {
       screen.getByRole("button", { name: "Expand final game" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Final")).not.toBeInTheDocument();
+  });
+
+  it("starts final games collapsed when that display preference is enabled", () => {
+    window.localStorage.setItem("hppp:final-games-minimized", "true");
+    render(<PicksExperience games={finalGames()} />);
+
+    expect(
+      screen.getByRole("button", { name: "Expand final game" }),
+    ).toBeInTheDocument();
   });
 
   it("uses P for an ATS push marker", () => {
