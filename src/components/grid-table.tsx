@@ -25,7 +25,7 @@ function HeaderRow() {
       {headers.map((label, index) => (
         <th
           key={label}
-          className={`border-b border-r border-slate-800 px-1 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "min-w-[52px] bg-slate-950" : ""}`}
+          className={`border-b border-r border-slate-800 px-1 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "w-[52px] min-w-[52px] max-w-[52px] bg-slate-950" : ""}`}
         >
           {label}
         </th>

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { TeamLogo } from "@/components/team-logo";
+import { resultVisualClass } from "@/features/competition/result-style";
 import { WeekSelector } from "@/components/week-selector";
 import { CompactPageHeader } from "@/components/compact-page-header";
 import {
@@ -65,10 +66,7 @@ function isTeamSelected(pick: TeamPick | null, gameId: string, team: string) {
 }
 
 function resultClass(result?: "win" | "loss" | "tie") {
-  if (result === "win") return "border-emerald-400 bg-emerald-700 text-white";
-  if (result === "loss") return "border-red-400 bg-red-800 text-white";
-  if (result === "tie") return "border-slate-700 bg-slate-900/70 text-white";
-  return idleClass;
+  return resultVisualClass("final", result ?? "pending");
 }
 
 function badgeColorClass(badge: string) {
@@ -85,10 +83,7 @@ function badgeColorClass(badge: string) {
 }
 
 function liveResultClass(result?: "win" | "loss" | "tie") {
-  if (result === "win")
-    return "border-amber-400 bg-emerald-900/80 text-emerald-100";
-  if (result === "loss") return "border-amber-400 bg-red-950/80 text-red-100";
-  return "border-amber-400 bg-amber-950/80 text-amber-100";
+  return resultVisualClass("live", result ?? "pending");
 }
 
 function lockedControlClass(
@@ -719,25 +714,33 @@ function GameRow({
   );
 
   if (game.status === "final" && finalCollapsed) {
-    const compactTeam = (team: string) => (
-      <div className="relative">
-        <button
-          type="button"
-          disabled={!allowLockedEdits}
-          aria-label={`${team} ${formatSpread(spreadFor(game, team))}`}
-          className="relative flex min-h-12 w-full flex-col items-center justify-center rounded-md border border-slate-700 bg-slate-900/70 text-[10px] font-black text-slate-500 disabled:cursor-not-allowed"
-          onClick={() => toggleAts(team)}
-        >
-          <span className="opacity-45">{team}</span>
-          <span className="opacity-45">
-            {formatSpread(spreadFor(game, team))}
-          </span>
-          <span className="absolute right-1 bottom-1 z-10">
-            <ResultMark result={teamResult(game, team, "ats")} />
-          </span>
-        </button>
-      </div>
-    );
+    const compactTeam = (team: string) => {
+      const selected = ats?.team === team;
+      const result = teamResult(game, team, "ats");
+      return (
+        <div className="relative">
+          <button
+            type="button"
+            disabled={!allowLockedEdits}
+            aria-label={`${team} ${formatSpread(spreadFor(game, team))}`}
+            className={`relative flex min-h-12 w-full flex-col items-center justify-center rounded-md border text-[10px] font-black disabled:cursor-not-allowed ${selected ? resultClass(result) : "border-slate-700 bg-slate-900/70 text-slate-500"}`}
+            onClick={() => toggleAts(team)}
+          >
+            <span className={`relative z-10 ${selected ? "" : "opacity-45"}`}>
+              {team}
+            </span>
+            <span className={`relative z-10 ${selected ? "" : "opacity-45"}`}>
+              {formatSpread(spreadFor(game, team))}
+            </span>
+            {!selected && (
+              <span className="absolute right-1 bottom-1 z-20">
+                <ResultMark result={result} />
+              </span>
+            )}
+          </button>
+        </div>
+      );
+    };
     return (
       <article className="game-card game-card-final relative rounded-xl border p-1.5">
         <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
