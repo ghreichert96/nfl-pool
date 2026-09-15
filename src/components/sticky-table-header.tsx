@@ -16,6 +16,19 @@ export function StickyTableHeader({ children }: { children: ReactNode }) {
     const sourceHead = table?.tHead;
     if (!root || !scroller || !overlay || !table || !sourceHead) return;
 
+    const updateVisibility = () => {
+      const stickyTop = window.matchMedia("(min-width: 640px)").matches
+        ? 101
+        : 93;
+      const headRect = sourceHead.getBoundingClientRect();
+      const tableRect = table.getBoundingClientRect();
+      overlay.style.visibility =
+        headRect.top < stickyTop &&
+        tableRect.bottom > stickyTop + headRect.height
+          ? "visible"
+          : "hidden";
+    };
+
     const renderOverlay = () => {
       const sourceCells = sourceHead.rows[0]?.cells;
       if (!sourceCells?.length) return;
@@ -34,15 +47,26 @@ export function StickyTableHeader({ children }: { children: ReactNode }) {
         col.style.width = `${width}px`;
         colgroup.append(col);
       });
-      clone.append(colgroup, sourceHead.cloneNode(true));
+      const clonedHead = sourceHead.cloneNode(true) as HTMLTableSectionElement;
+      clonedHead.classList.remove("sticky", "top-0");
+      clone.append(colgroup, clonedHead);
       overlay.replaceChildren(clone);
+      updateVisibility();
     };
 
     renderOverlay();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(renderOverlay);
+    window.addEventListener("scroll", updateVisibility, { passive: true });
+    if (typeof ResizeObserver === "undefined")
+      return () => window.removeEventListener("scroll", updateVisibility);
+    const observer = new ResizeObserver(() => {
+      renderOverlay();
+      updateVisibility();
+    });
     observer.observe(table);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", updateVisibility);
+    };
   }, [children]);
 
   const syncHeader = (event: UIEvent<HTMLDivElement>) => {
@@ -54,7 +78,10 @@ export function StickyTableHeader({ children }: { children: ReactNode }) {
   return (
     <div ref={rootRef} className="relative">
       <div className="pointer-events-none sticky top-[93px] z-40 h-0 overflow-visible sm:top-[101px]">
-        <div ref={overlayRef} className="overflow-hidden bg-slate-950" />
+        <div
+          ref={overlayRef}
+          className="invisible overflow-hidden bg-slate-950"
+        />
       </div>
       <div ref={scrollerRef} className="overflow-x-auto" onScroll={syncHeader}>
         {children}

@@ -3,22 +3,22 @@ import { NextResponse } from "next/server";
 import { loadCompetition } from "@/features/competition/data";
 import { gamesBack } from "@/features/competition/scoring";
 import { getPoolContext } from "@/lib/pool-context";
+import { selectPoolWeek } from "@/lib/pool-weeks";
 
 export async function GET() {
   const { supabase, entry } = await getPoolContext();
   if (!entry) return NextResponse.json({ summary: null });
-  const { data: latestWeek } = await supabase
+  const { data: weeks } = await supabase
     .from("pool_weeks")
-    .select("week_number")
+    .select("week_number, lines_freeze_at")
     .eq("season_id", entry.season_id)
     .not("published_at", "is", null)
-    .order("week_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("week_number");
+  const currentWeek = selectPoolWeek(weeks ?? [], Number.NaN);
   const data = await loadCompetition(
     supabase,
     entry.season_id,
-    latestWeek?.week_number,
+    currentWeek?.week_number,
     { includeComments: false, includeTeams: false },
   );
   const standing = data.standings.find((item) => item.entryId === entry.id);
