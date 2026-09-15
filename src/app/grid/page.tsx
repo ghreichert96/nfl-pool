@@ -57,7 +57,7 @@ function TeamMark({
 function resultTone(game: ScoringGame | undefined, pick: ScoringPick) {
   if (!game) return "";
   if (game.status === "live")
-    return resultVisualClass("live", livePickOutcome(game, pick));
+    return `${resultVisualClass("live", livePickOutcome(game, pick))} ring-1 ring-inset ring-amber-400`;
   return resultVisualClass("final", pickOutcome(game, pick));
 }
 
