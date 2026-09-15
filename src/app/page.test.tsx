@@ -304,7 +304,7 @@ describe("Home", () => {
 
     const picked = screen.getByRole("button", { name: "SF +8.5" });
     const unpicked = screen.getByRole("button", { name: "LAR -8.5" });
-    expect(picked).toHaveClass("bg-emerald-700");
+    expect(picked).toHaveClass("bg-emerald-900/80");
     expect(picked.querySelector('[aria-label$="result"]')).toBeNull();
     expect(unpicked).toHaveClass("bg-slate-900/70");
     expect(unpicked.querySelector('[aria-label$="result"]')).not.toBeNull();
@@ -322,6 +322,29 @@ describe("Home", () => {
       screen.getByRole("button", { name: "Expand final game" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Final")).not.toBeInTheDocument();
+  });
+
+  it("preserves selected ATS shading after a final row is collapsed", () => {
+    const selected = {
+      ats: [{ gameId: "sf-lar", team: "SF" }],
+      totals: [],
+      bestBet: null,
+      suddenDeath: null,
+      underdog: null,
+    };
+    render(<PicksExperience games={finalGames()} initialPicks={selected} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse final game" }),
+    );
+
+    const picked = screen.getByRole("button", { name: "SF +8.5" });
+    expect(picked).toHaveClass("bg-emerald-900/80");
+    expect(picked.querySelector('[aria-label$="result"]')).toBeNull();
+    expect(
+      screen
+        .getByRole("button", { name: "LAR -8.5" })
+        .querySelector('[aria-label$="result"]'),
+    ).not.toBeNull();
   });
 
   it("starts final games collapsed when that display preference is enabled", () => {

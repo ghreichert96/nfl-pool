@@ -11,6 +11,7 @@ import {
   type ScoringGame,
   type ScoringPick,
 } from "@/features/competition/scoring";
+import { resultVisualClass } from "@/features/competition/result-style";
 import { getPoolContext } from "@/lib/pool-context";
 
 export const dynamic = "force-dynamic";
@@ -56,15 +57,25 @@ function TeamMark({
 function resultTone(game: ScoringGame | undefined, pick: ScoringPick) {
   if (!game) return "";
   if (game.status === "live")
-    return "bg-amber-950/25 ring-1 ring-inset ring-amber-400";
-  const outcome = pickOutcome(game, pick);
-  return outcome === "win"
-    ? "bg-emerald-950/55 ring-1 ring-inset ring-emerald-700"
-    : outcome === "loss"
-      ? "bg-red-950/55 ring-1 ring-inset ring-red-800"
-      : outcome === "tie"
-        ? "bg-slate-700/60 ring-1 ring-inset ring-slate-500"
-        : "";
+    return resultVisualClass("live", livePickOutcome(game, pick));
+  return resultVisualClass("final", pickOutcome(game, pick));
+}
+
+function livePickOutcome(game: ScoringGame, pick: ScoringPick) {
+  if (game.awayScore === null || game.homeScore === null) return "pending";
+  if (pick.kind === "total") {
+    const scored = game.awayScore + game.homeScore;
+    if (scored === game.total) return "tie";
+    return scored > game.total === (pick.totalDirection === "over")
+      ? "win"
+      : "loss";
+  }
+  const away = game.awayScore + (pick.kind === "ats" ? game.awaySpread : 0);
+  const home = game.homeScore;
+  const picked = pick.team === game.away ? away : home;
+  const opponent = pick.team === game.away ? home : away;
+  if (picked === opponent) return "tie";
+  return picked > opponent ? "win" : "loss";
 }
 
 function outcomeTextTone(outcome: string) {
@@ -336,7 +347,7 @@ export default async function GridPage({
       key={poolEntry.id}
       className={poolEntry.id === entry?.id ? "bg-slate-800/40" : ""}
     >
-      <th className="sticky left-0 z-10 border-b border-r border-slate-800 bg-[#111417] px-2 py-1.5 text-left font-black">
+      <th className="sticky left-0 z-10 w-[52px] min-w-[52px] max-w-[52px] border-b border-r border-slate-800 bg-[#111417] px-2 py-1.5 text-left font-black">
         {poolEntry.entry_code}
       </th>
       {gridCellsFor(poolEntry.id).map((pick, index) => (
