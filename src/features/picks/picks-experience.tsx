@@ -5,7 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { TeamLogo } from "@/components/team-logo";
 import { WeekSelector } from "@/components/week-selector";
 import { CompactPageHeader } from "@/components/compact-page-header";
-import { PREVIEW_MINIMIZED_KEY } from "@/components/profile-preferences";
+import {
+  FINAL_GAMES_MINIMIZED_KEY,
+  PREVIEW_MINIMIZED_KEY,
+} from "@/components/profile-preferences";
 import { createClient } from "../../lib/supabase/client";
 import { preserveLockedPicks } from "./submission";
 
@@ -339,11 +342,11 @@ function TeamToggle({
     status === "live"
       ? `${liveResultClass(standingForTeam(game, team, "ats"))} shadow-[inset_0_3px_5px_rgb(0_0_0/0.5)]`
       : status === "final"
-        ? "border-slate-700 bg-slate-900/70 text-slate-500"
+        ? resultClass(standingForTeam(game, team, "ats"))
         : selectedClass;
   const tileStateClass =
-    status === "final"
-      ? "border-slate-700 bg-slate-900/70 text-slate-500"
+    status === "live" || status === "final"
+      ? selectedStateClass
       : selected
         ? selectedStateClass
         : idleClass;
@@ -571,7 +574,7 @@ function CompactFinalInfo({ game, picks }: { game: Game; picks: Picks }) {
         <span className="text-slate-300">
           <LockIcon locked />
         </span>
-        <strong className="truncate text-[9px] text-amber-300">
+        <strong className="truncate text-[10px] font-black uppercase text-amber-300">
           {game.away.abbreviation} {game.score?.away ?? 0},{" "}
           {game.home.abbreviation} {game.score?.home ?? 0} F
         </strong>
@@ -633,6 +636,14 @@ function GameRow({
   const udUnavailable = Boolean(
     picks.underdog && picks.underdog.gameId !== game.id,
   );
+
+  useEffect(() => {
+    if (game.status !== "final") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- device preference is browser-only
+    setFinalCollapsed(
+      window.localStorage.getItem(FINAL_GAMES_MINIMIZED_KEY) === "true",
+    );
+  }, [game.status]);
 
   function toggleAts(team: string) {
     setPicks((current) => {

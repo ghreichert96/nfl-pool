@@ -49,7 +49,9 @@ export function recordForPicks(
     const outcome = pickOutcome(game, pick);
     if (outcome === "pending") continue;
     const weight = doubleBestBet && pick.isBestBet ? 2 : 1;
-    record[`${outcome}s` as "wins" | "losses" | "ties"] += weight;
+    if (outcome === "win") record.wins += weight;
+    if (outcome === "loss") record.losses += weight;
+    if (outcome === "tie") record.ties += weight;
   }
   return record;
 }

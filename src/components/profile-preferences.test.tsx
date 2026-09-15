@@ -7,12 +7,20 @@ describe("ProfilePreferences", () => {
   beforeEach(() => window.localStorage.clear());
   afterEach(cleanup);
 
-  it("keeps the picks-preview thumb centered in both states", () => {
+  it("keeps both preference thumbs centered inside their tracks", () => {
     render(<ProfilePreferences />);
-    const toggle = screen.getByRole("switch");
-    const thumb = toggle.querySelector("span:not(.sr-only)");
-    expect(thumb).toHaveClass("left-0.5", "top-0.5", "translate-x-0");
-    fireEvent.click(toggle);
-    expect(thumb).toHaveClass("translate-x-5");
+    const toggles = screen.getAllByRole("switch");
+    expect(toggles).toHaveLength(2);
+    for (const toggle of toggles) {
+      const thumb = toggle.querySelector("span:not(.sr-only)");
+      expect(thumb).toHaveClass(
+        "left-0.5",
+        "top-1/2",
+        "-translate-y-1/2",
+        "translate-x-0",
+      );
+      fireEvent.click(toggle);
+      expect(thumb).toHaveClass("translate-x-5");
+    }
   });
 });
