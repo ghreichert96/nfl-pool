@@ -38,7 +38,7 @@ function HeaderRow() {
         <th
           key={label}
           style={{ width: columnWidths[index] }}
-          className={`border-b border-r border-slate-800 px-1 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "w-[52px] min-w-[52px] max-w-[52px] bg-slate-950" : ""}`}
+          className={`border-b border-r border-slate-800 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "w-[52px] min-w-[52px] max-w-[52px] bg-slate-950 px-2" : "px-1"}`}
         >
           {label}
         </th>
@@ -49,7 +49,7 @@ function HeaderRow() {
 
 export function GridPreviewTable({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto border-t border-slate-800">
+    <div className="overflow-x-auto border-t border-slate-600">
       <table
         className="table-fixed border-separate border-spacing-0 text-[11px]"
         style={{ width: tableWidth }}
