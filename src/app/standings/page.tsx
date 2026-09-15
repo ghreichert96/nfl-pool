@@ -14,6 +14,7 @@ import {
   type ScoringGame,
 } from "@/features/competition/scoring";
 import { getPoolContext } from "@/lib/pool-context";
+import { selectPoolWeek } from "@/lib/pool-weeks";
 
 export const dynamic = "force-dynamic";
 
@@ -28,16 +29,13 @@ export default async function StandingsPage({
   const { data: availableWeeks } = entry
     ? await supabase
         .from("pool_weeks")
-        .select("id, week_number, label")
+        .select("id, week_number, label, lines_freeze_at")
         .eq("season_id", entry.season_id)
         .not("published_at", "is", null)
         .order("week_number")
     : { data: [] };
   const requestedWeek = Number(params.week);
-  const selectedWeek =
-    (availableWeeks ?? []).find((week) => week.week_number === requestedWeek) ??
-    availableWeeks?.at(-1) ??
-    null;
+  const selectedWeek = selectPoolWeek(availableWeeks ?? [], requestedWeek);
   const data =
     entry && selectedWeek
       ? await loadCompetition(

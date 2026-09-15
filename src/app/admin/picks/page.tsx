@@ -5,6 +5,7 @@ import { PageShell } from "@/components/page-shell";
 import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import { WeekSelector } from "@/components/week-selector";
 import { requireCommissioner } from "@/lib/admin";
+import { selectPoolWeek } from "@/lib/pool-weeks";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -32,15 +33,14 @@ export default async function AdminPicksPage({
           .order("entry_code"),
         supabase
           .from("pool_weeks")
-          .select("id, week_number, label")
+          .select("id, week_number, label, lines_freeze_at")
           .eq("season_id", season.id)
+          .not("published_at", "is", null)
           .order("week_number"),
       ])
     : [{ data: [] }, { data: [] }];
   const requestedWeek = Number((await searchParams).week);
-  const currentWeek =
-    (weeks ?? []).find((week) => week.week_number === requestedWeek) ??
-    weeks?.[0];
+  const currentWeek = selectPoolWeek(weeks ?? [], requestedWeek);
   const [{ data: submissions }, { data: games }] = currentWeek
     ? await Promise.all([
         supabase
