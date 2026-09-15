@@ -79,6 +79,7 @@ export async function ingestOdds({
       to: new Date(freezeAt + 5 * 24 * 60 * 60 * 1000).toISOString(),
     });
     let snapshotsWritten = 0;
+    let linesWritten = 0;
     for (const event of events) {
       const away = teamCodes[event.away_team];
       const home = teamCodes[event.home_team];
@@ -157,8 +158,8 @@ export async function ingestOdds({
               ),
           ),
         });
-        if (consensus.awaySpread !== null && consensus.total !== null)
-          await admin.from("pool_lines").upsert(
+        if (consensus.awaySpread !== null && consensus.total !== null) {
+          const { error: lineError } = await admin.from("pool_lines").upsert(
             {
               game_id: game.id,
               away_spread: consensus.awaySpread,
@@ -171,6 +172,8 @@ export async function ingestOdds({
             },
             { onConflict: "game_id" },
           );
+          if (!lineError) linesWritten += 1;
+        }
       }
     }
     await admin
@@ -183,7 +186,7 @@ export async function ingestOdds({
         quota_remaining: quota.remaining,
       })
       .eq("id", run.id);
-    if (events.length > 0 && snapshotsWritten > 0)
+    if (linesWritten > 0)
       await admin
         .from("pool_weeks")
         .update({ published_at: new Date().toISOString() })
@@ -193,6 +196,7 @@ export async function ingestOdds({
       runId: run.id,
       events: events.length,
       snapshots: snapshotsWritten,
+      lines: linesWritten,
       quotaRemaining: quota.remaining,
     };
   } catch (error) {

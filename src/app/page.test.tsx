@@ -304,7 +304,7 @@ describe("Home", () => {
 
     const picked = screen.getByRole("button", { name: "SF +8.5" });
     const unpicked = screen.getByRole("button", { name: "LAR -8.5" });
-    expect(picked).toHaveClass("bg-emerald-900/90");
+    expect(picked).toHaveClass("bg-emerald-900/95");
     expect(picked.querySelector('[aria-label$="result"]')).toBeNull();
     expect(unpicked).toHaveClass("bg-slate-900/70");
     expect(unpicked.querySelector('[aria-label$="result"]')).not.toBeNull();
@@ -338,7 +338,7 @@ describe("Home", () => {
     );
 
     const picked = screen.getByRole("button", { name: "SF +8.5" });
-    expect(picked).toHaveClass("bg-emerald-900/90");
+    expect(picked).toHaveClass("bg-emerald-900/95");
     expect(picked.querySelector('[aria-label$="result"]')).toBeNull();
     expect(
       screen

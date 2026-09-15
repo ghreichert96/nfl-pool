@@ -5,6 +5,7 @@ import { PageShell } from "@/components/page-shell";
 import { SubmissionRevisionLog } from "@/components/submission-revision-log";
 import { WeekSelector } from "@/components/week-selector";
 import { getPoolContext } from "@/lib/pool-context";
+import { selectPoolWeek } from "@/lib/pool-weeks";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function SubmissionsPage({
@@ -17,16 +18,13 @@ export default async function SubmissionsPage({
   const { data: weeks } = entry
     ? await supabase
         .from("pool_weeks")
-        .select("id, week_number, label")
+        .select("id, week_number, label, lines_freeze_at")
         .eq("season_id", entry.season_id)
         .not("published_at", "is", null)
         .order("week_number")
     : { data: [] };
   const requestedWeek = Number((await searchParams).week);
-  const selectedWeek =
-    (weeks ?? []).find((week) => week.week_number === requestedWeek) ??
-    weeks?.at(-1) ??
-    null;
+  const selectedWeek = selectPoolWeek(weeks ?? [], requestedWeek);
   const [{ data: revisions }, { data: comment }, { data: games }] =
     entry && selectedWeek
       ? await Promise.all([

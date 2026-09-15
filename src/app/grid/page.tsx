@@ -13,6 +13,7 @@ import {
 } from "@/features/competition/scoring";
 import { resultVisualClass } from "@/features/competition/result-style";
 import { getPoolContext } from "@/lib/pool-context";
+import { selectPoolWeek } from "@/lib/pool-weeks";
 
 export const dynamic = "force-dynamic";
 
@@ -109,16 +110,13 @@ export default async function GridPage({
   const { data: weeks } = entry
     ? await supabase
         .from("pool_weeks")
-        .select("id, label, week_number")
+        .select("id, label, week_number, lines_freeze_at")
         .eq("season_id", entry.season_id)
         .not("published_at", "is", null)
         .order("week_number")
     : { data: [] };
   const requestedWeek = Number((await searchParams).week);
-  const week =
-    (weeks ?? []).find((item) => item.week_number === requestedWeek) ??
-    weeks?.at(-1) ??
-    null;
+  const week = selectPoolWeek(weeks ?? [], requestedWeek);
   const [
     { data: gameRows },
     { data: entries },

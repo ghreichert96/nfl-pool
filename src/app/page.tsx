@@ -6,6 +6,7 @@ import { deriveGameResult, type Game } from "@/features/picks/model";
 import type { Picks } from "@/features/picks/model";
 import { PicksExperience } from "@/features/picks/picks-experience";
 import { picksSchema } from "@/features/picks/submission";
+import { selectPoolWeek } from "@/lib/pool-weeks";
 import { createClient } from "@/lib/supabase/server";
 
 import { saveWeeklyComment, submitWeeklyPicks } from "./actions";
@@ -89,15 +90,12 @@ export default async function Home({
 
   const { data: availableWeeks } = await supabase
     .from("pool_weeks")
-    .select("id, week_number, label, lines_frozen_at")
+    .select("id, week_number, label, lines_freeze_at, lines_frozen_at")
     .eq("season_id", entry.season_id)
     .not("published_at", "is", null)
     .order("week_number");
   const requestedWeek = Number((await searchParams).week);
-  const week =
-    (availableWeeks ?? []).find((item) => item.week_number === requestedWeek) ??
-    availableWeeks?.at(-1) ??
-    null;
+  const week = selectPoolWeek(availableWeeks ?? [], requestedWeek);
   if (!week) return <EmptyState />;
 
   const [
