@@ -1,3 +1,4 @@
+import { resultVisualClass } from "@/features/competition/result-style";
 import { TeamLogo } from "@/components/team-logo";
 
 import { CompactPageHeader } from "@/components/compact-page-header";
@@ -34,14 +35,15 @@ export default async function StandingsPage({
         .not("published_at", "is", null)
         .order("week_number")
     : { data: [] };
-  const requestedWeek = Number(params.week);
+  const isSidePool = view === "sd" || view === "ud";
+  const requestedWeek = isSidePool ? NaN : Number(params.week);
   const selectedWeek = selectPoolWeek(availableWeeks ?? [], requestedWeek);
   const data =
     entry && selectedWeek
       ? await loadCompetition(
           supabase,
           entry.season_id,
-          selectedWeek.week_number,
+          isSidePool ? undefined : selectedWeek.week_number,
           {
             includeComments: false,
             includePayouts: view === "overall",
@@ -77,20 +79,22 @@ export default async function StandingsPage({
                   view={view}
                   weekNumber={selectedWeek.week_number}
                 />
-                <WeekSelector
-                  weeks={availableWeeks ?? []}
-                  selected={selectedWeek.week_number}
-                  preserve={{ view }}
-                />
+                {!isSidePool && (
+                  <WeekSelector
+                    weeks={availableWeeks ?? []}
+                    selected={selectedWeek.week_number}
+                    preserve={{ view }}
+                  />
+                )}
               </div>
             ) : undefined
           }
         />
         {view === "overall" ? (
-          <section className="game-card overflow-hidden rounded-xl border shadow-xl">
-            <StickyTableHeader>
+          <section className="game-card overflow-clip rounded-xl border shadow-xl">
+            <StickyTableHeader columnWidths={[24, 42, 52, 28, 44, 64, 82]}>
               <table className="w-full border-separate border-spacing-0 text-[10px]">
-                <thead className="sticky top-0 z-20 bg-slate-950">
+                <thead className="bg-slate-950">
                   <tr>
                     {[
                       "RK",
@@ -188,10 +192,10 @@ function MainBreakdownTable({
   ranks: Map<number, number>;
 }) {
   return (
-    <section className="game-card overflow-hidden rounded-xl border">
-      <StickyTableHeader>
+    <section className="game-card overflow-clip rounded-xl border">
+      <StickyTableHeader columnWidths={[24, 40, 48, 48, 48, 48]}>
         <table className="w-full border-separate border-spacing-0 text-[10px]">
-          <thead className="sticky top-0 z-20 bg-slate-950">
+          <thead className="bg-slate-950">
             <tr>
               {["RK", "TM", "W-L-T", "BB", "ATS", "O/U"].map(
                 (header, index) => (
@@ -284,8 +288,10 @@ function SidePoolTable({
           (left?.suddenDeathStrikes ?? 0) - (right?.suddenDeathStrikes ?? 0);
   });
   return (
-    <section className="game-card overflow-hidden rounded-xl border">
-      <StickyTableHeader>
+    <section className="game-card overflow-clip rounded-xl border">
+      <StickyTableHeader
+        columnWidths={[28, 44, ...data.weeks.map(() => 48), 64]}
+      >
         <table className="w-max min-w-full border-separate border-spacing-0 text-[11px]">
           <thead className="bg-slate-950">
             <tr>
@@ -311,10 +317,7 @@ function SidePoolTable({
                 (item) => item.entryId === poolEntry.id,
               );
               return (
-                <tr
-                  key={poolEntry.id}
-                  className={standing?.eliminated ? "bg-red-950/35" : ""}
-                >
+                <tr key={poolEntry.id}>
                   <td className="sticky left-0 z-20 w-7 min-w-7 border-t border-slate-800 bg-[#111417] px-1 py-2 text-left text-slate-500">
                     {entryIndex + 1}
                   </td>
@@ -342,38 +345,27 @@ function SidePoolTable({
                     return (
                       <td
                         key={week.id}
-                        className="w-12 min-w-12 border-t border-slate-800 px-1 py-1.5 text-left"
+                        className={`w-12 min-w-12 border-t border-slate-800 px-1 py-1.5 text-center ${game?.status === "final" ? resultVisualClass("final", outcome) : ""}`}
+                        aria-label={`${pick?.team ?? "No pick"}: ${outcome}${points ? `, +${points} points` : ""}`}
                       >
-                        <span
-                          className={`font-black ${outcome === "win" ? "text-emerald-400" : outcome === "loss" ? "text-red-400" : outcome === "tie" ? "text-slate-300" : "text-slate-600"}`}
-                        >
-                          {pick?.team && logoMap.get(pick.team) ? (
+                        <span className="mx-auto flex min-h-10 flex-col items-center justify-center font-black">
+                          {pick?.team ? (
                             <TeamLogo
                               team={pick.team}
-                              src={logoMap.get(pick.team)!}
-                              size={20}
+                              src={logoMap.get(pick.team)}
+                              size={32}
                               contrast="dark"
-                              className="size-5 object-left"
+                              className="size-8 object-contain"
                             />
                           ) : (
-                            (pick?.team ?? "—")
+                            "—"
+                          )}
+                          {kind === "underdog" && outcome === "win" && (
+                            <small className="text-[9px] leading-none">
+                              +{points}
+                            </small>
                           )}
                         </span>
-                        {pick && (
-                          <small
-                            className={`block text-[9px] ${outcome === "win" ? "text-emerald-400" : outcome === "loss" ? "text-red-400" : "text-slate-500"}`}
-                          >
-                            {kind === "underdog" && outcome === "win"
-                              ? `✓ +${points}`
-                              : outcome === "win"
-                                ? "✓ win"
-                                : outcome === "loss"
-                                  ? "✕ loss"
-                                  : outcome === "tie"
-                                    ? "— tie"
-                                    : "pending"}
-                          </small>
-                        )}
                       </td>
                     );
                   })}

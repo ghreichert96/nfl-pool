@@ -23,14 +23,16 @@ export function upcomingWeekNumber(weeks: PoolWeek[], now: Date) {
 export async function ensureUpcomingWeek(
   admin: SupabaseClient,
   now = new Date(),
+  poolId?: number,
 ) {
-  const { data: season, error: seasonError } = await admin
+  let seasonQuery = admin
     .from("seasons")
     .select("id")
     .in("status", ["setup", "open", "active"])
     .order("year", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
+  if (poolId !== undefined) seasonQuery = seasonQuery.eq("pool_id", poolId);
+  const { data: season, error: seasonError } = await seasonQuery.maybeSingle();
   if (seasonError) throw seasonError;
   if (!season) return null;
 

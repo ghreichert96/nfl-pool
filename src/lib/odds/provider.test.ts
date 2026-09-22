@@ -121,3 +121,15 @@ describe("fetchNflScores", () => {
     expect(result.invalidEvents).toBe(1);
   });
 });
+
+it("requests a three-day score window for Tuesday reconciliation", async () => {
+  const fetcher = vi.fn(async (input: URL | RequestInfo) => {
+    expect(new URL(String(input)).searchParams.get("daysFrom")).toBe("3");
+    return new Response("[]");
+  });
+  await fetchNflScores(
+    "secret",
+    { includeCompleted: true, daysFrom: 3 },
+    fetcher as typeof fetch,
+  );
+});

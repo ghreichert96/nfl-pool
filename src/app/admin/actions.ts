@@ -10,6 +10,7 @@ import { phoneSchema } from "@/features/auth/phone";
 import { generatePayoutScale } from "@/features/competition/payout-scale";
 import { easternLocalToIso } from "@/lib/eastern-time";
 import { ingestOdds } from "@/lib/odds/ingest";
+import { ingestEspnLiveStatus } from "@/lib/espn/ingest";
 import { ingestScores } from "@/lib/scores/ingest";
 import { saveFinalGameResult } from "@/lib/scores/result";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -131,25 +132,32 @@ export async function saveGame(formData: FormData) {
 }
 
 export async function reconcileScores() {
+  await runScoreUpdate("reconcile");
+}
+export async function validateScores() {
+  await runScoreUpdate("validate");
+}
+export async function refreshLiveScores() {
+  await runScoreUpdate("espn");
+}
+
+async function runScoreUpdate(mode: "reconcile" | "validate" | "espn") {
   await requireCommissioner();
   const apiKey = process.env.ODDS_API_KEY;
-  if (!apiKey) redirect("/admin?score_error=missing_key");
+  if (mode !== "espn" && !apiKey) redirect("/admin?score_error=missing_key");
+  let result;
   try {
-    await ingestScores({
-      admin: createAdminClient(),
-      apiKey,
-      mode: "reconcile",
-    });
+    const admin = createAdminClient();
+    result =
+      mode === "espn"
+        ? await ingestEspnLiveStatus({ admin })
+        : await ingestScores({ admin, apiKey: apiKey!, mode });
   } catch (error) {
-    console.error("Manual score reconciliation failed", error);
+    console.error("Manual score update failed", error);
     redirect("/admin?score_error=failed");
   }
-  revalidatePath("/");
-  revalidatePath("/grid");
-  revalidatePath("/standings");
-  revalidatePath("/account");
-  revalidatePath("/admin");
-  redirect("/admin?score_reconciled=1");
+  revalidatePath("/", "layout");
+  redirect(`/admin?score_run=${mode}&score_status=${result.status}`);
 }
 
 export async function inviteEntry(formData: FormData) {

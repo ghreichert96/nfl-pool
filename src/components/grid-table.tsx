@@ -49,7 +49,7 @@ function HeaderRow() {
 
 export function GridPreviewTable({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto border-t border-slate-600">
+    <div className="overflow-x-auto border-t border-slate-800">
       <table
         className="table-fixed border-separate border-spacing-0 text-[11px]"
         style={{ width: tableWidth }}
@@ -72,7 +72,7 @@ export function StickyGridTable({ children }: { children: ReactNode }) {
   };
   return (
     <div>
-      <div className="sticky top-[93px] z-20 overflow-hidden bg-slate-950 sm:top-[101px]">
+      <div className="sticky top-[93px] z-20 overflow-hidden border-t border-slate-800 bg-slate-950 sm:top-[101px]">
         <table
           ref={headerRef}
           className="table-fixed border-separate border-spacing-0 text-[11px]"
