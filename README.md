@@ -74,3 +74,42 @@ private to the entrant and commissioner.
 
 Commissioners can edit public rule-section copy at `/admin/manage`. Scoring
 tables and scoring behavior remain code-controlled.
+
+### Ingestion schedule (Eastern time)
+
+| Job                               | Schedule                                                           | Scheduler         |
+| --------------------------------- | ------------------------------------------------------------------ | ----------------- |
+| Initialize upcoming week          | Sunday noon, before that week's games                              | GitHub Actions    |
+| Refresh open odds                 | Monday 2 a.m.; Tuesday and Wednesday 8 p.m.                        | GitHub Actions    |
+| Default week rollover             | Tuesday 2 a.m.                                                     | Application clock |
+| Final odds refresh and board lock | Thursday 8 p.m.                                                    | GitHub Actions    |
+| ESPN live scores/status           | Every 2 minutes while games are eligible                           | Supabase Cron     |
+| Final-score validation            | After each slate; eligibility checked hourly at :01, :16, :31, :46 | Supabase Cron     |
+| Unresolved-score reconciliation   | Midnight Monday night / Tuesday morning                            | Supabase Cron     |
+
+GitHub odds schedules use `America/New_York` to follow daylight saving time.
+The triggering cron expression selects initialize, refresh, or finalize even when
+GitHub starts a run late. GitHub schedules are best effort, not exact-time guarantees.
+The final refresh applies eligible consensus lines and locks the board in one
+transaction. Earlier game-specific locks remain in force; missing consensus
+prevents the lock and reports a failure. Deploy the database migration before
+activating the `finalize` workflow mode.
+
+The week switches by request time, independently of ingestion, at Tuesday 2 a.m.
+Entrants may explicitly select the newly published week before the rollover.
+The GitHub score workflow is manual-only; automated scores use Supabase Cron.
+Midnight reconciliation uses paired UTC slots with an Eastern-time gate in SQL,
+so only one request is queued in either EDT or EST.
+
+ESPN skips provider calls when no eligible games are active. Validation becomes
+eligible 10 minutes after ESPN detects a final, waits for games in the same
+kickoff slate (up to 45 minutes to tolerate a stalled feed), and backs off failed
+provider checks. Reconciliation requests three days of results to include Sunday.
+A Monday game still running at midnight is handled by subsequent slate validation.
+Cron success records queueing; HTTP and ingestion results indicate application success.
+
+Commissioners can initialize a week, refresh odds, run a final refresh and lock,
+freeze/unfreeze, and edit individual lines in `/admin/lines`. `/admin` provides
+ESPN refresh, final validation, reconciliation, score corrections, and release of
+manual score overrides back to provider control. Automation preserves commissioner
+score overrides. No provider request is required just to switch the default week.

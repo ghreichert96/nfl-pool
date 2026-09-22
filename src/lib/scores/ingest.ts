@@ -137,6 +137,7 @@ export async function ingestScores({
   try {
     const response = await fetchNflScores(apiKey, {
       includeCompleted: true,
+      daysFrom: mode === "reconcile" ? 3 : 1,
       eventIds: games.map((game) => game.provider_event_id),
     });
     let gamesUpdated = 0;

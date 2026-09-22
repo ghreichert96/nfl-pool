@@ -82,7 +82,7 @@ export async function fetchNflOdds(
 
 export async function fetchNflScores(
   apiKey: string,
-  options: { includeCompleted: boolean; eventIds?: string[] },
+  options: { includeCompleted: boolean; eventIds?: string[]; daysFrom?: 1 | 3 },
   fetcher: typeof fetch = fetch,
 ) {
   const url = new URL(
@@ -90,7 +90,8 @@ export async function fetchNflScores(
   );
   url.searchParams.set("apiKey", apiKey);
   url.searchParams.set("dateFormat", "iso");
-  if (options.includeCompleted) url.searchParams.set("daysFrom", "1");
+  if (options.includeCompleted)
+    url.searchParams.set("daysFrom", String(options.daysFrom ?? 1));
   if (options.eventIds?.length)
     url.searchParams.set("eventIds", options.eventIds.join(","));
 

@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const mode = new URL(request.url).searchParams.get("mode") ?? "refresh";
-  if (mode !== "refresh" && mode !== "initialize")
+  if (mode !== "refresh" && mode !== "initialize" && mode !== "finalize")
     return NextResponse.json({ error: "Invalid mode" }, { status: 400 });
   const apiKey = process.env.ODDS_API_KEY;
   if (!apiKey)
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { data: weeks, error } = await admin
     .from("pool_weeks")
-    .select("id, lines_frozen_at")
+    .select("id, lines_frozen_at, lines_freeze_at")
     .gte("lines_freeze_at", cutoff)
     .is("lines_frozen_at", null)
     .order("lines_freeze_at")
@@ -39,56 +39,27 @@ export async function POST(request: Request) {
     );
   }
   const results = [];
-  const shouldFreeze = isThursdayFreezeWindow(new Date());
+  let froze = false;
   for (const week of weeks ?? []) {
+    if (
+      mode === "finalize" &&
+      new Date(week.lines_freeze_at).getTime() > Date.now()
+    )
+      continue;
     const result = await ingestOdds({
       admin,
       apiKey,
       weekId: week.id,
       triggerSource: "scheduled",
+      finalize: mode === "finalize",
     });
     results.push(result);
-    if (shouldFreeze) {
-      const frozenAt = new Date().toISOString();
-      const { data: frozenWeek, error: freezeError } = await admin
-        .from("pool_weeks")
-        .update({ lines_frozen_at: frozenAt, lines_frozen_by: null })
-        .eq("id", week.id)
-        .is("lines_frozen_at", null)
-        .select("id")
-        .maybeSingle();
-      if (freezeError) throw freezeError;
-      if (frozenWeek) {
-        const { error: auditError } = await admin
-          .from("line_audit_events")
-          .insert({
-            week_id: week.id,
-            event_type: "freeze",
-            source: "system",
-            was_frozen: false,
-            note: "Automatic freeze after Thursday 8 PM ET odds pull",
-          });
-        if (auditError) throw auditError;
-      }
-    }
+    if (mode === "finalize") froze = true;
   }
   return NextResponse.json({
     ok: true,
-    froze: shouldFreeze,
+    froze,
     initializedWeek: initialized?.week_number ?? null,
     results,
   });
-}
-
-function isThursdayFreezeWindow(now: Date) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    hour: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(now);
-  return (
-    parts.find((part) => part.type === "weekday")?.value === "Thu" &&
-    parts.find((part) => part.type === "hour")?.value === "20"
-  );
 }

@@ -44,12 +44,14 @@ export async function ingestOdds({
   weekId,
   requestedBy = null,
   triggerSource,
+  finalize = false,
 }: {
   admin: SupabaseClient;
   apiKey: string;
   weekId: number;
   requestedBy?: string | null;
   triggerSource: "scheduled" | "commissioner";
+  finalize?: boolean;
 }) {
   const { data: run, error: runError } = await admin
     .from("odds_ingestion_runs")
@@ -80,6 +82,11 @@ export async function ingestOdds({
     });
     let snapshotsWritten = 0;
     let linesWritten = 0;
+    const finalLines: {
+      game_id: number;
+      away_spread: number;
+      total: number;
+    }[] = [];
     for (const event of events) {
       const away = teamCodes[event.away_team];
       const home = teamCodes[event.home_team];
@@ -130,7 +137,7 @@ export async function ingestOdds({
       }
       if (
         !week?.lines_frozen_at &&
-        new Date(game.line_lock_at).getTime() > Date.now()
+        (finalize || new Date(game.line_lock_at).getTime() > Date.now())
       ) {
         const consensus = consensusLine({
           spreads: event.bookmakers.flatMap((book) =>
@@ -159,6 +166,14 @@ export async function ingestOdds({
           ),
         });
         if (consensus.awaySpread !== null && consensus.total !== null) {
+          if (finalize) {
+            finalLines.push({
+              game_id: game.id,
+              away_spread: consensus.awaySpread,
+              total: consensus.total,
+            });
+            continue;
+          }
           const { error: lineError } = await admin.from("pool_lines").upsert(
             {
               game_id: game.id,
@@ -175,6 +190,14 @@ export async function ingestOdds({
           if (!lineError) linesWritten += 1;
         }
       }
+    }
+    if (finalize) {
+      const { data: changed, error } = await admin.rpc("finalize_week_odds", {
+        target_week_id: weekId,
+        consensus_lines: finalLines,
+      });
+      if (error) throw error;
+      linesWritten = Number(changed ?? 0);
     }
     await admin
       .from("odds_ingestion_runs")

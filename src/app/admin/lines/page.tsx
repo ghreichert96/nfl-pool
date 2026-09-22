@@ -5,7 +5,11 @@ import { PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 
 import { saveGame } from "../actions";
-import { refreshLines, toggleLinesFreeze } from "./actions";
+import {
+  initializeUpcomingLines,
+  refreshLines,
+  toggleLinesFreeze,
+} from "./actions";
 import { LineEditor } from "./line-editor";
 
 export const dynamic = "force-dynamic";
@@ -137,6 +141,11 @@ export default async function LinesPage({
             : "That action failed. Check the values and try again."}
         </p>
       )}
+      <form action={initializeUpcomingLines} className="mb-3">
+        <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
+          INITIALIZE UPCOMING WEEK
+        </button>
+      </form>
       {activeWeek ? (
         <>
           <section className="game-card mb-3 rounded-lg border p-3">
@@ -144,7 +153,7 @@ export default async function LinesPage({
               <strong className="rounded border border-slate-700 px-2 py-1 text-xs">
                 {activeWeek.lines_frozen_at ? "FROZEN" : "OPEN"}
               </strong>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <form action={refreshLines}>
                   <input type="hidden" name="week_id" value={activeWeek.id} />
                   <button
@@ -154,6 +163,20 @@ export default async function LinesPage({
                     REFRESH LINES
                   </button>
                 </form>
+                {!activeWeek.lines_frozen_at &&
+                  new Date(activeWeek.lines_freeze_at).getTime() <= now && (
+                    <form action={refreshLines}>
+                      <input
+                        type="hidden"
+                        name="week_id"
+                        value={activeWeek.id}
+                      />
+                      <input type="hidden" name="mode" value="finalize" />
+                      <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
+                        FINAL REFRESH &amp; LOCK
+                      </button>
+                    </form>
+                  )}
                 <form action={toggleLinesFreeze}>
                   <input type="hidden" name="week_id" value={activeWeek.id} />
                   <input

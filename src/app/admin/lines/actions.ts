@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireCommissioner } from "@/lib/admin";
+import { ensureUpcomingWeek } from "@/lib/odds/upcoming-week";
 import { ingestOdds } from "@/lib/odds/ingest";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -76,6 +77,7 @@ export async function refreshLines(formData: FormData) {
       weekId: parsed.data,
       requestedBy: userId,
       triggerSource: "commissioner",
+      finalize: formData.get("mode") === "finalize",
     });
   } catch {
     redirect(destination(parsed.data, "error=provider"));
@@ -96,4 +98,27 @@ export async function toggleLinesFreeze(formData: FormData) {
   if (error) redirect(destination(parsed.data, "error=freeze"));
   revalidatePath("/", "layout");
   redirect(destination(parsed.data, freeze ? "frozen" : "unfrozen"));
+}
+
+export async function initializeUpcomingLines() {
+  const { poolId, userId } = await requireCommissioner();
+  const apiKey = process.env.ODDS_API_KEY;
+  if (!apiKey) redirect("/admin/lines?error=key");
+  let week;
+  try {
+    const admin = createAdminClient();
+    week = await ensureUpcomingWeek(admin, new Date(), poolId);
+    if (!week) throw new Error("No upcoming week");
+    await ingestOdds({
+      admin,
+      apiKey,
+      weekId: week.id,
+      requestedBy: userId,
+      triggerSource: "commissioner",
+    });
+  } catch {
+    redirect("/admin/lines?error=provider");
+  }
+  revalidatePath("/", "layout");
+  redirect(`/admin/lines?week=${week.week_number}&refreshed=1`);
 }

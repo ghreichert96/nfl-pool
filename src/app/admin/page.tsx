@@ -12,6 +12,8 @@ import {
   inviteEntry,
   recordGameResult,
   reconcileScores,
+  validateScores,
+  refreshLiveScores,
   releaseGameResultToProvider,
   saveGame,
 } from "./actions";
@@ -34,6 +36,8 @@ export default async function AdminPage({
     odds_frozen?: string;
     odds_unfrozen?: string;
     score_reconciled?: string;
+    score_run?: string;
+    score_status?: string;
     score_error?: string;
   }>;
 }) {
@@ -438,6 +442,15 @@ export default async function AdminPage({
                 Result returned to provider control.
               </p>
             )}
+            {params.score_run && (
+              <p className="mt-3 rounded bg-slate-900 p-2 text-xs">
+                {params.score_status === "skipped"
+                  ? "No eligible games to update."
+                  : params.score_status === "partial"
+                    ? "Update completed with issues. Review the run details below."
+                    : "Score update completed."}
+              </p>
+            )}
             {params.score_reconciled && (
               <p className="mt-3 rounded bg-emerald-950 p-2 text-xs text-emerald-300">
                 Final-score reconciliation completed.
@@ -448,11 +461,23 @@ export default async function AdminPage({
                 Final-score reconciliation failed.
               </p>
             )}
-            <form action={reconcileScores} className="mt-3">
-              <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
-                RECONCILE FINALS
-              </button>
-            </form>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <form action={refreshLiveScores}>
+                <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
+                  REFRESH ESPN
+                </button>
+              </form>
+              <form action={validateScores}>
+                <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
+                  VALIDATE FINALS
+                </button>
+              </form>
+              <form action={reconcileScores}>
+                <button className="control-raised min-h-9 rounded border px-3 text-[10px] font-black">
+                  RECONCILE FINALS
+                </button>
+              </form>
+            </div>
             {(scoreRuns ?? []).length > 0 && (
               <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950 p-3">
                 <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400">
