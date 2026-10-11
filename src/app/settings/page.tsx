@@ -80,15 +80,15 @@ export default async function SettingsPage({
               />
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <button className="control-pressed min-h-11 rounded-lg border text-xs font-black">
-                SAVE
-              </button>
               <Link
                 href="/account/password"
                 className="control-raised grid min-h-11 place-items-center rounded-lg border px-2 text-center text-xs font-black"
               >
                 UPDATE PASSWORD
               </Link>
+              <button className="control-pressed min-h-11 rounded-lg border text-xs font-black">
+                SAVE
+              </button>
             </div>
           </form>
           <div className="my-4 border-t border-slate-800" />

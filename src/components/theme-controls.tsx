@@ -2,7 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
-const themes = ["gunmetal", "retro", "light"] as const;
+const themes = ["gunmetal", "retro", "light", "midnight"] as const;
 type Theme = (typeof themes)[number];
 
 function applyTheme(theme: Theme) {
@@ -20,6 +20,18 @@ export function ThemeInitializer() {
       ? (stored as Theme)
       : "gunmetal";
     applyTheme(theme);
+    const applyPreferences = () => {
+      document.documentElement.dataset.largeFont = String(
+        window.localStorage.getItem("hppp:large-font") === "true",
+      );
+    };
+    applyPreferences();
+    window.addEventListener("hppp-display-preference", applyPreferences);
+    window.addEventListener("storage", applyPreferences);
+    return () => {
+      window.removeEventListener("hppp-display-preference", applyPreferences);
+      window.removeEventListener("storage", applyPreferences);
+    };
   }, []);
   return null;
 }
@@ -46,7 +58,7 @@ export function ThemeSelector() {
       <legend className="text-xs font-black uppercase text-slate-400">
         Theme
       </legend>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {themes.map((option) => (
           <button
             key={option}
@@ -59,7 +71,7 @@ export function ThemeSelector() {
             }}
             className={`min-h-11 rounded-lg border text-xs font-black uppercase ${theme === option ? "control-pressed" : "control-raised"}`}
           >
-            {option}
+            {option === "midnight" ? "Midnight navy" : option}
           </button>
         ))}
       </div>

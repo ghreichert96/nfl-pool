@@ -1,89 +1,99 @@
 import { PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
-import { saveRuleSection } from "./actions";
-import { PublishButton } from "./publish-button";
-
+import { PayoutScaleEditor } from "../payout-scale-editor";
+import { saveSidePots } from "./actions";
 export default async function ManagePoolPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { supabase, poolId } = await requireCommissioner();
   const params = await searchParams;
-  const { data: sections } = await supabase
-    .from("rule_sections")
-    .select("id, position, title, summary, detail, revision")
+  const { supabase, poolId } = await requireCommissioner();
+  const { data: season, error } = await supabase
+    .from("seasons")
+    .select("id,year,sd_pot,ud_pot")
     .eq("pool_id", poolId)
-    .order("position");
+    .order("year", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!season)
+    return <PageShell isCommissioner>No season configured.</PageShell>;
+  const [{ count }, { data: payouts }] = await Promise.all([
+    supabase
+      .from("pool_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("season_id", season.id)
+      .eq("is_test", false),
+    supabase
+      .from("payout_schedules")
+      .select("amount")
+      .eq("season_id", season.id),
+  ]);
   return (
     <PageShell isCommissioner>
-      {params.saved && (
-        <p
-          role="status"
-          className="mb-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200"
-        >
-          Rule published.
+      <h1 className="mb-3 font-black">Rules & payouts · {season.year}</h1>
+      {(params.saved || params.payout_saved) && (
+        <p role="status" className="mb-3 text-sm">
+          Payouts saved.
         </p>
       )}
-      {params.error && (
-        <p
-          role="alert"
-          className="mb-4 rounded-lg bg-amber-950 p-3 text-sm text-amber-200"
-        >
-          Rule could not be saved.
+      {(params.error || params.payout_error) && (
+        <p role="alert" className="mb-3 text-sm text-red-400">
+          Payouts could not be saved. Check the values and retry.
         </p>
       )}
-      <div className="grid gap-4">
-        {(sections ?? []).map((section) => (
-          <form
-            key={section.id}
-            action={saveRuleSection}
-            className="game-card grid gap-3 rounded-xl border p-3"
-          >
-            <input type="hidden" name="id" value={section.id} />
-            <div className="flex items-center justify-between gap-2">
-              <span>
-                <strong>Section {section.position}</strong>
-                <small className="ml-2 text-slate-500">
-                  Revision {section.revision}
-                </small>
-              </span>
-              <PublishButton />
-            </div>
-            <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
-              Title
+      <section className="game-card mb-3 rounded-lg border p-3">
+        <h2 className="font-bold">Main pool</h2>
+        {(count ?? 0) >= 2 ? (
+          <PayoutScaleEditor
+            seasonId={season.id}
+            entryCount={count ?? 0}
+            currentMaximum={Math.max(
+              0,
+              ...(payouts ?? []).map((p) => Number(p.amount)),
+            )}
+          />
+        ) : (
+          <p className="text-sm">
+            At least two competitive entries are required.
+          </p>
+        )}
+      </section>
+      <form
+        action={saveSidePots}
+        className="game-card grid gap-3 rounded-lg border p-3"
+      >
+        <input type="hidden" name="season_id" value={season.id} />
+        <h2 className="font-bold">Side pools</h2>
+        <p className="text-xs text-slate-400">
+          Each amount is the combined payout, shared among winners and funded
+          equally by losing entries. Everyone tied means no payment.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {(
+            [
+              ["sd_pot", "Sudden Death"],
+              ["ud_pot", "Underdog"],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key} className="grid gap-1 text-sm">
+              {label}
               <input
-                name="title"
+                name={key}
+                type="number"
+                min="0"
+                max="100000"
+                step="0.01"
                 required
-                maxLength={80}
-                defaultValue={section.title}
-                className="control-raised min-h-11 rounded-lg border px-3 text-base normal-case"
+                defaultValue={Number(season[key])}
+                className="control-raised min-h-10 w-full rounded border px-2"
               />
             </label>
-            <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
-              Summary
-              <textarea
-                name="summary"
-                required
-                maxLength={600}
-                defaultValue={section.summary}
-                rows={3}
-                className="control-raised rounded-lg border p-3 text-sm normal-case"
-              />
-            </label>
-            <label className="grid gap-1 text-xs font-black uppercase text-slate-400">
-              Detail
-              <textarea
-                name="detail"
-                maxLength={600}
-                defaultValue={section.detail}
-                rows={2}
-                className="control-raised rounded-lg border p-3 text-sm normal-case"
-              />
-            </label>
-          </form>
-        ))}
-      </div>
+          ))}
+        </div>
+        <button className="admin-button justify-self-end">Save payouts</button>
+      </form>
     </PageShell>
   );
 }

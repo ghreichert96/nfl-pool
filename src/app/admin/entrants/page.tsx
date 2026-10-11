@@ -8,7 +8,10 @@ import {
   sendPasswordReset,
   updateEntrantCode,
 } from "./actions";
-import { revokeInvitation } from "../actions";
+import Link from "next/link";
+import { PhoneInput } from "@/components/phone-input";
+import { SignupLinkButton } from "../signup-link-button";
+import { inviteEntry, revokeInvitation } from "../actions";
 import { RecoveryLinkButton } from "./recovery-link-button";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +58,43 @@ export default async function EntrantsPage({
 
   return (
     <PageShell isCommissioner>
+      <div className="mb-3 flex items-center justify-between">
+        <h1 className="font-black">Entrants</h1>
+        <Link href="/admin/picks" className="admin-button">
+          Manage picks
+        </Link>
+      </div>
+      <details className="game-card mb-3 rounded-lg border p-3">
+        <summary className="cursor-pointer font-bold">Invite entrant</summary>
+        <div className="mt-3">
+          <SignupLinkButton />
+        </div>
+        {params.sent && (
+          <p role="status" className="mt-2 text-sm">
+            Invitation sent.
+          </p>
+        )}
+        <form
+          action={inviteEntry}
+          className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
+        >
+          <label className="grid gap-1 text-xs">
+            Email
+            <input
+              name="email"
+              type="email"
+              required
+              maxLength={254}
+              className="control-raised min-h-10 rounded border px-2"
+            />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Phone
+            <PhoneInput className="control-raised min-h-10 rounded border px-2" />
+          </label>
+          <button className="admin-button self-end">Send invitation</button>
+        </form>
+      </details>
       {notice && (
         <p className="mb-4 rounded-lg bg-emerald-950 p-3 text-sm text-emerald-200">
           {notice}

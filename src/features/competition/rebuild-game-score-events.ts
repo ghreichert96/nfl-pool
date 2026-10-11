@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { pickOutcome, type ScoringGame, type ScoringPick } from "./scoring";
 
-export async function rebuildGameScoreEvents(
+export async function buildGameScoreEvents(
   supabase: SupabaseClient,
   game: ScoringGame,
 ) {
@@ -28,12 +28,6 @@ export async function rebuildGameScoreEvents(
         .eq("game_id", game.id)
     : { data: [], error: null };
   if (pickError) throw pickError;
-
-  const { error: deleteError } = await supabase
-    .from("score_events")
-    .delete()
-    .eq("game_id", game.id);
-  if (deleteError) throw deleteError;
 
   const entryBySubmission = new Map(
     [...latest].map(([entryId, submissionId]) => [submissionId, entryId]),
@@ -89,6 +83,19 @@ export async function rebuildGameScoreEvents(
     ];
   });
 
+  return events;
+}
+
+export async function rebuildGameScoreEvents(
+  supabase: SupabaseClient,
+  game: ScoringGame,
+) {
+  const events = await buildGameScoreEvents(supabase, game);
+  const { error: deleteError } = await supabase
+    .from("score_events")
+    .delete()
+    .eq("game_id", game.id);
+  if (deleteError) throw deleteError;
   if (events.length) {
     const { error } = await supabase.from("score_events").insert(events);
     if (error) throw error;

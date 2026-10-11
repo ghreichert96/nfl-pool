@@ -25,10 +25,7 @@ export function StickyTableHeader({
   const columns = (
     <colgroup>
       {columnWidths.map((width, index) => (
-        <col
-          key={index}
-          style={index < columnWidths.length - 1 ? { width } : undefined}
-        />
+        <col key={index} style={{ width }} />
       ))}
     </colgroup>
   );
@@ -46,7 +43,26 @@ export function StickyTableHeader({
         children,
         props,
         columns,
-        cloneElement(head, { className: "sr-only" }),
+        cloneElement(
+          head,
+          { className: "table-source-head" },
+          Children.map(head.props.children, (row) => {
+            if (!isValidElement<TableProps>(row)) return row;
+            return cloneElement(
+              row,
+              {},
+              Children.map(row.props.children, (cell) =>
+                isValidElement<TableProps>(cell)
+                  ? cloneElement(
+                      cell,
+                      {},
+                      <span className="sr-only">{cell.props.children}</span>,
+                    )
+                  : cell,
+              ),
+            );
+          }),
+        ),
         ...body,
       )}
     </StickyTableFrame>

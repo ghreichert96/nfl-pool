@@ -24,7 +24,7 @@ export const MOCK_GAMES: Game[] = [
     home: { abbreviation: "CLE", name: "Browns" },
     awaySpread: -3.5,
     total: 36.5,
-    badge: "INTL",
+    badge: "INT",
     kickoff: "Sun · 9:30 AM ET",
     location: "London",
   },

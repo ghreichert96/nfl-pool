@@ -1,3 +1,7 @@
+import {
+  GridNavigation,
+  GridNavigationTitle,
+} from "@/components/grid-navigation";
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { CollapsiblePanel } from "@/components/collapsible-panel";
 import { GridPreviewTable, StickyGridTable } from "@/components/grid-table";
@@ -461,93 +465,92 @@ export default async function GridPage({
       compact
       refreshWhileLive={games.some((game) => game.status === "live")}
     >
-      <div className="pb-3 sm:pb-5">
-        <CompactPageHeader
-          sticky
-          title="Picks Grid"
-          className="mb-3"
-          action={
-            week ? (
-              <WeekSelector weeks={weeks ?? []} selected={week.week_number} />
-            ) : undefined
-          }
-        />
-        <CollapsiblePanel
-          title="Weekly grid"
-          defaultOpen
-          className="shadow-xl"
-          preview={
-            ownEntry ? (
-              <GridPreviewTable>{gridRow(ownEntry)}</GridPreviewTable>
-            ) : undefined
-          }
-        >
-          <StickyGridTable>{(entries ?? []).map(gridRow)}</StickyGridTable>
-          <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-[9px] font-bold text-slate-400">
-            <span className="text-emerald-400">Win</span>
-            <span className="text-red-400">Loss</span>
-            <span className="text-slate-300">Tie</span>
-            <span className="text-amber-300">Live</span>
-            <span>— = submitted</span>
-          </div>
-        </CollapsiblePanel>
-        <CollapsiblePanel
-          title="Most Picked"
-          className="mt-4"
-          preview={
-            <div className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800">
+      <GridNavigation>
+        <div className="pb-3 sm:pb-5">
+          <CompactPageHeader
+            sticky
+            title={<GridNavigationTitle />}
+            className="mb-3"
+            action={
+              week ? (
+                <WeekSelector weeks={weeks ?? []} selected={week.week_number} />
+              ) : undefined
+            }
+          />
+          <CollapsiblePanel
+            title="Weekly grid"
+            defaultOpen
+            className="shadow-xl"
+            preview={
+              ownEntry ? (
+                <GridPreviewTable>{gridRow(ownEntry)}</GridPreviewTable>
+              ) : undefined
+            }
+          >
+            <StickyGridTable>{(entries ?? []).map(gridRow)}</StickyGridTable>
+            <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-[9px] font-bold text-slate-400">
+              <span className="text-emerald-400">Win</span>
+              <span className="text-red-400">Loss</span>
+              <span className="text-slate-300">Tie</span>
+              <span className="text-amber-300">Live</span>
+              <span>— = submitted</span>
+            </div>
+          </CollapsiblePanel>
+          <CollapsiblePanel
+            title="Most Picked"
+            className="mt-4"
+            preview={
+              <div className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800">
+                {mostGroups.map(([label, items]) => (
+                  <div key={label} className="min-w-0 bg-slate-950 px-2 py-2.5">
+                    <small className="block text-[8px] font-black text-slate-500">
+                      {label}
+                    </small>
+                    {items[0] ? (
+                      mostPickedItem(label, items[0][0], items[0][1])
+                    ) : (
+                      <span className="text-[9px] text-slate-600">—</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            }
+          >
+            <section
+              className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800"
+              aria-label="Most picked"
+            >
               {mostGroups.map(([label, items]) => (
                 <div key={label} className="min-w-0 bg-slate-950 px-2 py-2.5">
-                  <small className="block text-[8px] font-black text-slate-500">
+                  <p className="text-[8px] font-black text-slate-500">
                     {label}
-                  </small>
-                  {items[0] ? (
-                    mostPickedItem(label, items[0][0], items[0][1])
-                  ) : (
-                    <span className="text-[9px] text-slate-600">—</span>
-                  )}
+                  </p>
+                  <div className="grid gap-2">
+                    {items.length ? (
+                      items.slice(0, 5).map(([name, count]) => (
+                        <span key={name} className="block min-w-0">
+                          {mostPickedItem(label, name, count)}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-600">
+                        Waiting for kickoff
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
-            </div>
-          }
-        >
-          <section
-            className="grid grid-cols-2 gap-2 border-t border-slate-800 p-3 md:grid-cols-4"
-            aria-label="Most picked"
+            </section>
+          </CollapsiblePanel>
+          <CollapsiblePanel
+            title="Weekly Standings"
+            className="mt-3"
+            preview={ownWeeklyRow ? weeklyTable([ownWeeklyRow]) : undefined}
           >
-            {mostGroups.map(([label, items]) => (
-              <div key={label}>
-                <p className="text-[9px] font-black uppercase tracking-wider text-slate-500">
-                  {label}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1">
-                  {items.length ? (
-                    items.map(([name, count]) => (
-                      <span
-                        key={name}
-                        className="rounded bg-slate-800 px-2 py-1"
-                      >
-                        {mostPickedItem(label, name, count)}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-slate-600">
-                      Waiting for kickoff
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </section>
-        </CollapsiblePanel>
-        <CollapsiblePanel
-          title="Weekly Standings"
-          className="mt-3"
-          preview={ownWeeklyRow ? weeklyTable([ownWeeklyRow]) : undefined}
-        >
-          {weeklyTable(weeklyRows)}
-        </CollapsiblePanel>
-      </div>
+            {weeklyTable(weeklyRows)}
+          </CollapsiblePanel>
+        </div>
+      </GridNavigation>
     </PageShell>
   );
 }

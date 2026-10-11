@@ -25,7 +25,7 @@ it("keeps one visible header outside the body scroller and synchronizes horizont
   );
   const heads = container.querySelectorAll("thead");
   expect(heads).toHaveLength(2);
-  expect(heads[1]).toHaveClass("sr-only");
+  expect(heads[1]).toHaveClass("table-source-head");
   const header = container.querySelector(
     '[aria-hidden="true"]',
   ) as HTMLDivElement;

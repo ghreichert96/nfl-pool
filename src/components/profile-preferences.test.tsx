@@ -10,7 +10,7 @@ describe("ProfilePreferences", () => {
   it("keeps both preference thumbs centered inside their tracks", () => {
     render(<ProfilePreferences />);
     const toggles = screen.getAllByRole("switch");
-    expect(toggles).toHaveLength(2);
+    expect(toggles).toHaveLength(4);
     for (const toggle of toggles) {
       const thumb = toggle.querySelector("span:not(.sr-only)");
       expect(thumb).toHaveClass(

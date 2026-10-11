@@ -10,50 +10,8 @@ import { ingestOdds } from "@/lib/odds/ingest";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const weekIdSchema = z.coerce.number().int().positive();
-const lineSchema = z.object({
-  lineId: z.coerce.number().int().positive(),
-  weekId: weekIdSchema,
-  awaySpread: z.coerce.number().min(-99).max(99),
-  total: z.coerce.number().positive().max(999),
-});
-
 function destination(weekId: number, result: string) {
-  return `/admin/lines?week=${weekId}&${result}=1`;
-}
-
-export async function saveLine(formData: FormData) {
-  const parsed = lineSchema.safeParse({
-    lineId: formData.get("line_id"),
-    weekId: formData.get("week_id"),
-    awaySpread: formData.get("away_spread"),
-    total: formData.get("total"),
-  });
-  if (!parsed.success) redirect("/admin/lines?error=invalid");
-  const { supabase, poolId } = await requireCommissioner();
-  const { data: permittedLine } = await supabase
-    .from("pool_lines")
-    .select(
-      "id, games!inner(week_id, pool_weeks!inner(season_id, seasons!inner(pool_id)))",
-    )
-    .eq("id", parsed.data.lineId)
-    .eq("games.week_id", parsed.data.weekId)
-    .eq("games.pool_weeks.seasons.pool_id", poolId)
-    .maybeSingle();
-  if (!permittedLine) redirect("/admin/lines?error=access");
-  const { error } = await supabase
-    .from("pool_lines")
-    .update({
-      away_spread: parsed.data.awaySpread,
-      total: parsed.data.total,
-      source: "commissioner",
-      override_reason: "Manual commissioner adjustment",
-      frozen_at: new Date().toISOString(),
-    })
-    .eq("id", parsed.data.lineId);
-  if (error) redirect(destination(parsed.data.weekId, "error=line"));
-
-  revalidatePath("/", "layout");
-  redirect(destination(parsed.data.weekId, "saved"));
+  return `/admin/lines?weekId=${weekId}&${result}=1`;
 }
 
 export async function refreshLines(formData: FormData) {
@@ -71,7 +29,7 @@ export async function refreshLines(formData: FormData) {
   const apiKey = process.env.ODDS_API_KEY;
   if (!apiKey) redirect(destination(parsed.data, "error=key"));
   try {
-    await ingestOdds({
+    const result = await ingestOdds({
       admin: createAdminClient(),
       apiKey,
       weekId: parsed.data,
@@ -79,6 +37,7 @@ export async function refreshLines(formData: FormData) {
       triggerSource: "commissioner",
       finalize: formData.get("mode") === "finalize",
     });
+    if (result.failures.length) throw new Error(result.failures.join("; "));
   } catch {
     redirect(destination(parsed.data, "error=provider"));
   }
@@ -109,16 +68,51 @@ export async function initializeUpcomingLines() {
     const admin = createAdminClient();
     week = await ensureUpcomingWeek(admin, new Date(), poolId);
     if (!week) throw new Error("No upcoming week");
-    await ingestOdds({
+    const result = await ingestOdds({
       admin,
       apiKey,
       weekId: week.id,
       requestedBy: userId,
       triggerSource: "commissioner",
     });
+    if (result.failures.length) throw new Error(result.failures.join("; "));
   } catch {
     redirect("/admin/lines?error=provider");
   }
   revalidatePath("/", "layout");
   redirect(`/admin/lines?week=${week.week_number}&refreshed=1`);
+}
+
+const editSchema = z.object({
+  game_id: z.number().int().positive(),
+  updated_at: z.string().datetime({ offset: true }).nullable(),
+  away_spread: z.number().min(-99).max(99).multipleOf(0.5),
+  total: z.number().positive().max(999).multipleOf(0.5),
+  spread_override: z.boolean(),
+  total_override: z.boolean(),
+  game_type: z.enum([
+    "tnf",
+    "sunday",
+    "snf",
+    "mnf",
+    "special",
+    "international",
+  ]),
+});
+export async function saveLinesBatch(weekId: number, values: unknown) {
+  const { supabase } = await requireCommissioner();
+  const parsed = z.array(editSchema).max(32).safeParse(values);
+  if (!parsed.success)
+    return {
+      ok: false,
+      message:
+        "Check highlighted values: spreads and totals must use half-point increments.",
+    };
+  const { error } = await supabase.rpc("save_line_batch", {
+    target_week_id: weekId,
+    edits: parsed.data,
+  });
+  if (error) return { ok: false, message: error.message };
+  revalidatePath("/", "layout");
+  return { ok: true, message: "All changes saved." };
 }

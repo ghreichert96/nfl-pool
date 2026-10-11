@@ -72,7 +72,7 @@ function resultClass(result?: "win" | "loss" | "tie") {
 function badgeColorClass(badge: string) {
   const normalized = badge.toUpperCase();
   if (normalized === "TNF") return "bg-teal-400 text-slate-950";
-  if (normalized === "INTL") return "bg-cyan-400 text-slate-950";
+  if (normalized === "INT") return "bg-cyan-400 text-slate-950";
   if (normalized === "SPE" || normalized === "HOL")
     return "bg-amber-300 text-slate-950";
   if (normalized === "1 PM") return "bg-blue-400 text-slate-950";
@@ -718,12 +718,12 @@ function GameRow({
       const selected = ats?.team === team;
       const result = teamResult(game, team, "ats");
       return (
-        <div className="relative">
+        <div className="relative self-stretch">
           <button
             type="button"
             disabled={!allowLockedEdits}
             aria-label={`${team} ${formatSpread(spreadFor(game, team))}`}
-            className={`relative flex min-h-12 w-full flex-col items-center justify-center rounded-md border text-[10px] font-black disabled:cursor-not-allowed ${selected ? resultClass(result) : "border-slate-700 bg-slate-900/70 text-slate-500"}`}
+            className={`relative flex h-full min-h-10 w-full flex-col items-center justify-center rounded-md border text-[10px] font-black disabled:cursor-not-allowed ${selected ? resultClass(result) : "border-slate-700 bg-slate-900/70 text-slate-500"}`}
             onClick={() => toggleAts(team)}
           >
             <span className={`relative z-10 ${selected ? "" : "opacity-45"}`}>
@@ -978,7 +978,7 @@ function WeeklyCommentEditor({
           htmlFor="weekly-comment"
           className="text-xs font-black uppercase"
         >
-          Weekly comment
+          COMMENT
         </label>
         <span
           className={
@@ -1001,7 +1001,7 @@ function WeeklyCommentEditor({
           onChange={(event) => setComment(event.target.value.slice(0, 40))}
           disabled={locked}
           maxLength={40}
-          placeholder="Talk a little trash…"
+          placeholder="Talk yo shit playa"
           className={`control-raised min-h-11 min-w-0 flex-1 rounded-lg border px-3 text-base ${savedComment ? "border-emerald-600 bg-emerald-950/30" : ""}`}
         />
         <button
@@ -1016,7 +1016,7 @@ function WeeklyCommentEditor({
             setStatus(result.message);
             if (result.ok) setSavedComment(comment.trim());
           }}
-          className={`control-pressed grid size-11 shrink-0 place-items-center rounded-lg border disabled:opacity-40 ${savedComment && !changed ? "border-emerald-400 bg-emerald-700 text-white" : ""}`}
+          className={`grid size-11 shrink-0 place-items-center rounded-lg border ${savedComment && !changed ? "submit-saved" : changed && !saving ? "submit-ready" : "submit-neutral"}`}
         >
           <svg
             aria-hidden="true"
@@ -1038,7 +1038,7 @@ function WeeklyCommentEditor({
             ? "Comments locked after the final kickoff"
             : status && !status.toLowerCase().includes("saved")
               ? status
-              : "Optional · visible immediately"}
+              : ""}
         </span>
       </div>
     </section>
@@ -1107,6 +1107,11 @@ function Preview({
     Boolean(picks.bestBet && picks.suddenDeath && picks.underdog);
   const submitted = submittedDraft === serializedDraft;
   const modified = submittedDraft !== null && !submitted;
+  const actionable =
+    modified ||
+    picks.ats.length > 0 ||
+    picks.totals.length > 0 ||
+    Boolean(picks.suddenDeath || picks.underdog);
   const statusLabel = submitted
     ? "Submitted"
     : modified
@@ -1385,7 +1390,7 @@ function Preview({
             setSubmittedDraft(serializePicks(picks));
             if (!draftTarget) setMessage("Demo submission recorded");
           }}
-          className={`min-h-12 px-3 text-lg font-black shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)] disabled:opacity-60 ${submitted ? "bg-emerald-500 text-slate-950" : "bg-emerald-600 text-white"}`}
+          className={`min-h-12 px-3 text-lg font-black shadow-[inset_0_-3px_0_rgb(5_90_65/0.55)] active:shadow-[inset_0_3px_5px_rgb(5_46_22/0.55)] disabled:opacity-60 ${submitted ? "submit-saved" : actionable ? "submit-ready" : "submit-neutral"}`}
         >
           {submitting ? "SAVING" : submitted ? "SAVED" : "SUBMIT"}
         </button>

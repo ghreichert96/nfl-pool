@@ -77,7 +77,7 @@ export async function saveGame(formData: FormData) {
     venue: formData.get("venue"),
     gameType: formData.get("game_type"),
   });
-  if (!parsed.success) redirect("/admin?game_error=invalid");
+  if (!parsed.success) redirect("/admin/lines?game_error=invalid");
 
   const { supabase, poolId } = await requireCommissioner();
   const { data: season } = await supabase
@@ -86,7 +86,7 @@ export async function saveGame(formData: FormData) {
     .eq("pool_id", poolId)
     .eq("year", 2026)
     .maybeSingle();
-  if (!season) redirect("/admin?game_error=season");
+  if (!season) redirect("/admin/lines?game_error=season");
 
   const { data: week, error: weekError } = await supabase
     .from("pool_weeks")
@@ -101,7 +101,7 @@ export async function saveGame(formData: FormData) {
     )
     .select("id")
     .single();
-  if (weekError || !week) redirect("/admin?game_error=week");
+  if (weekError || !week) redirect("/admin/lines?game_error=week");
 
   const { data: game, error: gameError } = await supabase
     .from("games")
@@ -115,7 +115,7 @@ export async function saveGame(formData: FormData) {
     })
     .select("id")
     .single();
-  if (gameError || !game) redirect("/admin?game_error=game");
+  if (gameError || !game) redirect("/admin/lines?game_error=game");
 
   const { error: lineError } = await supabase.from("pool_lines").insert({
     game_id: game.id,
@@ -125,10 +125,10 @@ export async function saveGame(formData: FormData) {
     override_reason: "Manual commissioner entry",
     frozen_at: new Date().toISOString(),
   });
-  if (lineError) redirect("/admin?game_error=line");
+  if (lineError) redirect("/admin/lines?game_error=line");
 
   revalidatePath("/admin");
-  redirect("/admin?game_saved=1");
+  redirect("/admin/lines?game_saved=1");
 }
 
 export async function reconcileScores() {
@@ -144,7 +144,8 @@ export async function refreshLiveScores() {
 async function runScoreUpdate(mode: "reconcile" | "validate" | "espn") {
   await requireCommissioner();
   const apiKey = process.env.ODDS_API_KEY;
-  if (mode !== "espn" && !apiKey) redirect("/admin?score_error=missing_key");
+  if (mode !== "espn" && !apiKey)
+    redirect("/admin/scores?score_error=missing_key");
   let result;
   try {
     const admin = createAdminClient();
@@ -154,10 +155,10 @@ async function runScoreUpdate(mode: "reconcile" | "validate" | "espn") {
         : await ingestScores({ admin, apiKey: apiKey!, mode });
   } catch (error) {
     console.error("Manual score update failed", error);
-    redirect("/admin?score_error=failed");
+    redirect("/admin/scores?score_error=failed");
   }
   revalidatePath("/", "layout");
-  redirect(`/admin?score_run=${mode}&score_status=${result.status}`);
+  redirect(`/admin/scores?score_run=${mode}&score_status=${result.status}`);
 }
 
 export async function inviteEntry(formData: FormData) {
@@ -166,7 +167,7 @@ export async function inviteEntry(formData: FormData) {
     phone: formData.get("phone"),
   });
 
-  if (!parsed.success) redirect("/admin?error=invalid");
+  if (!parsed.success) redirect("/admin/entrants?error=invalid");
 
   const { poolId, userId } = await requireCommissioner();
 
@@ -184,7 +185,7 @@ export async function inviteEntry(formData: FormData) {
     .maybeSingle();
 
   if (!pool || !season || !["setup", "open"].includes(season.status)) {
-    redirect("/admin?error=closed");
+    redirect("/admin/entrants?error=closed");
   }
 
   const { data: existingInvitation } = await admin
@@ -193,7 +194,7 @@ export async function inviteEntry(formData: FormData) {
     .eq("season_id", season.id)
     .eq("email", parsed.data.email.toLowerCase())
     .maybeSingle();
-  if (existingInvitation) redirect("/admin?error=duplicate");
+  if (existingInvitation) redirect("/admin/entrants?error=duplicate");
 
   const requestOrigin = (await headers()).get("origin");
   const invitationId = crypto.randomUUID();
@@ -203,7 +204,7 @@ export async function inviteEntry(formData: FormData) {
       data: { pool_invitation_id: invitationId },
     });
 
-  if (inviteError || !invited.user) redirect("/admin?error=invite");
+  if (inviteError || !invited.user) redirect("/admin/entrants?error=invite");
 
   const { error: provisionError } = await admin
     .from("pool_invitations")
@@ -217,7 +218,7 @@ export async function inviteEntry(formData: FormData) {
       invited_by: userId,
     });
 
-  if (provisionError) redirect("/admin?error=provision");
+  if (provisionError) redirect("/admin/entrants?error=provision");
   await admin.from("commissioner_audit_events").insert({
     pool_id: poolId,
     actor_id: userId,
@@ -226,7 +227,7 @@ export async function inviteEntry(formData: FormData) {
     entity_id: invitationId,
     details: { delivery: "email" },
   });
-  redirect("/admin?sent=1");
+  redirect("/admin/entrants?sent=1");
 }
 
 export async function revokeInvitation(formData: FormData) {
@@ -259,7 +260,7 @@ export async function recordGameResult(formData: FormData) {
     awayScore: formData.get("away_score"),
     homeScore: formData.get("home_score"),
   });
-  if (!parsed.success) redirect("/admin?result_error=invalid");
+  if (!parsed.success) redirect("/admin/scores?result_error=invalid");
   const { supabase, poolId } = await requireCommissioner();
   const { data: game } = await supabase
     .from("games")
@@ -269,11 +270,11 @@ export async function recordGameResult(formData: FormData) {
     .eq("id", parsed.data.gameId)
     .eq("pool_weeks.seasons.pool_id", poolId)
     .maybeSingle();
-  if (!game) redirect("/admin?result_error=game");
+  if (!game) redirect("/admin/scores?result_error=game");
   const line = Array.isArray(game.pool_lines)
     ? game.pool_lines[0]
     : game.pool_lines;
-  if (!line) redirect("/admin?result_error=line");
+  if (!line) redirect("/admin/scores?result_error=line");
   const { data: claims } = await supabase.auth.getClaims();
   const gameWeek = Array.isArray(game.pool_weeks)
     ? game.pool_weeks[0]
@@ -298,7 +299,7 @@ export async function recordGameResult(formData: FormData) {
       },
     });
   } catch {
-    redirect("/admin?result_error=save");
+    redirect("/admin/scores?result_error=save");
   }
   await supabase.from("commissioner_audit_events").insert({
     pool_id: poolId,
@@ -312,7 +313,7 @@ export async function recordGameResult(formData: FormData) {
     },
   });
   revalidatePath("/", "layout");
-  redirect("/admin?result_saved=1");
+  redirect("/admin/scores?result_saved=1");
 }
 
 export async function releaseGameResultToProvider(formData: FormData) {
@@ -321,7 +322,7 @@ export async function releaseGameResultToProvider(formData: FormData) {
     .int()
     .positive()
     .safeParse(formData.get("game_id"));
-  if (!gameId.success) redirect("/admin?result_error=invalid");
+  if (!gameId.success) redirect("/admin/scores?result_error=invalid");
   const { supabase, poolId, userId } = await requireCommissioner();
   const { data: game } = await supabase
     .from("games")
@@ -332,13 +333,11 @@ export async function releaseGameResultToProvider(formData: FormData) {
     .eq("pool_weeks.seasons.pool_id", poolId)
     .eq("game_results.source", "commissioner")
     .maybeSingle();
-  if (!game) redirect("/admin?result_error=game");
-  const { error } = await supabase
-    .from("game_results")
-    .update({ source: "provider", recorded_by: null })
-    .eq("game_id", game.id)
-    .eq("source", "commissioner");
-  if (error) redirect("/admin?result_error=save");
+  if (!game) redirect("/admin/scores?result_error=game");
+  const { error } = await supabase.rpc("release_score_override", {
+    target_game_id: game.id,
+  });
+  if (error) redirect("/admin/scores?result_error=save");
   await supabase.from("commissioner_audit_events").insert({
     pool_id: poolId,
     actor_id: userId,
@@ -347,7 +346,7 @@ export async function releaseGameResultToProvider(formData: FormData) {
     entity_id: String(game.id),
   });
   revalidatePath("/", "layout");
-  redirect("/admin?result_provider=1");
+  redirect("/admin/scores?result_provider=1");
 }
 
 export async function savePayoutScale(formData: FormData) {
@@ -358,7 +357,7 @@ export async function savePayoutScale(formData: FormData) {
     !Number.isSafeInteger(maximum) ||
     maximum % 25 !== 0
   )
-    redirect("/admin?payout_error=invalid");
+    redirect("/admin/manage?payout_error=invalid");
   const { supabase, poolId, userId } = await requireCommissioner();
   const { data: season } = await supabase
     .from("seasons")
@@ -366,24 +365,24 @@ export async function savePayoutScale(formData: FormData) {
     .eq("id", seasonId)
     .eq("pool_id", poolId)
     .maybeSingle();
-  if (!season) redirect("/admin?payout_error=season");
+  if (!season) redirect("/admin/manage?payout_error=season");
   const { count } = await supabase
     .from("pool_entries")
     .select("id", { count: "exact", head: true })
     .eq("season_id", seasonId)
     .eq("is_test", false);
-  if (!count || count < 2) redirect("/admin?payout_error=entries");
+  if (!count || count < 2) redirect("/admin/manage?payout_error=entries");
   let scale;
   try {
     scale = generatePayoutScale(count, maximum);
   } catch {
-    redirect("/admin?payout_error=invalid");
+    redirect("/admin/manage?payout_error=invalid");
   }
   const { error: deleteError } = await supabase
     .from("payout_schedules")
     .delete()
     .eq("season_id", seasonId);
-  if (deleteError) redirect("/admin?payout_error=save");
+  if (deleteError) redirect("/admin/manage?payout_error=save");
   const { error } = await supabase.from("payout_schedules").insert(
     scale.map((row) => ({
       season_id: seasonId,
@@ -393,7 +392,7 @@ export async function savePayoutScale(formData: FormData) {
       updated_by: userId,
     })),
   );
-  if (error) redirect("/admin?payout_error=save");
+  if (error) redirect("/admin/manage?payout_error=save");
   await supabase.from("commissioner_audit_events").insert({
     pool_id: poolId,
     actor_id: userId,
@@ -403,12 +402,12 @@ export async function savePayoutScale(formData: FormData) {
     details: { ranks: count, maximum },
   });
   revalidatePath("/", "layout");
-  redirect("/admin?payout_saved=1");
+  redirect("/admin/manage?payout_saved=1");
 }
 
 export async function refreshOdds(formData: FormData) {
   const weekId = Number(formData.get("week_id"));
-  if (!Number.isSafeInteger(weekId)) redirect("/admin?odds_error=week");
+  if (!Number.isSafeInteger(weekId)) redirect("/admin/lines?odds_error=week");
   const { supabase, poolId } = await requireCommissioner();
   const { data: week } = await supabase
     .from("pool_weeks")
@@ -416,9 +415,9 @@ export async function refreshOdds(formData: FormData) {
     .eq("id", weekId)
     .eq("seasons.pool_id", poolId)
     .maybeSingle();
-  if (!week) redirect("/admin?odds_error=access");
+  if (!week) redirect("/admin/lines?odds_error=access");
   const apiKey = process.env.ODDS_API_KEY;
-  if (!apiKey) redirect("/admin?odds_error=key");
+  if (!apiKey) redirect("/admin/lines?odds_error=key");
   const { data: claims } = await supabase.auth.getClaims();
   try {
     await ingestOdds({
@@ -429,22 +428,22 @@ export async function refreshOdds(formData: FormData) {
       triggerSource: "commissioner",
     });
   } catch {
-    redirect("/admin?odds_error=provider");
+    redirect("/admin/lines?odds_error=provider");
   }
   revalidatePath("/", "layout");
-  redirect("/admin?odds_refreshed=1");
+  redirect("/admin/lines?odds_refreshed=1");
 }
 
 export async function toggleWeekFreeze(formData: FormData) {
   const weekId = Number(formData.get("week_id"));
   const freeze = formData.get("freeze") === "1";
-  if (!Number.isSafeInteger(weekId)) redirect("/admin?odds_error=week");
+  if (!Number.isSafeInteger(weekId)) redirect("/admin/lines?odds_error=week");
   const { supabase } = await requireCommissioner();
   const { error } = await supabase.rpc("set_week_lines_frozen", {
     target_week_id: weekId,
     should_freeze: freeze,
   });
-  if (error) redirect("/admin?odds_error=freeze");
+  if (error) redirect("/admin/lines?odds_error=freeze");
   revalidatePath("/", "layout");
-  redirect(`/admin?odds_${freeze ? "frozen" : "unfrozen"}=1`);
+  redirect(`/admin/lines?odds_${freeze ? "frozen" : "unfrozen"}=1`);
 }

@@ -12,16 +12,6 @@ on:
           - refresh
           - initialize
           - finalize
-  schedule:
-    # Native Eastern scheduling handles DST; delayed runs still ingest.
-    - cron: "0 12 * * 0"
-      timezone: America/New_York
-    - cron: "0 2 * * 1"
-      timezone: America/New_York
-    - cron: "0 20 * * 2,3"
-      timezone: America/New_York
-    - cron: "0 20 * * 4"
-      timezone: America/New_York
 
 permissions:
   contents: read
@@ -38,7 +28,6 @@ jobs:
         id: schedule
         env:
           EVENT_NAME: ${{ github.event_name }}
-          SCHEDULE: ${{ github.event.schedule }}
           MANUAL_MODE: ${{ inputs.mode }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
@@ -46,24 +35,8 @@ jobs:
             echo "mode=${MANUAL_MODE:-refresh}" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          case "$SCHEDULE" in
-            "0 12 * * 0")
-              echo "run=true" >> "$GITHUB_OUTPUT"
-              echo "mode=initialize" >> "$GITHUB_OUTPUT"
-              ;;
-            "0 2 * * 1"|"0 20 * * 2,3")
-              echo "run=true" >> "$GITHUB_OUTPUT"
-              echo "mode=refresh" >> "$GITHUB_OUTPUT"
-              ;;
-            "0 20 * * 4")
-              echo "run=true" >> "$GITHUB_OUTPUT"
-              echo "mode=finalize" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "Unknown schedule: $SCHEDULE" >&2
-              exit 1
-              ;;
-          esac
+          echo "Only manual dispatch is supported" >&2
+          exit 1
       - name: Refresh NFL odds
         if: steps.schedule.outputs.run == 'true'
         env:
