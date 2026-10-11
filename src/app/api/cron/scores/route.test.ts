@@ -27,4 +27,14 @@ describe("score cron route authorization", () => {
     );
     expect(response.status).toBe(400);
   });
+  it("rejects retired automatic checks without spending Odds API quota", async () => {
+    vi.stubEnv("CRON_SECRET", "correct-secret");
+    const response = await POST(
+      new Request("http://localhost/api/cron/scores?mode=validate", {
+        method: "POST",
+        headers: { authorization: "Bearer correct-secret" },
+      }),
+    );
+    expect(response.status).toBe(410);
+  });
 });

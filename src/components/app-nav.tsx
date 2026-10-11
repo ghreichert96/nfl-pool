@@ -21,11 +21,11 @@ const secondary = [
   { href: "/about", label: "About", icon: "info" },
 ] as const;
 const adminTabs = [
-  { href: "/admin", label: "Overview" },
   { href: "/admin/lines", label: "Lines" },
   { href: "/admin/entrants", label: "Entrants" },
-  { href: "/admin/picks", label: "Picks" },
+  { href: "/admin/scores", label: "Scores" },
   { href: "/admin/manage", label: "Rules" },
+  { href: "/admin/activity", label: "Activity Log" },
 ] as const;
 type IconName =
   | "check"
@@ -187,10 +187,17 @@ export function AppNav({
     completeNavigation();
   }, [pathname]);
   useEffect(() => {
-    fetch("/api/profile-summary")
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    window.addEventListener("pagehide", abort);
+    fetch("/api/profile-summary", { signal: controller.signal })
       .then((response) => response.json())
       .then((payload) => setSummary(payload.summary))
       .catch(() => undefined);
+    return () => {
+      window.removeEventListener("pagehide", abort);
+      controller.abort();
+    };
   }, []);
   useEffect(() => {
     if (!panel) return;
@@ -206,14 +213,10 @@ export function AppNav({
     ? [...secondary, { href: "/admin", label: "Admin", icon: "admin" as const }]
     : secondary;
   const activeAdminTab =
-    adminTabs.find(
-      (item) => item.href !== "/admin" && pathname.startsWith(item.href),
-    ) ?? adminTabs[0];
+    adminTabs.find((item) => pathname.startsWith(item.href)) ?? adminTabs[0];
   const selectedAdminTab = effectivePendingHref?.startsWith("/admin")
-    ? (adminTabs.find(
-        (item) =>
-          item.href !== "/admin" && effectivePendingHref.startsWith(item.href),
-      ) ?? adminTabs[0])
+    ? (adminTabs.find((item) => effectivePendingHref.startsWith(item.href)) ??
+      adminTabs[0])
     : activeAdminTab;
   return (
     <>
@@ -305,6 +308,12 @@ export function AppNav({
                 aria-label="Admin section"
                 value={selectedAdminTab.href}
                 onChange={(event) => {
+                  if (
+                    !window.dispatchEvent(
+                      new Event("hppp-before-navigation", { cancelable: true }),
+                    )
+                  )
+                    return;
                   setPendingHref(event.target.value);
                   startNavigation();
                   router.push(event.target.value);

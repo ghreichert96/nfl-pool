@@ -42,4 +42,4 @@ jobs:
           curl --fail-with-body --retry 2 --max-time 60 \
             -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$INGEST_URL/api/cron/scores?mode=$MODE"
+            "$INGEST_URL/api/cron/scores?manual=1&mode=$MODE"

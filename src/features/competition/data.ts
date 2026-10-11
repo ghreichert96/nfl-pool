@@ -32,6 +32,7 @@ export async function loadCompetition(
     { data: weeks },
     { data: payoutRows },
     { data: teams },
+    { data: seasonPots, error: potsError },
   ] = await Promise.all([
     supabase
       .from("pool_entries")
@@ -60,7 +61,13 @@ export async function loadCompetition(
     includeTeams
       ? supabase.from("teams").select("abbreviation, logo_url")
       : Promise.resolve({ data: [] }),
+    supabase
+      .from("seasons")
+      .select("sd_pot,ud_pot")
+      .eq("id", seasonId)
+      .single(),
   ]);
+  if (potsError) throw potsError;
   const weekIds = (weeks ?? []).map((week) => week.id);
   const [{ data: gameRows }, { data: submissionRows }, { data: comments }] =
     weekIds.length
@@ -113,6 +120,7 @@ export async function loadCompetition(
       : row.pool_lines;
     return {
       id: row.id,
+      kickoffAt: row.kickoff_at,
       weekId: row.week_id,
       weekNumber: weekMap.get(row.week_id)?.week_number ?? 0,
       away: row.away_team,
@@ -180,12 +188,32 @@ export async function loadCompetition(
       standing.entryId,
       {
         main: mainPayout.get(standing.entryId) ?? 0,
-        sd: sidePoolPayout(standing.entryId, allEntryIds, sdWinnerIds),
-        ud: sidePoolPayout(standing.entryId, allEntryIds, udWinnerIds),
+        sd: sidePoolPayout(
+          standing.entryId,
+          allEntryIds,
+          sdWinnerIds,
+          Number(seasonPots.sd_pot),
+        ),
+        ud: sidePoolPayout(
+          standing.entryId,
+          allEntryIds,
+          udWinnerIds,
+          Number(seasonPots.ud_pot),
+        ),
         net:
           (mainPayout.get(standing.entryId) ?? 0) +
-          sidePoolPayout(standing.entryId, allEntryIds, sdWinnerIds) +
-          sidePoolPayout(standing.entryId, allEntryIds, udWinnerIds),
+          sidePoolPayout(
+            standing.entryId,
+            allEntryIds,
+            sdWinnerIds,
+            Number(seasonPots.sd_pot),
+          ) +
+          sidePoolPayout(
+            standing.entryId,
+            allEntryIds,
+            udWinnerIds,
+            Number(seasonPots.ud_pot),
+          ),
       },
     ]),
   );
@@ -201,5 +229,6 @@ export async function loadCompetition(
     comments: comments ?? [],
     teams: teams ?? [],
     payoutRows: payoutRows ?? [],
+    sidePots: { sd: Number(seasonPots.sd_pot), ud: Number(seasonPots.ud_pot) },
   };
 }

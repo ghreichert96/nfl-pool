@@ -45,3 +45,66 @@ export function consensusLine(input: {
     totalBooks: new Set(input.totals.map(({ bookmaker }) => bookmaker)).size,
   };
 }
+
+export type SelectedLine = {
+  point: number;
+  bookmaker: string;
+  observedAt: string | null;
+  fallback: string | null;
+};
+export function preferredLine(
+  observations: (LineObservation & { observedAt?: string | null })[],
+  previousAt?: string | null,
+): SelectedLine | null {
+  const valid = observations.filter(
+    (o) =>
+      Number.isFinite(o.point) &&
+      Number.isInteger(o.point * 2) &&
+      o.bookmaker &&
+      (!o.observedAt || Number.isFinite(Date.parse(o.observedAt))) &&
+      (!previousAt ||
+        (o.observedAt && Date.parse(o.observedAt) >= Date.parse(previousAt))),
+  );
+  for (const book of ["draftkings", "betmgm", "fanduel"]) {
+    const observation = valid
+      .filter((o) => o.bookmaker === book)
+      .sort(
+        (a, b) =>
+          Date.parse(b.observedAt ?? "1970-01-01") -
+          Date.parse(a.observedAt ?? "1970-01-01"),
+      )[0];
+    if (observation)
+      return {
+        point: observation.point,
+        bookmaker: book,
+        observedAt: observation.observedAt ?? null,
+        fallback:
+          book === "draftkings" ? null : "Preferred book unavailable or stale",
+      };
+  }
+  const unique = [
+    ...new Map(
+      [...valid]
+        .sort(
+          (a, b) =>
+            Date.parse(a.observedAt ?? "1970-01-01") -
+              Date.parse(b.observedAt ?? "1970-01-01") || a.point - b.point,
+        )
+        .map((o) => [o.bookmaker, o]),
+    ).values(),
+  ];
+  const point = consensusPoint(unique);
+  return point === null
+    ? null
+    : {
+        point,
+        bookmaker: "consensus",
+        observedAt:
+          unique
+            .filter((o) => o.observedAt)
+            .map((o) => o.observedAt!)
+            .sort()
+            .at(-1) ?? null,
+        fallback: "Preferred books unavailable or stale",
+      };
+}

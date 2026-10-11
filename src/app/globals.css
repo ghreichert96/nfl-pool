@@ -332,3 +332,196 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Shared display surfaces and action states. */
+.pick-shell {
+  --result-win: #166534;
+  --result-loss: #7f1d1d;
+  --result-tie: #475569;
+  --result-live: #713f12;
+  --text-primary: #e8edf2;
+}
+.pick-shell.gunmetal {
+  --line: #46505a;
+  --panel-raised: #232a30;
+}
+.pick-shell.retro {
+  --line: #655874;
+  --panel: #211c29;
+  --panel-raised: #302737;
+  --accent-ui: #e6ba73;
+  --badge: #c993bd;
+}
+.pick-shell.light {
+  --line: #c1cbd7;
+  --text-primary: #172033;
+  --result-win: #bbf7d0;
+  --result-loss: #fecaca;
+  --result-tie: #e2e8f0;
+  --result-live: #fef3c7;
+}
+.pick-shell.midnight {
+  --panel: #101d33;
+  --panel-raised: #1c304d;
+  --line: #354f70;
+  --accent-ui: #94c8f4;
+  --accent-ink: #071427;
+  --badge: #73bce9;
+  background: #070f20;
+  color: #e5edf8;
+}
+.midnight > header,
+.midnight aside,
+.midnight nav[aria-label="Mobile primary"] {
+  background: #091428;
+  border-color: var(--line);
+}
+.midnight .bg-slate-950,
+.midnight .bg-\[\#111417\] {
+  background-color: var(--panel);
+}
+.admin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.4rem;
+  background: var(--panel-raised);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.admin-button:disabled {
+  opacity: 0.5;
+}
+.submit-saved {
+  background: #34d399 !important;
+  color: #051b13 !important;
+  border-color: #6ee7b7 !important;
+}
+.submit-ready {
+  background: linear-gradient(#15986e, #087b57) !important;
+  color: white !important;
+  border-color: #34d399 !important;
+  box-shadow:
+    inset 0 1px 0 #ffffff30,
+    0 2px 0 #064e3b;
+}
+.submit-ready:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 3px #0003;
+}
+.submit-neutral {
+  background: var(--panel-raised);
+  color: #94a3b8;
+  border-color: var(--line);
+}
+html[data-large-font="true"] {
+  font-size: 17.6px;
+}
+html[data-large-font="true"] :is(input, select, textarea) {
+  font-size: max(16px, 1rem);
+}
+html[data-large-font="true"] [class~="text-[7px]"] {
+  font-size: 7.7px;
+}
+html[data-large-font="true"] [class~="text-[8px]"] {
+  font-size: 8.8px;
+}
+html[data-large-font="true"] [class~="text-[9px]"] {
+  font-size: 9.9px;
+}
+html[data-large-font="true"] [class~="text-[10px]"] {
+  font-size: 11px;
+}
+html[data-large-font="true"] [class~="text-[11px]"] {
+  font-size: 12.1px;
+}
+html[data-large-font="true"] [class~="text-[12px]"] {
+  font-size: 13.2px;
+}
+html[data-large-font="true"] [class~="text-[13px]"] {
+  font-size: 14.3px;
+}
+html[data-large-font="true"] [class~="text-[14px]"] {
+  font-size: 15.4px;
+}
+html[data-large-font="true"] [class~="text-[15px]"] {
+  font-size: 16.5px;
+}
+html[data-large-font="true"] [class~="text-[16px]"] {
+  font-size: 17.6px;
+}
+html[data-large-font="true"] [class~="text-[17px]"] {
+  font-size: 18.7px;
+}
+html[data-large-font="true"] [class~="text-[18px]"] {
+  font-size: 19.8px;
+}
+html[data-large-font="true"] [class~="text-[19px]"] {
+  font-size: 20.9px;
+}
+html[data-large-font="true"] [class~="text-[20px]"] {
+  font-size: 22px;
+}
+html[data-large-font="true"] [class~="text-[21px]"] {
+  font-size: 23.1px;
+}
+html[data-large-font="true"] [class~="text-[22px]"] {
+  font-size: 24.2px;
+}
+html[data-large-font="true"] [class~="text-[23px]"] {
+  font-size: 25.3px;
+}
+html[data-large-font="true"] [class~="text-[24px]"] {
+  font-size: 26.4px;
+}
+
+.table-source-head {
+  visibility: visible;
+  height: 0;
+}
+.table-source-head th {
+  height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border: 0;
+}
+
+.performance-dialog {
+  background: var(--panel);
+  color: var(--text-primary);
+  border-color: var(--line);
+}
+
+.result-win {
+  background-color: var(--result-win);
+}
+.result-loss {
+  background-color: var(--result-loss);
+}
+.result-tie {
+  background-color: var(--result-tie);
+}
+.light :is(.result-win, .result-loss, .result-tie) {
+  color: #172033;
+}
+.midnight .team-logo-image {
+  filter: drop-shadow(0 0 1px #ffffff80);
+}
+.performance-dialog svg text {
+  font-size: 10px;
+}
+html[data-large-font="true"] .performance-dialog svg text {
+  font-size: 11px;
+}
+/* WebKit reserves a line box for collapsed table sections unless cells are zeroed. */
+.table-source-head th {
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+
+.page-header-title:empty {
+  display: none;
+}

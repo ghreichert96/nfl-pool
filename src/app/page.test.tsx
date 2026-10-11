@@ -28,7 +28,7 @@ describe("Home", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "SUBMIT" })).toBeInTheDocument();
     expect(screen.getByText("TNF")).toHaveClass("bg-teal-400");
-    expect(screen.getByText("INTL")).toHaveClass("bg-cyan-400");
+    expect(screen.getByText("INT")).toHaveClass("bg-cyan-400");
     expect(screen.getAllByText("1 PM")[0]).toHaveClass("bg-blue-400");
     expect(
       screen
@@ -164,10 +164,11 @@ describe("Home", () => {
   it("shows the comment editor below the games and highlights incomplete submission status", () => {
     render(<PicksExperience />);
 
-    expect(
-      screen.getByRole("textbox", { name: "Weekly comment" }),
-    ).toHaveAttribute("maxlength", "40");
-    expect(screen.getByRole("textbox", { name: "Weekly comment" })).toHaveClass(
+    expect(screen.getByRole("textbox", { name: "COMMENT" })).toHaveAttribute(
+      "maxlength",
+      "40",
+    );
+    expect(screen.getByRole("textbox", { name: "COMMENT" })).toHaveClass(
       "text-base",
     );
 
@@ -385,11 +386,11 @@ describe("Home", () => {
     render(<PicksExperience />);
 
     expect(screen.getByRole("button", { name: "SUBMIT" })).toHaveClass(
-      "text-white",
+      "submit-neutral",
     );
     fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
     expect(screen.getByRole("button", { name: "SAVED" })).toHaveClass(
-      "text-slate-950",
+      "submit-saved",
     );
   });
 

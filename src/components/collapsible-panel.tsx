@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { useGridNavigation } from "./grid-navigation";
 
 export function CollapsiblePanel({
   title,
@@ -19,6 +20,16 @@ export function CollapsiblePanel({
   className?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const navigation = useGridNavigation();
+  if (navigation.preview)
+    return navigation.tab === title ? (
+      <section
+        aria-label={title}
+        className="game-card overflow-clip rounded-xl border"
+      >
+        {children}
+      </section>
+    ) : null;
 
   return (
     <section

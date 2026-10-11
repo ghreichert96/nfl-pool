@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { NAV_PREVIEW_KEY, useDisplayPreference } from "./profile-preferences";
 import { completeNavigation, startNavigation } from "./navigation-progress";
 
 const tabs = [
@@ -19,6 +20,7 @@ export function StandingsTabs({
   view: string;
   weekNumber?: number;
 }) {
+  const preview = useDisplayPreference(NAV_PREVIEW_KEY);
   const router = useRouter();
   const searchParams = useSearchParams();
   const locationKey = searchParams.toString();
@@ -29,6 +31,28 @@ export function StandingsTabs({
   }, [locationKey]);
 
   const visibleView = pending && pending !== view ? pending : view;
+  if (preview)
+    return (
+      <div role="tablist" aria-label="Standings view" className="flex gap-1">
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={visibleView === key}
+            onClick={() => {
+              setPending(key);
+              startNavigation();
+              router.push(
+                `/standings?view=${key}${weekNumber ? `&week=${weekNumber}` : ""}`,
+              );
+            }}
+            className={`min-h-9 rounded border px-2 text-[10px] font-black ${visibleView === key ? "control-pressed" : "control-raised"}`}
+          >
+            {key === "sd" ? "SD" : key === "ud" ? "UD" : label}
+          </button>
+        ))}
+      </div>
+    );
   return (
     <select
       aria-label="Standings view"
@@ -50,4 +74,8 @@ export function StandingsTabs({
       ))}
     </select>
   );
+}
+
+export function StandingsTitle() {
+  return useDisplayPreference(NAV_PREVIEW_KEY) ? null : <>Standings</>;
 }

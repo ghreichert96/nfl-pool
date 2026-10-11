@@ -13,10 +13,6 @@ const script = workflow
   .join("\n");
 
 it.each([
-  ["schedule", "0 12 * * 0", "", "initialize"],
-  ["schedule", "0 2 * * 1", "", "refresh"],
-  ["schedule", "0 20 * * 2,3", "", "refresh"],
-  ["schedule", "0 20 * * 4", "", "finalize"],
   ["workflow_dispatch", "", "finalize", "finalize"],
   ["workflow_dispatch", "", "initialize", "initialize"],
   ["workflow_dispatch", "", "refresh", "refresh"],
@@ -47,3 +43,7 @@ it.each([
     }
   },
 );
+
+it("has no automatic GitHub odds schedule", () => {
+  expect(workflow).not.toMatch(/^  schedule:/m);
+});

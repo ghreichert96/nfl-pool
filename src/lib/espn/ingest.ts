@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { saveFinalGameResult } from "@/lib/scores/result";
+
 import { fetchEspnNflScoreboard, type EspnLiveEvent } from "./provider";
 
-const MAX_GAME_AGE_MS = 10 * 60 * 60 * 1000;
+const MAX_GAME_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 const MATCH_TOLERANCE_MS = 6 * 60 * 60 * 1000;
-const FINAL_VALIDATION_DELAY_MS = 10 * 60 * 1000;
 
 type PoolGame = {
   id: number;
@@ -21,6 +22,12 @@ type PoolGame = {
   live_period: number | null;
   live_clock: string | null;
   final_detected_at: string | null;
+  pool_lines:
+    | { away_spread: number; total: number }
+    | { away_spread: number; total: number }[]
+    | null;
+  game_type_override: boolean;
+  game_type: string;
   game_results:
     | { source: "commissioner" | "provider" }
     | Array<{ source: "commissioner" | "provider" }>
@@ -40,14 +47,20 @@ export async function ingestEspnLiveStatus({
   const { data, error } = await admin
     .from("games")
     .select(
-      "id, week_id, espn_event_id, away_team, home_team, kickoff_at, status, away_score, home_score, status_detail, live_state, live_period, live_clock, final_detected_at, game_results(source)",
+      "id, week_id, espn_event_id, away_team, home_team, kickoff_at, status, away_score, home_score, status_detail, live_state, live_period, live_clock, final_detected_at, game_type, game_type_override, pool_lines(away_spread,total), game_results(source)",
     )
-    .in("status", ["scheduled", "live"])
-    .gte("kickoff_at", from)
+    .or(
+      "status.in.(scheduled,live),final_validation_state.in.(pending,retry,reconciliation)",
+    )
+    .or(
+      `kickoff_at.gte.${from},final_validation_state.in.(pending,retry,reconciliation)`,
+    )
     .lte("kickoff_at", now.toISOString())
     .order("kickoff_at");
   if (error) throw error;
-  const games = (data ?? []) as unknown as PoolGame[];
+  const games = ((data ?? []) as unknown as PoolGame[]).filter(
+    (game) => first(game.game_results)?.source !== "commissioner",
+  );
   if (!games.length)
     return { status: "skipped" as const, reason: "no_active_games" };
 
@@ -60,7 +73,11 @@ export async function ingestEspnLiveStatus({
     throw runError ?? new Error("Could not create ESPN run");
 
   try {
-    const events = await fetchEspnNflScoreboard(fetcher);
+    const events = await fetchEspnNflScoreboard(
+      fetcher,
+      now,
+      new Date(Math.min(...games.map((game) => Date.parse(game.kickoff_at)))),
+    );
     let gamesUpdated = 0;
     const failures: string[] = [];
 
@@ -74,7 +91,46 @@ export async function ingestEspnLiveStatus({
       }
       if (event.state === "scheduled") continue;
 
-      const finalPending = event.state === "final";
+      if (event.state === "final") {
+        try {
+          const line = first(game.pool_lines);
+          if (!line)
+            throw new Error("Missing saved line; commissioner review required");
+          await saveFinalGameResult({
+            supabase: admin,
+            source: "provider",
+            providerUpdatedAt: now.toISOString(),
+            game: {
+              id: game.id,
+              weekId: game.week_id,
+              weekNumber: 0,
+              away: game.away_team,
+              home: game.home_team,
+              awaySpread: Number(line.away_spread),
+              total: Number(line.total),
+              awayScore: event.awayScore,
+              homeScore: event.homeScore,
+              status: "final",
+            },
+          });
+          const metadata = await admin
+            .from("games")
+            .update({
+              espn_event_id: event.id,
+              ...(event.international && !game.game_type_override
+                ? { game_type: "international" }
+                : {}),
+            })
+            .eq("id", game.id);
+          if (metadata.error) throw metadata.error;
+          gamesUpdated++;
+        } catch (error) {
+          failures.push(
+            `${game.id}: ${error instanceof Error ? error.message : JSON.stringify(error)}`,
+          );
+        }
+        continue;
+      }
       const nextStatus =
         event.state === "postponed" || event.state === "cancelled"
           ? event.state
@@ -87,7 +143,7 @@ export async function ingestEspnLiveStatus({
         game.status_detail === event.detail &&
         game.live_period === event.period &&
         game.live_clock === event.clock &&
-        game.live_state === (finalPending ? "final_pending" : event.state);
+        game.live_state === event.state;
       const update: Record<string, unknown> = {
         espn_event_id: event.id,
         away_score: event.awayScore,
@@ -96,18 +152,11 @@ export async function ingestEspnLiveStatus({
         status_detail: event.detail,
         live_period: event.period,
         live_clock: event.clock || null,
-        live_state: finalPending ? "final_pending" : event.state,
+        live_state: event.state,
         live_status_updated_at: now.toISOString(),
       };
-      if (finalPending && !game.final_detected_at) {
-        update.final_detected_at = now.toISOString();
-        update.final_validation_state = "pending";
-        update.final_validation_next_at = new Date(
-          now.getTime() + FINAL_VALIDATION_DELAY_MS,
-        ).toISOString();
-        update.final_validation_attempts = 0;
-        update.final_validation_error = null;
-      }
+      if (event.international && !game.game_type_override)
+        update.game_type = "international";
       const { error: updateError } = await admin
         .from("games")
         .update(update)

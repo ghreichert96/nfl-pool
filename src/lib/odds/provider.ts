@@ -3,16 +3,17 @@ import { z } from "zod";
 const outcomeSchema = z.object({
   name: z.string(),
   price: z.number().optional(),
-  point: z.number(),
+  point: z.number().finite().nullable().optional().catch(null),
 });
 const marketSchema = z.object({
   key: z.enum(["spreads", "totals"]),
   outcomes: z.array(outcomeSchema),
+  last_update: z.string().datetime().optional().catch(undefined),
 });
 const bookmakerSchema = z.object({
   key: z.string(),
   title: z.string(),
-  last_update: z.string().datetime().optional(),
+  last_update: z.string().datetime().optional().catch(undefined),
   markets: z.array(marketSchema),
 });
 const eventSchema = z.object({

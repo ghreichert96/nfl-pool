@@ -7,6 +7,11 @@ const competitorSchema = z.object({
 });
 
 const competitionSchema = z.object({
+  venue: z
+    .object({
+      address: z.object({ country: z.string().optional() }).optional(),
+    })
+    .optional(),
   competitors: z.array(competitorSchema),
   status: z.object({
     displayClock: z.string().default(""),
@@ -44,11 +49,19 @@ export type EspnLiveEvent = {
   state:
     "scheduled" | "live" | "halftime" | "final" | "postponed" | "cancelled";
   detail: string;
+  international?: boolean;
 };
 
-export async function fetchEspnNflScoreboard(fetcher: typeof fetch = fetch) {
+export async function fetchEspnNflScoreboard(
+  fetcher: typeof fetch = fetch,
+  now?: Date,
+  from?: Date,
+) {
+  const dates = now
+    ? `&dates=${(from ?? new Date(now.getTime() - 3 * 86400000)).toISOString().slice(0, 10).replaceAll("-", "")}-${now.toISOString().slice(0, 10).replaceAll("-", "")}`
+    : "";
   const response = await fetcher(
-    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000",
+    `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000${dates}`,
     { headers: { accept: "application/json" }, cache: "no-store" },
   );
   if (!response.ok)
@@ -71,6 +84,12 @@ function parseEvents(events: z.infer<typeof eventSchema>[]): EspnLiveEvent[] {
     const state = espnState(status.type);
     return [
       {
+        international: Boolean(
+          competition.venue?.address?.country &&
+          !["USA", "US", "United States"].includes(
+            competition.venue.address.country,
+          ),
+        ),
         id: event.id,
         kickoffAt: event.date,
         awayTeam: normalizeEspnTeam(away.team.abbreviation),

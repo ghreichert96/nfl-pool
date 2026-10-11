@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { rebuildGameScoreEvents } from "@/features/competition/rebuild-game-score-events";
+import { buildGameScoreEvents } from "@/features/competition/rebuild-game-score-events";
 import type { ScoringGame } from "@/features/competition/scoring";
 
 export function deriveGameResult(
@@ -49,37 +49,20 @@ export async function saveFinalGameResult({
 }) {
   if (game.awayScore === null || game.homeScore === null)
     throw new Error("A final result requires both scores");
-  const result = deriveGameResult(game, game.awayScore, game.homeScore);
-  const now = new Date().toISOString();
-  const { error: resultError } = await supabase.from("game_results").upsert({
-    game_id: game.id,
-    away_score: game.awayScore,
-    home_score: game.homeScore,
-    ats_winner: result.atsWinner,
-    total_winner: result.totalWinner,
-    outright_winner: result.outrightWinner,
-    source,
-    recorded_by: recordedBy,
-    provider_updated_at: providerUpdatedAt,
-    corrected_at: isCorrection ? now : null,
+  const events = await buildGameScoreEvents(supabase, {
+    ...game,
+    status: "final",
   });
-  if (resultError) throw resultError;
-
-  const { error: gameError } = await supabase
-    .from("games")
-    .update({
-      away_score: game.awayScore,
-      home_score: game.homeScore,
-      status: "final",
-      status_detail: "Final",
-      live_state: "final",
-      final_validation_state: "validated",
-      final_validation_next_at: null,
-      final_validation_error: null,
-      score_provider_updated_at: providerUpdatedAt,
-    })
-    .eq("id", game.id);
-  if (gameError) throw gameError;
-
-  return rebuildGameScoreEvents(supabase, { ...game, status: "final" });
+  const { data, error } = await supabase.rpc("save_final_game_result", {
+    target_game_id: game.id,
+    away_points: game.awayScore,
+    home_points: game.homeScore,
+    result_source: source,
+    provider_time: providerUpdatedAt,
+    correction: isCorrection,
+    score_rows: events,
+    actor: recordedBy,
+  });
+  if (error) throw error;
+  return Number(data);
 }

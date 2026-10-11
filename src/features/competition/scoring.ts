@@ -4,6 +4,7 @@ export type ScoringGame = {
   id: number;
   weekId: number;
   weekNumber: number;
+  kickoffAt?: string;
   away: string;
   home: string;
   awaySpread: number;
@@ -270,7 +271,11 @@ export function sidePoolPayout(
   winnerEntryIds: number[],
   pot = 200,
 ) {
-  if (allEntryIds.length === 0 || winnerEntryIds.length === allEntryIds.length)
+  if (
+    allEntryIds.length === 0 ||
+    winnerEntryIds.length === 0 ||
+    winnerEntryIds.length === allEntryIds.length
+  )
     return 0;
   return winnerEntryIds.includes(entryId)
     ? pot / winnerEntryIds.length

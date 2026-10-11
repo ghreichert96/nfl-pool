@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, UIEvent } from "react";
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 const headers = [
   "TM",
@@ -66,13 +66,27 @@ export function GridPreviewTable({ children }: { children: ReactNode }) {
 
 export function StickyGridTable({ children }: { children: ReactNode }) {
   const headerRef = useRef<HTMLTableElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const header = document.querySelector("[data-sticky-page-header]");
+    if (!header) return;
+    const update = () =>
+      frameRef.current?.style.setProperty(
+        "--table-sticky-top",
+        `${parseFloat(getComputedStyle(header).top) + header.getBoundingClientRect().height}px`,
+      );
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
   const syncHeader = (event: UIEvent<HTMLDivElement>) => {
     if (headerRef.current)
       headerRef.current.style.transform = `translateX(-${event.currentTarget.scrollLeft}px)`;
   };
   return (
-    <div>
-      <div className="sticky top-[93px] z-20 overflow-hidden border-t border-slate-800 bg-slate-950 sm:top-[101px]">
+    <div ref={frameRef}>
+      <div className="sticky top-[var(--table-sticky-top,93px)] z-20 overflow-hidden border-t border-slate-800 bg-slate-950 sm:top-[var(--table-sticky-top,101px)]">
         <table
           ref={headerRef}
           className="table-fixed border-separate border-spacing-0 text-[11px]"

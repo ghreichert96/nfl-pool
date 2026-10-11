@@ -33,37 +33,41 @@ const defaults = [
   },
 ];
 
-const desiredKeys = defaults.map((section) => section.section_key);
-
 export default async function RulesPage() {
-  const { supabase, entry, membership, isCommissioner } =
-    await getPoolContext();
-  const [{ data: storedSections }, { data: payoutRows }] = await Promise.all([
-    membership
-      ? supabase
-          .from("rule_sections")
-          .select("section_key, position, title, summary, detail")
-          .eq("pool_id", membership.pool_id)
-          .in("section_key", desiredKeys)
-          .order("position")
-      : Promise.resolve({ data: [] }),
+  const { supabase, entry, isCommissioner } = await getPoolContext();
+  const [{ data: payoutRows }, { data: season }] = await Promise.all([
     entry
       ? supabase
           .from("payout_schedules")
           .select("amount")
           .eq("season_id", entry.season_id)
       : Promise.resolve({ data: [] }),
+    entry
+      ? supabase
+          .from("seasons")
+          .select("sd_pot,ud_pot")
+          .eq("id", entry.season_id)
+          .single()
+      : Promise.resolve({ data: null }),
   ]);
-  const storedMap = new Map(
-    (storedSections ?? []).map((section) => [section.section_key, section]),
-  );
-  const displayedSections = defaults.map(
-    (fallback) => storedMap.get(fallback.section_key) ?? fallback,
-  );
+  const sd = Number(season?.sd_pot ?? 225);
+  const ud = Number(season?.ud_pot ?? 225);
   const amounts = (payoutRows ?? []).map((row) => Number(row.amount));
   const payoutRange = amounts.length
     ? `${formatMoney(Math.max(...amounts))} to ${formatMoney(Math.min(...amounts))}`
     : "+$350 to −$350";
+
+  const displayedSections = defaults.map((section) => {
+    if (section.section_key === "sudden_death")
+      return { ...section, summary: `Sudden Death $${sd} · Underdog $${ud}.` };
+    if (section.section_key === "scoring")
+      return {
+        ...section,
+        summary: `Main ${payoutRange} · SD $${sd} · UD $${ud}.`,
+        detail: `Main: ${payoutRange}\nTies: Average occupied rank slots\nSudden Death: $${sd} combined; split among winners\nUnderdog: $${ud} combined; split among winners\nSide pool costs: Shared evenly by non-winners; everyone tied pays $0\nPlayoffs: 100 points; $20/entry; 1st/2nd/3rd paid\nSettlement: After season via Venmo or Zelle`,
+      };
+    return section;
+  });
 
   return (
     <PageShell

@@ -6,10 +6,27 @@ import { ThemeSelector } from "./theme-controls";
 
 export const PREVIEW_MINIMIZED_KEY = "hppp:preview-minimized";
 export const FINAL_GAMES_MINIMIZED_KEY = "hppp:final-games-minimized";
+export const NAV_PREVIEW_KEY = "hppp:nav-preview";
+export const LARGE_FONT_KEY = "hppp:large-font";
 const preferenceEvent = "hppp-display-preference";
 
 function readPreference(key: string) {
   return window.localStorage.getItem(key) === "true";
+}
+
+export function useDisplayPreference(key: string) {
+  return useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener(preferenceEvent, onChange);
+      window.addEventListener("storage", onChange);
+      return () => {
+        window.removeEventListener(preferenceEvent, onChange);
+        window.removeEventListener("storage", onChange);
+      };
+    },
+    () => readPreference(key),
+    () => false,
+  );
 }
 
 function PreferenceSwitch({
@@ -21,18 +38,7 @@ function PreferenceSwitch({
   label: string;
   description: string;
 }) {
-  const checked = useSyncExternalStore(
-    (onChange) => {
-      window.addEventListener(preferenceEvent, onChange);
-      window.addEventListener("storage", onChange);
-      return () => {
-        window.removeEventListener(preferenceEvent, onChange);
-        window.removeEventListener("storage", onChange);
-      };
-    },
-    () => readPreference(storageKey),
-    () => false,
-  );
+  const checked = useDisplayPreference(storageKey);
 
   return (
     <div className="flex items-center justify-between gap-4 border-t border-slate-800 pt-3">
@@ -54,7 +60,7 @@ function PreferenceSwitch({
         <span
           className={`absolute top-1/2 left-0.5 size-[18px] -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform ${checked ? "translate-x-5" : "translate-x-0"}`}
         />
-        <span className="sr-only">{checked ? "Collapsed" : "Expanded"}</span>
+        <span className="sr-only">{checked ? "On" : "Off"}</span>
       </button>
     </div>
   );
@@ -64,6 +70,16 @@ export function ProfilePreferences() {
   return (
     <div className="grid gap-4">
       <ThemeSelector />
+      <PreferenceSwitch
+        storageKey={LARGE_FONT_KEY}
+        label="Increase font size"
+        description="Slightly larger text on this device."
+      />
+      <PreferenceSwitch
+        storageKey={NAV_PREVIEW_KEY}
+        label="Preview header tabs"
+        description="Try tabs for Grid and Standings. Turn off to restore the current layout."
+      />
       <PreferenceSwitch
         storageKey={PREVIEW_MINIMIZED_KEY}
         label="Collapse picks preview"
