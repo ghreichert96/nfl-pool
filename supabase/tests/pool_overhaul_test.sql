@@ -83,5 +83,9 @@ select is(private.odds_job_mode('2026-10-16 00:00:00+00'),'finalize','Thursday 8
 select is(private.odds_job_mode('2026-11-06 01:00:00+00'),'finalize','Thursday 8 PM EST final lock');
 select is(private.odds_job_mode('2026-11-02 07:00:00+00'),'refresh','Monday 2 AM refresh after DST change');
 select is(private.odds_job_mode('2026-10-10 16:00:00+00'),null::text,'no Saturday refresh');
+select ok(not has_table_privilege('anon','public.odds_schedule_slots','SELECT'),'anonymous users cannot discover scheduler table');
+select ok(not has_table_privilege('authenticated','public.odds_schedule_slots','TRUNCATE'),'signed-in users cannot truncate scheduler history');
+select ok(has_table_privilege('authenticated','public.odds_schedule_slots','SELECT'),'commissioner activity log remains readable under RLS');
+select ok(has_table_privilege('service_role','public.odds_schedule_slots','UPDATE'),'scheduler service can record execution');
 select * from finish();
 rollback;
