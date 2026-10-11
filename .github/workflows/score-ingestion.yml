@@ -2,15 +2,6 @@ name: NFL score ingestion
 
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        description: Final-score ingestion mode
-        required: true
-        default: validate
-        type: choice
-        options:
-          - validate
-          - reconcile
 
 permissions:
   contents: read
@@ -23,23 +14,14 @@ jobs:
   ingest:
     runs-on: ubuntu-latest
     steps:
-      - name: Select ingestion mode
-        id: schedule
-        env:
-          REQUESTED_MODE: ${{ inputs.mode }}
-        run: |
-          echo "run=true" >> "$GITHUB_OUTPUT"
-          echo "mode=${REQUESTED_MODE:-validate}" >> "$GITHUB_OUTPUT"
       - name: Refresh NFL scores
-        if: steps.schedule.outputs.run == 'true'
         env:
           INGEST_URL: ${{ secrets.ODDS_INGEST_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
-          MODE: ${{ steps.schedule.outputs.mode }}
         run: |
           test -n "$INGEST_URL"
           test -n "$CRON_SECRET"
           curl --fail-with-body --retry 2 --max-time 60 \
             -X POST \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$INGEST_URL/api/cron/scores?manual=1&mode=$MODE"
+            "$INGEST_URL/api/cron/live-status"

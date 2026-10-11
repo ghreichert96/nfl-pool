@@ -11,7 +11,6 @@ import { generatePayoutScale } from "@/features/competition/payout-scale";
 import { easternLocalToIso } from "@/lib/eastern-time";
 import { ingestOdds } from "@/lib/odds/ingest";
 import { ingestEspnLiveStatus } from "@/lib/espn/ingest";
-import { ingestScores } from "@/lib/scores/ingest";
 import { saveFinalGameResult } from "@/lib/scores/result";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -131,34 +130,17 @@ export async function saveGame(formData: FormData) {
   redirect("/admin/lines?game_saved=1");
 }
 
-export async function reconcileScores() {
-  await runScoreUpdate("reconcile");
-}
-export async function validateScores() {
-  await runScoreUpdate("validate");
-}
 export async function refreshLiveScores() {
-  await runScoreUpdate("espn");
-}
-
-async function runScoreUpdate(mode: "reconcile" | "validate" | "espn") {
   await requireCommissioner();
-  const apiKey = process.env.ODDS_API_KEY;
-  if (mode !== "espn" && !apiKey)
-    redirect("/admin/scores?score_error=missing_key");
   let result;
   try {
-    const admin = createAdminClient();
-    result =
-      mode === "espn"
-        ? await ingestEspnLiveStatus({ admin })
-        : await ingestScores({ admin, apiKey: apiKey!, mode });
+    result = await ingestEspnLiveStatus({ admin: createAdminClient() });
   } catch (error) {
-    console.error("Manual score update failed", error);
+    console.error("ESPN score refresh failed", error);
     redirect("/admin/scores?score_error=failed");
   }
   revalidatePath("/", "layout");
-  redirect(`/admin/scores?score_run=${mode}&score_status=${result.status}`);
+  redirect(`/admin/scores?score_run=espn&score_status=${result.status}`);
 }
 
 export async function inviteEntry(formData: FormData) {
@@ -346,7 +328,9 @@ export async function releaseGameResultToProvider(formData: FormData) {
     entity_id: String(game.id),
   });
   revalidatePath("/", "layout");
-  redirect("/admin/scores?result_provider=1");
+  redirect(
+    `/admin/scores?result_provider=1&week=${Number(formData.get("week")) || ""}`,
+  );
 }
 
 export async function savePayoutScale(formData: FormData) {

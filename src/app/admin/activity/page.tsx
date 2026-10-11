@@ -16,6 +16,7 @@ export default async function ActivityPage() {
     { data: slots, error: slotError },
     { data: runs, error: runError },
     { data: audit, error: auditError },
+    { data: scores, error: scoreError },
   ] = await Promise.all([
     supabase
       .from("odds_schedule_slots")
@@ -33,9 +34,14 @@ export default async function ActivityPage() {
       .eq("pool_id", poolId)
       .order("created_at", { ascending: false })
       .limit(40),
+    supabase
+      .from("live_status_ingestion_runs")
+      .select("id,status,requested_at,games_updated,error_message")
+      .order("requested_at", { ascending: false })
+      .limit(20),
   ]);
-  if (slotError || runError || auditError)
-    throw slotError || runError || auditError;
+  if (slotError || runError || auditError || scoreError)
+    throw slotError || runError || auditError || scoreError;
   return (
     <PageShell isCommissioner>
       <h1 className="mb-3 font-black">Activity Log</h1>
@@ -44,6 +50,22 @@ export default async function ActivityPage() {
         Monday–Thursday 2 AM, noon and 8 PM refreshes. Thursday 8 PM locks the
         last saved lines.
       </p>
+      <section className="game-card mb-3 rounded-lg border p-3">
+        <h2 className="mb-2 font-bold">ESPN score updates</h2>
+        <ul className="divide-y divide-[var(--line)] text-xs">
+          {(scores ?? []).map((run) => (
+            <li key={run.id} className="py-2">
+              <span>
+                {time(run.requested_at)} · {run.status} · {run.games_updated}{" "}
+                updated
+              </span>
+              {run.error_message && (
+                <p className="text-red-400">{run.error_message}</p>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
       <section className="game-card mb-3 overflow-x-auto rounded-lg border p-3">
         <h2 className="mb-2 font-bold">Scheduled odds jobs</h2>
         <table className="w-full text-left text-xs">
