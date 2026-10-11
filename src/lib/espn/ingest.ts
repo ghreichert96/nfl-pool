@@ -76,7 +76,7 @@ export async function ingestEspnLiveStatus({
     const events = await fetchEspnNflScoreboard(
       fetcher,
       now,
-      new Date(Math.min(...games.map((game) => Date.parse(game.kickoff_at)))),
+      games.map((game) => new Date(game.kickoff_at)),
     );
     let gamesUpdated = 0;
     const failures: string[] = [];

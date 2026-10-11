@@ -55,19 +55,41 @@ export type EspnLiveEvent = {
 export async function fetchEspnNflScoreboard(
   fetcher: typeof fetch = fetch,
   now?: Date,
-  from?: Date,
+  gameDates?: Date[],
 ) {
-  const dates = now
-    ? `&dates=${(from ?? new Date(now.getTime() - 3 * 86400000)).toISOString().slice(0, 10).replaceAll("-", "")}-${now.toISOString().slice(0, 10).replaceAll("-", "")}`
-    : "";
-  const response = await fetcher(
-    `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000${dates}`,
-    { headers: { accept: "application/json" }, cache: "no-store" },
-  );
-  if (!response.ok)
-    throw new Error(`ESPN scoreboard returned ${response.status}`);
-  const parsed = scoreboardSchema.parse(await response.json());
-  return parseEvents(parsed.events);
+  // ESPN's NFL endpoint rejects date ranges. Query each relevant slate once,
+  // using Eastern dates so Sunday/Monday night games stay on their slate.
+  const dates = gameDates?.length
+    ? [...new Set(gameDates.map(espnSlateDate))]
+    : now
+      ? [espnSlateDate(now)]
+      : [null];
+  const events: EspnLiveEvent[] = [];
+  for (const date of dates) {
+    const response = await fetcher(
+      `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000${date ? `&dates=${date}` : ""}`,
+      { headers: { accept: "application/json" }, cache: "no-store" },
+    );
+    if (!response.ok)
+      throw new Error(
+        `ESPN scoreboard returned ${response.status}${date ? ` for ${date}` : ""}`,
+      );
+    const parsed = scoreboardSchema.parse(await response.json());
+    events.push(...parseEvents(parsed.events));
+  }
+  return [...new Map(events.map((event) => [event.id, event])).values()];
+}
+
+function espnSlateDate(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  return ["year", "month", "day"]
+    .map((type) => parts.find((part) => part.type === type)!.value)
+    .join("");
 }
 
 function parseEvents(events: z.infer<typeof eventSchema>[]): EspnLiveEvent[] {
