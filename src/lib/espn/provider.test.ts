@@ -15,6 +15,25 @@ describe("ESPN live provider", () => {
     expect(liveDetail("final", 4, "0:00")).toBe("Final");
   });
 
+  it("queries distinct Eastern slate dates without rejected date ranges", async () => {
+    const fetcher = vi.fn(
+      async () => new Response(JSON.stringify({ events: [] })),
+    );
+    await fetchEspnNflScoreboard(
+      fetcher as typeof fetch,
+      new Date("2026-10-11T20:00Z"),
+      [
+        new Date("2026-10-06T00:15Z"),
+        new Date("2026-10-11T17:00Z"),
+        new Date("2026-10-12T00:20Z"),
+      ],
+    );
+    expect(fetcher.mock.calls.map((call) => (call as unknown[])[0])).toEqual([
+      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates=20261005",
+      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates=20261011",
+    ]);
+  });
+
   it("parses teams, scores, clock, and a provisional final", async () => {
     const fetcher = vi.fn(
       async () =>
