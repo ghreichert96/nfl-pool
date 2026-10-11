@@ -3,7 +3,7 @@
 ## Order
 
 1. Apply `20261011033524_pool_experience_reliability.sql` and `20261011042704_restrict_odds_schedule_permissions.sql` before deploying this PR. It adds compatible columns and RPCs, preserves existing commissioner overrides, repairs the two reported 2026 international tags, and stages the odds cron **disabled**. Existing score cron jobs remain installed during staging. No picks or saved line values are rewritten.
-2. Deploy this PR. ESPN finalization now commits the final score, score events and game status together. Existing pending/retry/reconciliation records are eligible for ESPN recovery, including older games. The retired automatic Odds API score endpoint returns 410; manual checks remain in Admin → Scores.
+2. Deploy this PR. ESPN finalization now commits the final score, score events and game status together. Existing pending/retry/reconciliation records are eligible for ESPN recovery, including older games. The retired automatic Odds API score endpoint returns 410; manual ESPN refreshes remain in Admin → Scores.
 3. Confirm the deployed commit, then run `select public.activate_espn_odds_automation();` as the database owner/service role. This enables the Supabase odds scheduler and removes the old automatic validation/reconciliation cron jobs. The GitHub odds workflow in this PR supports manual dispatch only. Do not restore its automatic schedule while Supabase odds cron is enabled.
 4. Run one commissioner refresh for an **unlocked** upcoming week. Verify Activity Log shows nonzero fetched/snapshot counts, either applied or unchanged lines, selected book timestamps, quota and no unresolved errors. A no-change run is valid; a failed write is never reported as success. Review any per-game warning in Lines. Do not unlock a frozen competitive week just to test ingestion.
 5. Observe the next scheduled slot and ESPN final. Check expected/attempt/completion timestamps, deduplicated execution, finals and standings. Production verification requires the new deployment and cannot be substituted by local tests.
@@ -19,6 +19,7 @@
 
 ## Operations and rollback
 
+- Scores: ESPN is the sole provider. Refresh checks the selected week, including completed games; commissioner corrections remain protected. Compact score edits save final results together using `20261011203406_atomic_commissioner_score_edits.sql`. This additive migration must precede the compact Scores UI deployment.
 - Lines: edits are one atomic save. Concurrent line changes reject the entire batch and retain the draft. Spread and total each have an explicit return-to-automatic control; refresh/final lock never removes an override. Missing lines can be supplied manually.
 - Rules: Main scale plus independent SD/UD combined pots. Both current-season side pots are $225. Published rules render these amounts dynamically.
 - Personal navigation preview, larger text and theme are device-local and can be switched back immediately.

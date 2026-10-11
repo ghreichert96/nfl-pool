@@ -87,5 +87,15 @@ select ok(not has_table_privilege('anon','public.odds_schedule_slots','SELECT'),
 select ok(not has_table_privilege('authenticated','public.odds_schedule_slots','TRUNCATE'),'signed-in users cannot truncate scheduler history');
 select ok(has_table_privilege('authenticated','public.odds_schedule_slots','SELECT'),'commissioner activity log remains readable under RLS');
 select ok(has_table_privilege('service_role','public.odds_schedule_slots','UPDATE'),'scheduler service can record execution');
+select ok(not has_function_privilege('anon','public.save_score_batch(bigint,jsonb)','execute'),'anonymous cannot save scores');
+set local role authenticated;
+select set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000010","role":"authenticated"}',true);
+select lives_ok('select public.save_score_batch(f.w,jsonb_build_array(jsonb_build_object(''game_id'',g.id,''updated_at'',g.updated_at,''away_score'',24,''home_score'',10,''score_rows'',''[]''::jsonb))) from overhaul_fixture f join public.games g on g.id=f.g','commissioner saves score batch');
+select is((select away_score from public.games where id=(select g from overhaul_fixture)),24::smallint,'batch records final score');
+select throws_ok('select public.save_score_batch(f.w,jsonb_build_array(jsonb_build_object(''game_id'',g.id,''updated_at'',g.updated_at,''away_score'',25,''home_score'',10,''score_rows'',''[]''::jsonb),jsonb_build_object(''game_id'',f.early,''updated_at'',''2000-01-01'',''away_score'',20,''home_score'',10,''score_rows'',''[]''::jsonb))) from overhaul_fixture f join public.games g on g.id=f.g','P0001','Scores changed. Refresh before saving.','concurrent score update rejects whole batch');
+select is((select away_score from public.games where id=(select g from overhaul_fixture)),24::smallint,'earlier score edit rolls back');
+select set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000099","role":"authenticated"}',true);
+select throws_ok('select public.save_score_batch(w,''[]'') from overhaul_fixture',null,null,'non-commissioner cannot save scores');
+reset role;
 select * from finish();
 rollback;

@@ -38,25 +38,32 @@ export async function ingestEspnLiveStatus({
   admin,
   now = new Date(),
   fetcher = fetch,
+  checkWeekId,
 }: {
   admin: SupabaseClient;
   now?: Date;
   fetcher?: typeof fetch;
+  checkWeekId?: number;
 }) {
   const from = new Date(now.getTime() - MAX_GAME_AGE_MS).toISOString();
-  const { data, error } = await admin
+  let query = admin
     .from("games")
     .select(
       "id, week_id, espn_event_id, away_team, home_team, kickoff_at, status, away_score, home_score, status_detail, live_state, live_period, live_clock, final_detected_at, game_type, game_type_override, pool_lines(away_spread,total), game_results(source)",
     )
-    .or(
-      "status.in.(scheduled,live),final_validation_state.in.(pending,retry,reconciliation)",
-    )
-    .or(
-      `kickoff_at.gte.${from},final_validation_state.in.(pending,retry,reconciliation)`,
-    )
-    .lte("kickoff_at", now.toISOString())
-    .order("kickoff_at");
+    .lte("kickoff_at", now.toISOString());
+  query = checkWeekId
+    ? query
+        .eq("week_id", checkWeekId)
+        .in("status", ["scheduled", "live", "final"])
+    : query
+        .or(
+          "status.in.(scheduled,live),final_validation_state.in.(pending,retry,reconciliation)",
+        )
+        .or(
+          `kickoff_at.gte.${from},final_validation_state.in.(pending,retry,reconciliation)`,
+        );
+  const { data, error } = await query.order("kickoff_at");
   if (error) throw error;
   const games = ((data ?? []) as unknown as PoolGame[]).filter(
     (game) => first(game.game_results)?.source !== "commissioner",
@@ -117,6 +124,7 @@ export async function ingestEspnLiveStatus({
             .from("games")
             .update({
               espn_event_id: event.id,
+              live_status_updated_at: now.toISOString(),
               ...(event.international && !game.game_type_override
                 ? { game_type: "international" }
                 : {}),

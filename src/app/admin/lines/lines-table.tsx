@@ -1,4 +1,6 @@
 "use client";
+import { RefreshIcon, UpdateStatus } from "@/components/update-status";
+import type { Freshness } from "@/lib/scores/freshness";
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -30,12 +32,14 @@ export function LinesTable({
   weeks,
   frozen,
   rows,
+  freshness,
 }: {
   weekId: number;
   weekNumber: number;
   weeks: { id: number; week_number: number; label: string }[];
   frozen: boolean;
   rows: EditableLine[];
+  freshness?: Freshness;
 }) {
   const router = useRouter();
   const [draft, setDraft] = useState(rows);
@@ -98,9 +102,16 @@ export function LinesTable({
           type="button"
           aria-label={`Increase ${field} ${r.away}`}
           onClick={() => edit(i, { [field]: r[field] + 0.5, [override]: true })}
-          className="h-6 w-full"
+          className="flex h-6 w-full items-center justify-center"
         >
-          ▴
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            className="h-4 w-4"
+            fill="currentColor"
+          >
+            <path d="M3 10l5-5 5 5Z" />
+          </svg>
         </button>
         <input
           aria-label={`${r.away} ${field}`}
@@ -120,22 +131,17 @@ export function LinesTable({
           type="button"
           aria-label={`Decrease ${field} ${r.away}`}
           onClick={() => edit(i, { [field]: r[field] - 0.5, [override]: true })}
-          className="h-6 w-full"
+          className="flex h-6 w-full items-center justify-center"
         >
-          ▾
-        </button>
-        {r[override] ? (
-          <button
-            type="button"
-            onClick={() => edit(i, { [override]: false })}
-            className="text-[9px] text-amber-400 underline"
-            title="Use automatic odds on the next refresh"
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            className="h-4 w-4"
+            fill="currentColor"
           >
-            Manual · release
-          </button>
-        ) : (
-          <span className="text-[9px] text-slate-500">Automatic</span>
-        )}
+            <path d="M3 6l5 5 5-5Z" />
+          </svg>
+        </button>
       </div>
     );
   };
@@ -171,8 +177,13 @@ export function LinesTable({
           }}
         >
           <input type="hidden" name="week_id" value={weekId} />
-          <button disabled={frozen} className="admin-button">
-            Refresh
+          <button
+            disabled={frozen}
+            aria-label="Refresh lines"
+            title="Refresh lines"
+            className="admin-button flex items-center justify-center"
+          >
+            <RefreshIcon />
           </button>
         </form>
         <form
@@ -204,6 +215,7 @@ export function LinesTable({
         >
           {pending ? "Saving…" : dirty ? `Save (${changed.length})` : "Saved"}
         </button>
+        <UpdateStatus freshness={freshness} />
       </div>
       <p role="status" className="py-1 text-xs">
         {message}
@@ -262,6 +274,26 @@ export function LinesTable({
                   <details>
                     <summary className="cursor-pointer">Sources</summary>
                     <div>
+                      <label className="flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={!r.spread_override}
+                          onChange={(e) =>
+                            edit(i, { spread_override: !e.target.checked })
+                          }
+                        />
+                        Automatic spread
+                      </label>
+                      <label className="flex items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={!r.total_override}
+                          onChange={(e) =>
+                            edit(i, { total_override: !e.target.checked })
+                          }
+                        />
+                        Automatic total
+                      </label>
                       Spread: {r.spread_book ?? "—"}
                       <br />
                       {r.spread_observed_at

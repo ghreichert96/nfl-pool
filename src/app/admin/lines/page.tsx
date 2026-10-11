@@ -1,3 +1,4 @@
+import { updatedLabel } from "@/lib/scores/freshness";
 import { PageShell } from "@/components/page-shell";
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { requireCommissioner } from "@/lib/admin";
@@ -69,6 +70,8 @@ export default async function LinesPage({
       },
     ];
   });
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
   return (
     <PageShell isCommissioner compact>
       <CompactPageHeader title="Lines" />
@@ -90,6 +93,17 @@ export default async function LinesPage({
             weeks={weeks ?? []}
             frozen={Boolean(week.lines_frozen_at)}
             rows={rows}
+            freshness={{
+              label: updatedLabel(
+                rows
+                  .map((r) => r.updated_at)
+                  .filter(Boolean)
+                  .sort()
+                  .at(-1),
+                now,
+              ),
+              stale: false,
+            }}
           />
           {rows.some((row) => row.updated_at === null) && (
             <p role="alert" className="text-amber-400">

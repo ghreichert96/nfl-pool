@@ -1,3 +1,4 @@
+import { scoreFreshness as getScoreFreshness } from "@/lib/scores/freshness";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -223,8 +224,7 @@ export default async function Home({
             score: {
               away: row.away_score,
               home: row.home_score,
-              // Final validation is an internal workflow. Existing rows may
-              // still carry the old provisional label until the next sync.
+              // ESPN final scores are final immediately.
               detail:
                 status === "final"
                   ? "Final"
@@ -238,15 +238,7 @@ export default async function Home({
   });
   const parsedDraft = picksSchema.safeParse(draft?.payload);
   const hasLiveGames = games.some((game) => game.status === "live");
-  const latestLiveUpdate = (gameRows ?? [])
-    .flatMap((game) =>
-      game.live_status_updated_at ? [game.live_status_updated_at] : [],
-    )
-    .sort()
-    .at(-1);
-  const scoreFreshness = hasLiveGames
-    ? scoreFreshnessLabel(latestLiveUpdate, now)
-    : undefined;
+  const scoreFreshness = getScoreFreshness(gameRows ?? [], now);
   const submittedPicks: Picks | undefined = latestSubmission
     ? {
         ats: (submittedRows ?? [])
@@ -324,21 +316,4 @@ export default async function Home({
       />
     </PageShell>
   );
-}
-
-function scoreFreshnessLabel(updatedAt: string | undefined, now: number) {
-  if (!updatedAt) return { label: "Scores pending", stale: true };
-  const minutes = Math.max(
-    0,
-    Math.floor((now - new Date(updatedAt).getTime()) / 60_000),
-  );
-  return {
-    label:
-      minutes < 1
-        ? "Now"
-        : minutes < 60
-          ? `${minutes}m`
-          : `${Math.floor(minutes / 60)}h`,
-    stale: minutes >= 20,
-  };
 }

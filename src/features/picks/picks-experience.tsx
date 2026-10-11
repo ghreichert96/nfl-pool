@@ -1,4 +1,5 @@
 "use client";
+import { UpdateStatus } from "@/components/update-status";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -1623,13 +1624,7 @@ export function PicksExperience({
                 </span>
               )}
             </span>
-            {scoreFreshness && (
-              <span
-                className={`whitespace-nowrap text-[8px] normal-case tracking-normal ${scoreFreshness.stale ? "text-amber-300" : "text-slate-400"}`}
-              >
-                {scoreFreshness.label}
-              </span>
-            )}
+            <UpdateStatus freshness={scoreFreshness} />
           </span>
         }
         action={<WeekSelector weeks={weeks} selected={weekNumber} />}
