@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateStandings,
+  suddenDeathEliminationsByWeek,
   gamesBack,
   recordForPicks,
   rankStandings,
@@ -26,6 +27,27 @@ const game: ScoringGame = {
 };
 
 describe("competition scoring", () => {
+  it("marks only weeks after elimination as ineligible, even with later winning picks", () => {
+    const games = [
+      game,
+      { ...game, id: 2, weekId: 2, weekNumber: 2 },
+      { ...game, id: 3, weekId: 3, weekNumber: 3 },
+    ];
+    const picks = games.flatMap((g) =>
+      [1, 2].map((entryId) => ({
+        entryId,
+        gameId: g.id,
+        kind: "sudden_death" as const,
+        team: entryId === 1 && g.weekNumber < 3 ? "FAV" : "DOG",
+        totalDirection: null,
+        isBestBet: false,
+      })),
+    );
+    const eliminated = suddenDeathEliminationsByWeek([1, 2], games, picks);
+    expect([...eliminated.get(1)!]).toEqual([]);
+    expect([...eliminated.get(2)!]).toEqual([]);
+    expect([...eliminated.get(3)!]).toEqual([1]);
+  });
   it("scores ATS, totals, and outright results", () => {
     expect(teamOutcome(game, "DOG", true)).toBe("win");
     expect(teamOutcome(game, "DOG")).toBe("win");

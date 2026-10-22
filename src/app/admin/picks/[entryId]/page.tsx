@@ -41,7 +41,7 @@ export default async function CommissionerPickSheet({
   const entryId = Number((await params).entryId);
   const requestedWeek = Number((await searchParams).week);
   if (!Number.isSafeInteger(entryId)) notFound();
-  const { poolId } = await requireCommissioner();
+  const { poolId, supabase } = await requireCommissioner();
   const admin = createAdminClient();
   const { data: entry } = await admin
     .from("pool_entries")
@@ -58,6 +58,11 @@ export default async function CommissionerPickSheet({
   const week =
     (weeks ?? []).find((item) => item.id === requestedWeek) ?? weeks?.[0];
   if (!week) notFound();
+  const { data: sdStrikes, error: sdError } = await supabase.rpc(
+    "sudden_death_strikes_before_week",
+    { target_entry_id: entry.id, target_week_id: week.id },
+  );
+  if (sdError) throw sdError;
   const [{ data: rows }, { data: teams }, { data: latest }] = await Promise.all(
     [
       admin
@@ -181,6 +186,7 @@ export default async function CommissionerPickSheet({
         entryCode={entry.entry_code}
         weekNumber={week.week_number}
         submitAction={submitCommissionerPicks}
+        suddenDeathEliminated={Number(sdStrikes) >= 2}
         allowLockedEdits
         persistDraft={false}
       />

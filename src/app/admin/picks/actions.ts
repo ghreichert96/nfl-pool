@@ -24,7 +24,7 @@ export async function submitCommissionerPicks(
   )
     return { ok: false as const, message: "Invalid picks" };
 
-  const { poolId, userId } = await requireCommissioner();
+  const { poolId, userId, supabase } = await requireCommissioner();
   const admin = createAdminClient();
   const { data: entry } = await admin
     .from("pool_entries")
@@ -39,6 +39,22 @@ export async function submitCommissionerPicks(
     .maybeSingle();
   if (!entry || !week || entry.season_id !== week.season_id)
     return { ok: false as const, message: "Entry and week do not match" };
+
+  const { data: sdStrikes, error: sdError } = await supabase.rpc(
+    "sudden_death_strikes_before_week",
+    { target_entry_id: entryId, target_week_id: weekId },
+  );
+  if (sdError)
+    return {
+      ok: false as const,
+      message: "Could not verify Sudden Death eligibility",
+    };
+  if (Number(sdStrikes) >= 2 && parsed.data.suddenDeath)
+    return {
+      ok: false as const,
+      message:
+        "This entry was eliminated before this week. Reload to edit Main and Underdog picks.",
+    };
 
   const { data: games } = await admin
     .from("games")
