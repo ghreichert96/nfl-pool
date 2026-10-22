@@ -69,6 +69,12 @@ export async function submitWeeklyPicks(
   });
 
   return error
-    ? { ok: false as const, message: "Submission failed" }
+    ? {
+        ok: false as const,
+        message:
+          error.message === "Sudden Death entry is eliminated"
+            ? "You are eliminated from Sudden Death. Reload to submit your Main and Underdog picks."
+            : "Submission failed",
+      }
     : { ok: true as const, message: "Picks submitted" };
 }

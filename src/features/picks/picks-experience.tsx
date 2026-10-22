@@ -51,13 +51,13 @@ function serializePicks(picks: Picks) {
   });
 }
 
-function picksAreComplete(picks: Picks | null) {
+function picksAreComplete(picks: Picks | null, suddenDeathEliminated = false) {
   return Boolean(
     picks &&
     picks.ats.length === 6 &&
     picks.totals.length === 3 &&
     picks.bestBet &&
-    picks.suddenDeath &&
+    (suddenDeathEliminated || picks.suddenDeath) &&
     picks.underdog,
   );
 }
@@ -599,12 +599,14 @@ function GameRow({
   picks,
   setPicks,
   usedSuddenDeathTeams,
+  suddenDeathEliminated,
   allowLockedEdits,
 }: {
   game: Game;
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
   usedSuddenDeathTeams: string[];
+  suddenDeathEliminated: boolean;
   allowLockedEdits: boolean;
 }) {
   const [finalCollapsed, setFinalCollapsed] = useState(false);
@@ -628,7 +630,8 @@ function GameRow({
   const atsAtLimit = picks.ats.length >= 6 && !ats;
   const totalsAtLimit = picks.totals.length >= 3 && !total;
   const sdUnavailable = Boolean(
-    picks.suddenDeath && picks.suddenDeath.gameId !== game.id,
+    suddenDeathEliminated ||
+    (picks.suddenDeath && picks.suddenDeath.gameId !== game.id),
   );
   const sdTeamUsed = !allowLockedEdits && usedSuddenDeathTeams.includes(sdTeam);
   const udUnavailable = Boolean(
@@ -675,6 +678,7 @@ function GameRow({
   }
 
   function toggleSdTeam(team: string) {
+    if (suddenDeathEliminated) return;
     setPicks((current) => ({
       ...current,
       suddenDeath: isTeamSelected(current.suddenDeath, game.id, team)
@@ -684,6 +688,7 @@ function GameRow({
   }
 
   function switchDisplayedSdTeam() {
+    if (suddenDeathEliminated) return;
     setSdDisplayOverride(sdTeam === favorite ? underdog : favorite);
     setPicks((current) => ({ ...current, suddenDeath: null }));
     setSdFlipping(true);
@@ -870,7 +875,11 @@ function GameRow({
             <button
               type="button"
               aria-label={`Sudden Death ${sdTeam}`}
-              title="Double-tap or press and hold to show the other team"
+              title={
+                suddenDeathEliminated
+                  ? "Eliminated from Sudden Death"
+                  : "Double-tap or press and hold to show the other team"
+              }
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
               disabled={Boolean((locked && !allowLockedEdits) || sdUnavailable)}
               onPointerDown={startSdHold}
@@ -902,7 +911,8 @@ function GameRow({
               }}
               className={`h-full min-h-9 w-full touch-manipulation select-none text-[11px] font-black disabled:opacity-30 ${sdFlipping ? "sd-card-flip" : ""}`}
             >
-              {sdTeam} · SD{sdTeamUsed ? " · USED" : ""}
+              {sdTeam} · SD
+              {suddenDeathEliminated ? " · OUT" : sdTeamUsed ? " · USED" : ""}
             </button>
           </div>
           <SmallToggle
@@ -1070,6 +1080,7 @@ function Preview({
   submitAction,
   submittedDraft,
   setSubmittedDraft,
+  suddenDeathEliminated,
   allowLockedEdits,
 }: {
   picks: Picks;
@@ -1083,6 +1094,7 @@ function Preview({
   submittedDraft: string | null;
   setSubmittedDraft: React.Dispatch<React.SetStateAction<string | null>>;
   allowLockedEdits: boolean;
+  suddenDeathEliminated: boolean;
 }) {
   const [message, setMessage] = useState(
     draftTarget ? "Draft saved" : "Draft saved on this device",
@@ -1105,7 +1117,11 @@ function Preview({
   const complete =
     picks.ats.length === 6 &&
     picks.totals.length === 3 &&
-    Boolean(picks.bestBet && picks.suddenDeath && picks.underdog);
+    Boolean(
+      picks.bestBet &&
+      (suddenDeathEliminated || picks.suddenDeath) &&
+      picks.underdog,
+    );
   const submitted = submittedDraft === serializedDraft;
   const modified = submittedDraft !== null && !submitted;
   const actionable =
@@ -1128,7 +1144,10 @@ function Preview({
   ];
   const sideStatusItems = [
     { label: "UD", filled: Boolean(picks.underdog) },
-    { label: "SD", filled: Boolean(picks.suddenDeath) },
+    {
+      label: suddenDeathEliminated ? "SD OUT" : "SD",
+      filled: suddenDeathEliminated || Boolean(picks.suddenDeath),
+    },
   ];
 
   return (
@@ -1417,6 +1436,7 @@ type PicksExperienceProps = {
     body: string,
   ) => Promise<{ ok: boolean; message: string }>;
   usedSuddenDeathTeams?: string[];
+  suddenDeathEliminated?: boolean;
   weeks?: { week_number: number; label: string }[];
   linesFrozen?: boolean;
   initialSubmittedPicks?: Picks;
@@ -1435,6 +1455,7 @@ export function PicksExperience({
   commentLocked = false,
   commentAction,
   usedSuddenDeathTeams = [],
+  suddenDeathEliminated = false,
   weeks = [{ week_number: weekNumber, label: `Week ${weekNumber}` }],
   linesFrozen = false,
   initialSubmittedPicks,
@@ -1442,9 +1463,18 @@ export function PicksExperience({
   allowLockedEdits = false,
   persistDraft = true,
 }: PicksExperienceProps) {
-  const [picks, setPicks] = useState<Picks>(initialPicks);
+  const eligiblePicks = (value: Picks): Picks =>
+    suddenDeathEliminated ? { ...value, suddenDeath: null } : value;
+  const [draftPicks, setPicks] = useState<Picks>(initialPicks);
+  const picks = useMemo(
+    () =>
+      suddenDeathEliminated ? { ...draftPicks, suddenDeath: null } : draftPicks,
+    [draftPicks, suddenDeathEliminated],
+  );
   const [submittedDraft, setSubmittedDraft] = useState<string | null>(
-    initialSubmittedPicks ? serializePicks(initialSubmittedPicks) : null,
+    initialSubmittedPicks
+      ? serializePicks(eligiblePicks(initialSubmittedPicks))
+      : null,
   );
   const [draftReady, setDraftReady] = useState(Boolean(draftTarget));
   const [statusKey, setStatusKey] = useState<"lines" | "picks" | null>(null);
@@ -1508,7 +1538,10 @@ export function PicksExperience({
     () => (submittedDraft ? (JSON.parse(submittedDraft) as Picks) : null),
     [submittedDraft],
   );
-  const allPicksSubmitted = picksAreComplete(submittedPicks);
+  const allPicksSubmitted = picksAreComplete(
+    submittedPicks,
+    suddenDeathEliminated,
+  );
   const hasSubmittedPicks = submittedPicks !== null;
   return (
     <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
@@ -1629,6 +1662,12 @@ export function PicksExperience({
         }
         action={<WeekSelector weeks={weeks} selected={weekNumber} />}
       />
+      {suddenDeathEliminated && (
+        <p role="note" className="mt-2 text-xs text-amber-300">
+          Eliminated from Sudden Death (2 strikes). Continue making Main and
+          Underdog picks.
+        </p>
+      )}
       <section
         className="mt-1.5 space-y-2"
         aria-label={`Week ${weekNumber} games`}
@@ -1640,6 +1679,7 @@ export function PicksExperience({
             picks={picks}
             setPicks={setPicks}
             usedSuddenDeathTeams={usedSuddenDeathTeams}
+            suddenDeathEliminated={suddenDeathEliminated}
             allowLockedEdits={allowLockedEdits}
           />
         ))}
@@ -1658,6 +1698,7 @@ export function PicksExperience({
         submitAction={submitAction}
         submittedDraft={submittedDraft}
         setSubmittedDraft={setSubmittedDraft}
+        suddenDeathEliminated={suddenDeathEliminated}
         allowLockedEdits={allowLockedEdits}
       />
     </div>
