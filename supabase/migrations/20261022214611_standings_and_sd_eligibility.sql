@@ -236,4 +236,3 @@ revoke all on function public.submit_weekly_picks(bigint, bigint, jsonb)
   from public, anon;
 grant execute on function public.submit_weekly_picks(bigint, bigint, jsonb)
   to authenticated;
-
