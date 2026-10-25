@@ -105,6 +105,7 @@ export default async function Home({
     { data: draft },
     { data: comment },
     { data: latestSubmission },
+    { data: sdStrikes, error: sdError },
   ] = await Promise.all([
     supabase
       .from("games")
@@ -134,7 +135,13 @@ export default async function Home({
       .order("revision", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase.rpc("sudden_death_strikes_before_week", {
+      target_entry_id: entry.id,
+      target_week_id: week.id,
+    }),
   ]);
+  if (sdError) throw sdError;
+  const suddenDeathEliminated = Number(sdStrikes) >= 2;
   const { data: submittedRows } = latestSubmission
     ? await supabase
         .from("picks")
@@ -297,6 +304,7 @@ export default async function Home({
         commentLocked={
           games.length > 0 && games.every((game) => game.status !== "upcoming")
         }
+        suddenDeathEliminated={suddenDeathEliminated}
         usedSuddenDeathTeams={(priorSdRows ?? []).flatMap((pick) =>
           pick.team ? [pick.team] : [],
         )}

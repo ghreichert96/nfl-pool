@@ -18,6 +18,7 @@ import { StickyTableHeader } from "@/components/sticky-table-header";
 import { loadCompetition } from "@/features/competition/data";
 import {
   gamesBack,
+  suddenDeathEliminationsByWeek,
   pickOutcome,
   ranksByGamesBack,
   recordForPicks,
@@ -364,6 +365,14 @@ function SidePoolTable({
   logoMap: Map<string, string | null>;
 }) {
   if (!data) return null;
+  const eliminatedByWeek =
+    kind === "sudden_death"
+      ? suddenDeathEliminationsByWeek(
+          data.entries.map((entry) => entry.id),
+          data.games,
+          data.picks,
+        )
+      : new Map<number, Set<number>>();
   const { ordered: sortedEntries, ranks: sideRanks } = sideOrder(
     data.standings,
     data.entries,
@@ -409,6 +418,8 @@ function SidePoolTable({
                     </EntryDetailButton>
                   </th>
                   {data.weeks.map((week) => {
+                    const ineligible =
+                      eliminatedByWeek.get(week.id)?.has(poolEntry.id) ?? false;
                     const pick = data.picks.find(
                       (item) =>
                         item.entryId === poolEntry.id &&
@@ -429,11 +440,22 @@ function SidePoolTable({
                     return (
                       <td
                         key={week.id}
-                        className={`w-12 min-w-12 border-t border-slate-800 px-1 py-1.5 text-center ${game?.status === "final" ? resultVisualClass("final", outcome) : ""}`}
-                        aria-label={`${pick?.team ?? "No pick"}: ${outcome}${points ? `, +${points} points` : ""}`}
+                        className={`w-12 min-w-12 border-t border-slate-800 px-1 py-1.5 text-center ${!ineligible && game?.status === "final" ? resultVisualClass("final", outcome) : ""}`}
+                        aria-label={
+                          ineligible
+                            ? `Eliminated before Week ${week.week_number}`
+                            : `${pick?.team ?? "No pick"}: ${outcome}${points ? `, +${points} points` : ""}`
+                        }
+                        title={
+                          ineligible && pick?.team
+                            ? `${pick.team} was submitted after elimination and does not count`
+                            : undefined
+                        }
                       >
                         <span className="mx-auto flex min-h-10 flex-col items-center justify-center font-black">
-                          {pick?.team ? (
+                          {ineligible ? (
+                            "OUT"
+                          ) : pick?.team ? (
                             <TeamLogo
                               team={pick.team}
                               src={logoMap.get(pick.team)}

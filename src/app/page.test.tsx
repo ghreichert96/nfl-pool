@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_GAMES } from "../features/picks/mock-games";
 import { PicksExperience } from "../features/picks/picks-experience";
@@ -17,6 +17,49 @@ const finalGames = () =>
 describe("Home", () => {
   beforeEach(() => window.localStorage.clear());
   afterEach(cleanup);
+
+  it("blocks SD after elimination while keeping Main and Underdog available", () => {
+    render(<PicksExperience suddenDeathEliminated />);
+    expect(
+      screen.getByText(/Eliminated from Sudden Death/),
+    ).toBeInTheDocument();
+    for (const button of screen.getAllByRole("button", {
+      name: /^Sudden Death /,
+    })) {
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+      expect(button).toHaveAttribute("aria-pressed", "false");
+    }
+    expect(screen.getByRole("button", { name: "SF +8.5" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Underdog SF" })).toBeEnabled();
+  });
+
+  it("removes stale SD drafts from eliminated entrants' submissions", async () => {
+    const submitAction = vi
+      .fn()
+      .mockResolvedValue({ ok: true, message: "Picks submitted" });
+    render(
+      <PicksExperience
+        suddenDeathEliminated
+        persistDraft={false}
+        draftTarget={{ entryId: 4, weekId: 7 }}
+        submitAction={submitAction}
+        initialPicks={{
+          ats: [],
+          totals: [],
+          bestBet: null,
+          underdog: null,
+          suddenDeath: { gameId: MOCK_GAMES[0].id, team: "LAR" },
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "SUBMIT" }));
+    expect(submitAction).toHaveBeenCalledWith(
+      { entryId: 4, weekId: 7 },
+      expect.objectContaining({ suddenDeath: null }),
+    );
+    await screen.findByRole("button", { name: "SAVED" });
+  });
 
   it("renders the consolidated mobile pick form", () => {
     render(<PicksExperience />);

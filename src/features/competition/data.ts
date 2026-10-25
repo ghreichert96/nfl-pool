@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { allRows } from "@/lib/supabase/all-rows";
+
 import {
   calculateStandings,
   rankStandings,
@@ -34,12 +36,15 @@ export async function loadCompetition(
     { data: teams },
     { data: seasonPots, error: potsError },
   ] = await Promise.all([
-    supabase
-      .from("pool_entries")
-      .select("id, entry_code, user_id")
-      .eq("season_id", seasonId)
-      .order("entry_code"),
-    (() => {
+    allRows(() =>
+      supabase
+        .from("pool_entries")
+        .select("id, entry_code, user_id")
+        .eq("season_id", seasonId)
+        .order("entry_code")
+        .order("id"),
+    ),
+    allRows(() => {
       let query = supabase
         .from("pool_weeks")
         .select("id, week_number, label")
@@ -49,17 +54,24 @@ export async function loadCompetition(
         query = query.eq("week_number", onlyWeekNumber);
       else if (throughWeekNumber !== undefined)
         query = query.lte("week_number", throughWeekNumber);
-      return query.order("week_number");
-    })(),
+      return query.order("week_number").order("id");
+    }),
     includePayouts
-      ? supabase
-          .from("payout_schedules")
-          .select("rank, amount, locked_at")
-          .eq("season_id", seasonId)
-          .order("rank")
+      ? allRows(() =>
+          supabase
+            .from("payout_schedules")
+            .select("rank, amount, locked_at")
+            .eq("season_id", seasonId)
+            .order("rank"),
+        )
       : Promise.resolve({ data: [] }),
     includeTeams
-      ? supabase.from("teams").select("abbreviation, logo_url")
+      ? allRows(() =>
+          supabase
+            .from("teams")
+            .select("abbreviation, logo_url")
+            .order("abbreviation"),
+        )
       : Promise.resolve({ data: [] }),
     supabase
       .from("seasons")
@@ -72,23 +84,33 @@ export async function loadCompetition(
   const [{ data: gameRows }, { data: submissionRows }, { data: comments }] =
     weekIds.length
       ? await Promise.all([
-          supabase
-            .from("games")
-            .select(
-              "id, week_id, away_team, home_team, kickoff_at, status, away_score, home_score, pool_lines(away_spread,total)",
-            )
-            .in("week_id", weekIds)
-            .order("kickoff_at"),
-          supabase
-            .from("weekly_submissions")
-            .select("id, entry_id, week_id, revision, submitted_at")
-            .in("week_id", weekIds)
-            .order("revision", { ascending: false }),
+          allRows(() =>
+            supabase
+              .from("games")
+              .select(
+                "id, week_id, away_team, home_team, kickoff_at, status, away_score, home_score, pool_lines(away_spread,total)",
+              )
+              .in("week_id", weekIds)
+              .order("kickoff_at")
+              .order("id"),
+          ),
+          allRows(() =>
+            supabase
+              .from("weekly_submissions")
+              .select("id, entry_id, week_id, revision, submitted_at")
+              .in("week_id", weekIds)
+              .order("revision", { ascending: false })
+              .order("id"),
+          ),
           includeComments
-            ? supabase
-                .from("weekly_comments")
-                .select("entry_id, week_id, body, updated_at")
-                .in("week_id", weekIds)
+            ? allRows(() =>
+                supabase
+                  .from("weekly_comments")
+                  .select("entry_id, week_id, body, updated_at")
+                  .in("week_id", weekIds)
+                  .order("week_id")
+                  .order("entry_id"),
+              )
             : Promise.resolve({ data: [] }),
         ])
       : [{ data: [] }, { data: [] }, { data: [] }];
@@ -106,12 +128,15 @@ export async function loadCompetition(
   }
   const latestIds = [...latest.values()].map((submission) => submission.id);
   const { data: pickRows } = latestIds.length
-    ? await supabase
-        .from("picks")
-        .select(
-          "id, submission_id, game_id, kind, team, total_direction, is_best_bet",
-        )
-        .in("submission_id", latestIds)
+    ? await allRows(() =>
+        supabase
+          .from("picks")
+          .select(
+            "id, submission_id, game_id, kind, team, total_direction, is_best_bet",
+          )
+          .in("submission_id", latestIds)
+          .order("id"),
+      )
     : { data: [] };
   const weekMap = new Map((weeks ?? []).map((week) => [week.id, week]));
   const games: ScoringGame[] = (gameRows ?? []).map((row) => {

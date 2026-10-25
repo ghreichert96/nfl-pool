@@ -281,3 +281,27 @@ export function sidePoolPayout(
     ? pot / winnerEntryIds.length
     : -pot / (allEntryIds.length - winnerEntryIds.length);
 }
+
+// Invalid historical picks remain available for audit, but must not look like
+// active SD selections in weeks after an entrant was eliminated.
+export function suddenDeathEliminationsByWeek(
+  entryIds: number[],
+  games: ScoringGame[],
+  picks: ScoringPick[],
+) {
+  const weeks = new Map(games.map((game) => [game.weekId, game.weekNumber]));
+  return new Map(
+    [...weeks].map(([weekId, weekNumber]) => [
+      weekId,
+      new Set(
+        calculateStandings(
+          entryIds,
+          games.filter((game) => game.weekNumber < weekNumber),
+          picks,
+        )
+          .filter((standing) => standing.eliminated)
+          .map((standing) => standing.entryId),
+      ),
+    ]),
+  );
+}
