@@ -104,7 +104,7 @@ export default async function RulesPage() {
                     Current Main scale: <strong>{payoutRange}</strong>
                   </p>
                 )}
-                <table className="w-full table-fixed text-left text-sm text-slate-200">
+                <table className="pool-table w-full table-fixed text-left text-sm text-slate-200">
                   <tbody>
                     {section.detail
                       .split("\n")

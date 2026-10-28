@@ -30,11 +30,46 @@ export function EntryDetailButton({
     <button
       type="button"
       className="entry-detail-trigger rounded py-1 text-left font-inherit active:bg-cyan-400/20"
-      onClick={(event) => open(entryId, event.currentTarget)}
+      onClick={(event) => {
+        event.stopPropagation();
+        open(entryId, event.currentTarget);
+      }}
       aria-label={`Performance details for ${children}`}
     >
       {children}
     </button>
+  );
+}
+export function EntryDetailRow({
+  entryId,
+  name,
+  children,
+  className = "",
+}: {
+  entryId: number;
+  name: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  const open = useContext(DetailContext);
+  return (
+    <tr
+      tabIndex={0}
+      aria-label={`Performance details for ${name}`}
+      className={`entry-detail-row cursor-pointer focus-visible:outline-2 focus-visible:outline-cyan-300 ${className}`}
+      onClick={(event) => open(entryId, event.currentTarget)}
+      onKeyDown={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          (event.key === "Enter" || event.key === " ")
+        ) {
+          event.preventDefault();
+          open(entryId, event.currentTarget);
+        }
+      }}
+    >
+      {children}
+    </tr>
   );
 }
 export function EntryPerformanceProvider({
@@ -45,7 +80,9 @@ export function EntryPerformanceProvider({
   children: ReactNode;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [mode, setMode] = useState<"standings" | "weekly">("standings");
+  const [mode, setMode] = useState<"overall" | "standings" | "weekly">(
+    "overall",
+  );
   const opener = useRef<HTMLElement | null>(null);
   const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const isOpen = selected !== null;
@@ -68,7 +105,7 @@ export function EntryPerformanceProvider({
       entries[Math.max(0, Math.min(entries.length - 1, index + delta))].id,
     );
   const chartWidth = 420,
-    chartHeight = 180,
+    chartHeight = 230,
     pad = 25;
   const points = entry?.history ?? [];
   const maxRank = Math.max(entries.length, 2);
@@ -85,7 +122,7 @@ export function EntryPerformanceProvider({
         setPortalTarget(element.closest(".pick-shell"));
         element
           .closest("tr")
-          ?.animate(
+          ?.animate?.(
             [
               { backgroundColor: "#38bdf840" },
               { backgroundColor: "transparent" },
@@ -93,14 +130,14 @@ export function EntryPerformanceProvider({
             { duration: 500 },
           );
         setSelected(id);
-        setMode("standings");
+        setMode("overall");
       }}
     >
       {children}
       {entry &&
         createPortal(
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-2 sm:p-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-3 backdrop-blur-md sm:p-6"
             onClick={(event) => {
               if (event.target === event.currentTarget) close();
             }}
@@ -111,7 +148,7 @@ export function EntryPerformanceProvider({
               aria-modal="true"
               aria-labelledby="performance-title"
               tabIndex={-1}
-              className="performance-dialog max-h-[90dvh] w-full max-w-2xl overflow-auto rounded-xl border p-3 shadow-2xl outline-none"
+              className="performance-dialog max-h-[92dvh] w-full max-w-4xl overflow-auto rounded-2xl border p-4 sm:p-6 shadow-2xl outline-none"
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -146,28 +183,49 @@ export function EntryPerformanceProvider({
                 }
               }}
             >
-              <div className="grid grid-cols-[4rem_1fr] gap-3">
-                <div className="sticky top-0 flex h-fit flex-col items-start gap-2">
+              <div className="grid grid-cols-[3.75rem_1fr] gap-3 sm:grid-cols-[5rem_1fr] sm:gap-5">
+                <div className="flex flex-col items-center justify-center gap-4">
                   <button
                     type="button"
-                    className="admin-button w-full"
+                    className="submit-ready grid min-h-12 w-full place-items-center rounded-lg border text-xl font-black shadow-lg disabled:opacity-35"
                     aria-label="Previous entry"
                     disabled={index === 0}
                     onClick={() => move(-1)}
                   >
-                    ↑
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="size-7"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    >
+                      <path d="m5 15 7-7 7 7" />
+                    </svg>
                   </button>
-                  <strong id="performance-title" className="text-sm">
+                  <strong
+                    id="performance-title"
+                    className="text-center text-base font-black sm:text-lg"
+                  >
                     {entry.name}
                   </strong>
                   <button
                     type="button"
-                    className="admin-button w-full"
+                    className="submit-ready grid min-h-12 w-full place-items-center rounded-lg border text-xl font-black shadow-lg disabled:opacity-35"
                     aria-label="Next entry"
                     disabled={index === entries.length - 1}
                     onClick={() => move(1)}
                   >
-                    ↓
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 24 24"
+                      className="size-7"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    >
+                      <path d="m5 9 7 7 7-7" />
+                    </svg>
                   </button>
                 </div>
                 <div className="min-w-0">
@@ -206,31 +264,34 @@ export function EntryPerformanceProvider({
                       </details>
                     ))}
                   </div>
-                  <h2 className="mt-5 text-sm font-black">
-                    Main pool performance
-                  </h2>
                   <div
-                    className="mt-2 flex gap-1"
+                    className="mt-5 grid grid-cols-3 gap-2"
                     role="group"
                     aria-label="Performance chart mode"
                   >
-                    {(["standings", "weekly"] as const).map((value) => (
-                      <button
-                        key={value}
-                        type="button"
-                        aria-pressed={mode === value}
-                        className={`admin-button ${mode === value ? "control-pressed" : ""}`}
-                        onClick={() => setMode(value)}
-                      >
-                        {value === "standings" ? "Standings" : "Weekly rank"}
-                      </button>
-                    ))}
+                    {(["overall", "standings", "weekly"] as const).map(
+                      (value) => (
+                        <button
+                          key={value}
+                          type="button"
+                          aria-pressed={mode === value}
+                          className={`min-h-12 rounded-lg border px-2 py-2 text-xs font-black shadow-md ${mode === value ? "submit-saved" : "submit-neutral"}`}
+                          onClick={() => setMode(value)}
+                        >
+                          {value === "overall"
+                            ? "Overall Standing"
+                            : value === "standings"
+                              ? "Main Standing"
+                              : "Main Weekly Ranking"}
+                        </button>
+                      ),
+                    )}
                   </div>
                   {points.length ? (
                     <svg
                       viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                       role="img"
-                      aria-label={`${entry.name} ${mode === "standings" ? "standings" : "weekly rank"} by week, rank one at the top`}
+                      aria-label={`${entry.name} ${mode === "overall" ? "overall standing" : mode === "standings" ? "main standing" : "main weekly ranking"} by week, rank one at the top`}
                       className="mt-3 w-full overflow-visible"
                     >
                       {[1, maxRank].map((rank) => (
@@ -305,6 +366,9 @@ export function EntryPerformanceProvider({
                   )}
                   <p className="mt-2 text-[10px] opacity-70">
                     Week · Rank 1 is best
+                    {mode === "overall"
+                      ? " · Overall rank follows Main record"
+                      : ""}
                     {points.some((p) => p.provisional)
                       ? " · * provisional"
                       : ""}

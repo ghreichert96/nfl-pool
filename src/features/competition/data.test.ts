@@ -145,6 +145,30 @@ describe("loadCompetition season history", () => {
     expect(data.picks).toHaveLength(528);
     expect(data.standings.every((s) => s.wins === 30)).toBe(true);
   });
+  it("computes selected-week payouts without using later results", async () => {
+    const fixture = seasonFixture();
+    for (const pick of fixture.picks) {
+      const submission = fixture.weekly_submissions.find(
+        (s) => s.id === pick.submission_id,
+      )!;
+      if (
+        submission.entry_id === 1 &&
+        submission.week_id >= 4 &&
+        pick.kind === "ats"
+      )
+        pick.team = "MIA";
+    }
+    const tables = {
+      ...fixture,
+      payout_schedules: [
+        { season_id: 1, rank: 1, amount: 160, locked_at: null },
+      ],
+    };
+    const early = await loadCompetition(clientFor(tables), 1, 3);
+    const late = await loadCompetition(clientFor(tables), 1, 6);
+    expect(early.financials.get(1)?.main).toBe(10);
+    expect(late.financials.get(1)?.main).toBe(0);
+  });
   it("does not publish partial standings when a pick page fails", async () => {
     await expect(
       loadCompetition(clientFor(seasonFixture(), true), 1),

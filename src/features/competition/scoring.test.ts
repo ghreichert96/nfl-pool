@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   calculateStandings,
+  winningPercentage,
   suddenDeathEliminationsByWeek,
   gamesBack,
   recordForPicks,
@@ -27,6 +28,11 @@ const game: ScoringGame = {
 };
 
 describe("competition scoring", () => {
+  it("formats winning percentage with half-credit ties and no fake zero for no decisions", () => {
+    expect(winningPercentage({ wins: 11, losses: 8, ties: 1 })).toBe(".575");
+    expect(winningPercentage({ wins: 0, losses: 0, ties: 0 })).toBe("—");
+    expect(winningPercentage({ wins: 1, losses: 0, ties: 0 })).toBe("1.000");
+  });
   it("marks only weeks after elimination as ineligible, even with later winning picks", () => {
     const games = [
       game,

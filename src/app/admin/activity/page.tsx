@@ -68,7 +68,7 @@ export default async function ActivityPage() {
       </section>
       <section className="game-card mb-3 overflow-x-auto rounded-lg border p-3">
         <h2 className="mb-2 font-bold">Scheduled odds jobs</h2>
-        <table className="w-full text-left text-xs">
+        <table className="pool-table w-full text-left text-xs">
           <thead>
             <tr>
               {["Job", "Expected", "Last attempt", "Completed", "Status"].map(

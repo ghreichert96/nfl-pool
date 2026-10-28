@@ -7,6 +7,7 @@ import { ThemeSelector } from "./theme-controls";
 export const PREVIEW_MINIMIZED_KEY = "hppp:preview-minimized";
 export const FINAL_GAMES_MINIMIZED_KEY = "hppp:final-games-minimized";
 export const NAV_PREVIEW_KEY = "hppp:nav-preview";
+export const TEXT_TEAMS_KEY = "hppp:text-teams";
 export const LARGE_FONT_KEY = "hppp:large-font";
 const preferenceEvent = "hppp-display-preference";
 
@@ -70,6 +71,15 @@ export function ProfilePreferences() {
   return (
     <div className="grid gap-4">
       <ThemeSelector />
+      <div className="flex items-center justify-between gap-4 border-t border-slate-800 pt-3">
+        <div>
+          <strong className="text-xs uppercase">Text vs. logos</strong>
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            Team display on Grid and SD/UD standings.
+          </p>
+        </div>
+        <TeamDisplaySelector />
+      </div>
       <PreferenceSwitch
         storageKey={LARGE_FONT_KEY}
         label="Increase font size"
@@ -90,6 +100,28 @@ export function ProfilePreferences() {
         label="Collapse final games"
         description="Start completed game rows in their compact view."
       />
+    </div>
+  );
+}
+
+function TeamDisplaySelector() {
+  const text = useDisplayPreference(TEXT_TEAMS_KEY);
+  return (
+    <div role="group" aria-label="Text vs. logos" className="flex gap-1">
+      {[false, true].map((value) => (
+        <button
+          key={String(value)}
+          type="button"
+          aria-pressed={text === value}
+          className={`rounded-md border px-3 py-2 text-xs font-bold ${text === value ? "submit-saved" : "submit-neutral"}`}
+          onClick={() => {
+            window.localStorage.setItem(TEXT_TEAMS_KEY, String(value));
+            window.dispatchEvent(new Event(preferenceEvent));
+          }}
+        >
+          {value ? "Text" : "Logos"}
+        </button>
+      ))}
     </div>
   );
 }

@@ -13,14 +13,23 @@ export function sideOrder(
   kind: "sd" | "ud",
 ) {
   const scores = new Map(standings.map((row) => [row.entryId, row]));
-  const compare = (a: number, b: number) =>
-    kind === "ud"
-      ? (scores.get(b)?.underdogPoints ?? 0) -
-        (scores.get(a)?.underdogPoints ?? 0)
-      : Number(scores.get(a)?.eliminated ?? false) -
-          Number(scores.get(b)?.eliminated ?? false) ||
-        (scores.get(a)?.suddenDeathStrikes ?? 0) -
-          (scores.get(b)?.suddenDeathStrikes ?? 0);
+  const compare = (a: number, b: number) => {
+    const left = scores.get(a),
+      right = scores.get(b);
+    if (kind === "ud")
+      return (right?.underdogPoints ?? 0) - (left?.underdogPoints ?? 0);
+    const strikes =
+      (left?.suddenDeathStrikes ?? 0) - (right?.suddenDeathStrikes ?? 0);
+    if (strikes) return strikes;
+    // Compare most recent strike first, then the earlier strike. Later is better.
+    const leftWeeks = [...(left?.suddenDeathStrikeWeeks ?? [])].reverse();
+    const rightWeeks = [...(right?.suddenDeathStrikeWeeks ?? [])].reverse();
+    for (let i = 0; i < Math.max(leftWeeks.length, rightWeeks.length); i++) {
+      const timing = (rightWeeks[i] ?? 0) - (leftWeeks[i] ?? 0);
+      if (timing) return timing;
+    }
+    return 0;
+  };
   const ordered = [...entries].sort(
     (a, b) => compare(a.id, b.id) || a.entry_code.localeCompare(b.entry_code),
   );
@@ -38,6 +47,7 @@ export function sideOrder(
 export type PerformancePoint = {
   week: number;
   standings: number;
+  overall: number;
   weekly: number;
   provisional: boolean;
 };
@@ -80,6 +90,7 @@ export function performanceHistory(
       history.get(id)!.push({
         week,
         standings: cumulative.get(id)!,
+        overall: cumulative.get(id)!,
         weekly: weekly.get(id)!,
         provisional: slate.some((g) => g.status !== "final"),
       });

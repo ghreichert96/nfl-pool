@@ -6,6 +6,7 @@ import {
 } from "./performance";
 import {
   sidePoolPayout,
+  calculateStandings,
   type EntryStanding,
   type ScoringGame,
   type ScoringPick,
@@ -20,6 +21,46 @@ const base: EntryStanding = {
   eliminated: false,
 };
 describe("entry performance", () => {
+  it("ranks SD by fewer strikes, then later strike dates", () => {
+    const records = ["WWWLW", "WWLWW", "WWLL", "WLL"];
+    const games: ScoringGame[] = Array.from({ length: 5 }, (_, i) => ({
+      id: i + 1,
+      weekId: i + 1,
+      weekNumber: i + 1,
+      away: "BUF",
+      home: "MIA",
+      awaySpread: 0,
+      total: 40,
+      awayScore: 30,
+      homeScore: 10,
+      status: "final",
+    }));
+    const picks: ScoringPick[] = records.flatMap((record, index) =>
+      [...record].map((r, i) => ({
+        entryId: index + 1,
+        gameId: i + 1,
+        kind: "sudden_death",
+        team: r === "W" ? "BUF" : "MIA",
+        totalDirection: null,
+        isBestBet: false,
+      })),
+    );
+    const standings = calculateStandings([1, 2, 3, 4], games, picks);
+    expect(standings.map((s) => s.suddenDeathStrikeWeeks)).toEqual([
+      [4],
+      [3],
+      [3, 4],
+      [2, 3],
+    ]);
+    const result = sideOrder(
+      standings,
+      records.map((_, i) => ({ id: i + 1, entry_code: String(i) })),
+      "sd",
+    );
+    expect(result.ordered.map((e) => e.id)).toEqual([1, 2, 3, 4]);
+    expect([...result.ranks.values()]).toEqual([1, 2, 3, 4]);
+  });
+
   it("uses competition ranks with stable entry-name order within SD/UD ties", () => {
     const entries = [
       { id: 1, entry_code: "ZZZZ" },

@@ -18,7 +18,7 @@ const headers = [
   "SD",
   "Comment",
 ];
-const columnWidths = [52, 42, 42, 42, 42, 42, 42, 50, 50, 50, 48, 48, 170];
+const columnWidths = [60, 48, 48, 48, 48, 48, 48, 68, 68, 68, 52, 52, 180];
 const tableWidth = columnWidths.reduce((sum, width) => sum + width, 0);
 
 function GridColumns() {
@@ -38,7 +38,7 @@ function HeaderRow() {
         <th
           key={label}
           style={{ width: columnWidths[index] }}
-          className={`border-b border-r border-slate-800 py-2 text-left text-[10px] font-black uppercase text-slate-100 ${index === 0 ? "w-[52px] min-w-[52px] max-w-[52px] bg-slate-950 px-2" : "px-1"}`}
+          className={`border-b border-r border-slate-800 py-2 text-left text-[11px] font-black uppercase text-slate-100 ${index === 0 ? "w-[60px] min-w-[60px] max-w-[60px] bg-slate-950 px-2" : "px-1"}`}
         >
           {label}
         </th>
@@ -51,7 +51,7 @@ export function GridPreviewTable({ children }: { children: ReactNode }) {
   return (
     <div className="overflow-x-auto border-t border-slate-800">
       <table
-        className="table-fixed border-separate border-spacing-0 text-[11px]"
+        className="pool-table table-fixed border-separate border-spacing-0 text-xs"
         style={{ width: tableWidth }}
       >
         <GridColumns />
@@ -89,7 +89,7 @@ export function StickyGridTable({ children }: { children: ReactNode }) {
       <div className="sticky top-[var(--table-sticky-top,93px)] z-20 overflow-hidden border-t border-slate-800 bg-slate-950 sm:top-[var(--table-sticky-top,101px)]">
         <table
           ref={headerRef}
-          className="table-fixed border-separate border-spacing-0 text-[11px]"
+          className="pool-table table-fixed border-separate border-spacing-0 text-xs"
           style={{ width: tableWidth }}
         >
           <GridColumns />
@@ -98,7 +98,7 @@ export function StickyGridTable({ children }: { children: ReactNode }) {
           </thead>
         </table>
         <div
-          className="absolute inset-y-0 left-0 flex items-center border-r border-b border-slate-800 bg-slate-950 px-2 text-left text-[10px] font-black text-slate-100"
+          className="absolute inset-y-0 left-0 flex items-center border-r border-b border-slate-800 bg-slate-950 px-2 text-left text-[11px] font-black text-slate-100"
           style={{ width: columnWidths[0] }}
         >
           TM
@@ -106,7 +106,7 @@ export function StickyGridTable({ children }: { children: ReactNode }) {
       </div>
       <div className="overflow-x-auto overscroll-y-auto" onScroll={syncHeader}>
         <table
-          className="table-fixed border-separate border-spacing-0 text-[11px]"
+          className="pool-table table-fixed border-separate border-spacing-0 text-xs"
           style={{ width: tableWidth }}
         >
           <GridColumns />

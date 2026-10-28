@@ -21,8 +21,8 @@ describe("Home", () => {
   it("blocks SD after elimination while keeping Main and Underdog available", () => {
     render(<PicksExperience suddenDeathEliminated />);
     expect(
-      screen.getByText(/Eliminated from Sudden Death/),
-    ).toBeInTheDocument();
+      screen.queryByText(/Eliminated from Sudden Death/),
+    ).not.toBeInTheDocument();
     for (const button of screen.getAllByRole("button", {
       name: /^Sudden Death /,
     })) {
@@ -32,6 +32,38 @@ describe("Home", () => {
     }
     expect(screen.getByRole("button", { name: "SF +8.5" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Underdog SF" })).toBeEnabled();
+  });
+
+  it("crosses only used teams and keeps an alternate team reachable", () => {
+    const { rerender } = render(
+      <PicksExperience usedSuddenDeathTeams={["LAR"]} />,
+    );
+    const used = screen.getByRole("button", { name: "Sudden Death LAR" });
+    expect(used).toBeDisabled();
+    expect(
+      used.querySelector('svg[aria-label="Previously used team"]'),
+    ).not.toBeNull();
+    expect(used).not.toHaveTextContent(/USED|OUT/);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Switch Sudden Death team for SF at LAR",
+      }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Sudden Death SF" }),
+    ).toBeEnabled();
+    rerender(
+      <PicksExperience usedSuddenDeathTeams={["LAR"]} suddenDeathEliminated />,
+    );
+    for (const button of screen.getAllByRole("button", {
+      name: /^Sudden Death /,
+    }))
+      expect(button).toBeDisabled();
+    expect(
+      screen
+        .getByRole("button", { name: "Sudden Death SF" })
+        .querySelector("svg"),
+    ).toBeNull();
   });
 
   it("removes stale SD drafts from eliminated entrants' submissions", async () => {
