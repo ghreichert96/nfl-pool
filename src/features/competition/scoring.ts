@@ -30,6 +30,7 @@ export type EntryStanding = {
   ties: number;
   underdogPoints: number;
   suddenDeathStrikes: number;
+  suddenDeathStrikeWeeks?: number[];
   eliminated: boolean;
 };
 
@@ -158,6 +159,7 @@ export function calculateStandings(
       ties,
       underdogPoints,
       suddenDeathStrikes: 0,
+      suddenDeathStrikeWeeks: [] as number[],
       eliminated: false,
     };
   });
@@ -196,6 +198,7 @@ export function calculateStandings(
       const delta = allWouldExit ? 0 : (deltas.get(standing.entryId) ?? 0);
       const target = standingMap.get(standing.entryId)!;
       target.suddenDeathStrikes += delta;
+      if (delta) target.suddenDeathStrikeWeeks!.push(weekGames[0].weekNumber);
       target.eliminated = target.suddenDeathStrikes >= 2;
     }
   }
@@ -304,4 +307,12 @@ export function suddenDeathEliminationsByWeek(
       ),
     ]),
   );
+}
+
+export function winningPercentage(record: RecordSummary) {
+  const decisions = decidedPicks(record);
+  if (!decisions) return "—";
+  return ((record.wins + record.ties / 2) / decisions)
+    .toFixed(3)
+    .replace(/^0/, "");
 }

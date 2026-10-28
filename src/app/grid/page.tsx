@@ -7,9 +7,13 @@ import { CollapsiblePanel } from "@/components/collapsible-panel";
 import { GridPreviewTable, StickyGridTable } from "@/components/grid-table";
 import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
-import { TeamLogo } from "@/components/team-logo";
+import { TableTeam } from "@/components/table-team";
+import { loadCompetition } from "@/features/competition/data";
+import { allRows } from "@/lib/supabase/all-rows";
+import { gridSlots, type PickCounts } from "@/features/competition/grid-slots";
 import {
   compareRecords,
+  winningPercentage,
   pickOutcome,
   recordForPicks,
   type ScoringGame,
@@ -36,21 +40,11 @@ function TeamMark({
     <span
       title={team}
       aria-label={team}
-      className="mx-auto grid h-9 place-items-center text-[8px] font-black leading-none"
+      className="mx-auto grid h-9 place-items-center text-[11px] font-black leading-none"
     >
-      {logo ? (
-        <TeamLogo
-          team={team}
-          src={logo}
-          size={30}
-          contrast="dark"
-          className="size-7"
-        />
-      ) : (
-        team
-      )}
+      <TableTeam team={team} src={logo} />
       {spread !== undefined && (
-        <small className="-mt-1 text-[8px] font-black text-slate-200">
+        <small className="-mt-1 text-[11px] font-black">
           {spread > 0 ? "+" : ""}
           {spread}
         </small>
@@ -142,11 +136,14 @@ export default async function GridPage({
             .select("id, entry_code")
             .eq("season_id", entry.season_id)
             .order("entry_code"),
-          supabase
-            .from("weekly_submissions")
-            .select("id, entry_id, revision")
-            .eq("week_id", week.id)
-            .order("revision", { ascending: false }),
+          allRows(() =>
+            supabase
+              .from("weekly_submissions")
+              .select("id, entry_id, revision")
+              .eq("week_id", week.id)
+              .order("revision", { ascending: false })
+              .order("id"),
+          ),
           supabase.from("teams").select("abbreviation, logo_url"),
           supabase
             .from("weekly_comments")
@@ -188,27 +185,41 @@ export default async function GridPage({
       latest.set(submission.entry_id, submission.id);
   const submissionIds = [...latest.values()];
   const { data: pickRows } = submissionIds.length
-    ? await supabase
-        .from("picks")
-        .select(
-          "id, submission_id, game_id, kind, team, total_direction, is_best_bet",
-        )
-        .in("submission_id", submissionIds)
-    : { data: [] };
-  const { data: presenceRows } = week
-    ? await supabase.rpc("week_submission_presence", {
-        target_week_id: week.id,
-      })
-    : { data: [] };
-  const submittedEntries = new Set(
-    (presenceRows ?? [])
-      .filter(
-        (item: { entry_id: number; has_submission: boolean }) =>
-          item.has_submission,
+    ? await allRows(() =>
+        supabase
+          .from("picks")
+          .select(
+            "id, submission_id, game_id, kind, team, total_direction, is_best_bet",
+          )
+          .in("submission_id", submissionIds)
+          .order("id"),
       )
-      .map(
-        (item: { entry_id: number; has_submission: boolean }) => item.entry_id,
-      ),
+    : { data: [] };
+  const [countsResult, priorCompetition] = await Promise.all([
+    week
+      ? supabase.rpc("week_pick_counts", { target_week_id: week.id })
+      : Promise.resolve({ data: [], error: null }),
+    week && entry
+      ? loadCompetition(supabase, entry.season_id, week.week_number - 1, {
+          includeComments: false,
+          includePayouts: false,
+          includeTeams: false,
+        })
+      : Promise.resolve(null),
+  ]);
+  // Older deployments can omit occupancy hints until the migration is applied.
+  // Never invent placeholders or expose hidden selections on a count-query error.
+  if (countsResult.error)
+    console.error("Grid occupancy unavailable", countsResult.error.code);
+  const countsByEntry = new Map<number, PickCounts>(
+    ((countsResult.data ?? []) as (PickCounts & { entry_id: number })[]).map(
+      (row) => [row.entry_id, row],
+    ),
+  );
+  const eliminatedEntries = new Set(
+    priorCompetition?.standings
+      .filter((s) => s.eliminated)
+      .map((s) => s.entryId) ?? [],
   );
   const entryBySubmission = new Map(
     [...latest].map(([entryId, submissionId]) => [submissionId, entryId]),
@@ -219,7 +230,12 @@ export default async function GridPage({
   const authorizedPicks: GridPick[] = (pickRows ?? []).flatMap((pick) => {
     const entryId = entryBySubmission.get(pick.submission_id);
     const kickoff = kickoffMap.get(pick.game_id);
-    if (!entryId || !kickoff) return [];
+    if (
+      !entryId ||
+      !kickoff ||
+      (pick.kind === "sudden_death" && eliminatedEntries.has(entryId))
+    )
+      return [];
     return [
       {
         entryId,
@@ -302,7 +318,7 @@ export default async function GridPage({
       return {
         poolEntry,
         overall: recordForPicks(games, picks, ["ats", "total"], true),
-        ats: recordForPicks(games, picks, ["ats"]),
+        ats: recordForPicks(games, picks, ["ats"], true),
         totals: recordForPicks(games, picks, ["total"]),
       };
     })
@@ -323,70 +339,80 @@ export default async function GridPage({
         : index + 1,
     );
   });
+  const poolRecord = recordForPicks(
+    games,
+    consensusPicks,
+    ["ats", "total"],
+    true,
+  );
+  const poolWinRate = winningPercentage(poolRecord);
+  const poolWinPercent =
+    poolWinRate === "—" ? "—" : `${(Number(poolWinRate) * 100).toFixed(1)}%`;
   const gridCellsFor = (entryId: number) => {
-    const picks = visiblePicks.filter((pick) => pick.entryId === entryId);
-    const bb = picks.find((pick) => pick.kind === "ats" && pick.isBestBet);
-    const ats = picks
-      .filter((pick) => pick.kind === "ats" && !pick.isBestBet)
+    const picks = visiblePicks
+      .filter((pick) => pick.entryId === entryId)
       .sort(
         (a, b) => a.kickoff.localeCompare(b.kickoff) || a.gameId - b.gameId,
       );
-    const totals = picks
-      .filter((pick) => pick.kind === "total")
-      .sort(
-        (a, b) => a.kickoff.localeCompare(b.kickoff) || a.gameId - b.gameId,
-      );
-    return [
-      bb,
-      ...Array.from({ length: 5 }, (_, index) => ats[index]),
-      ...Array.from({ length: 3 }, (_, index) => totals[index]),
-      picks.find((pick) => pick.kind === "underdog"),
-      picks.find((pick) => pick.kind === "sudden_death"),
-    ];
+    const counts = countsByEntry.get(entryId);
+    return gridSlots(
+      picks,
+      counts && eliminatedEntries.has(entryId)
+        ? { ...counts, has_sudden_death: false }
+        : counts,
+    );
   };
   const gridRow = (poolEntry: { id: number; entry_code: string }) => (
     <tr
       key={poolEntry.id}
-      className={poolEntry.id === entry?.id ? "bg-slate-800/40" : ""}
+      className={poolEntry.id === entry?.id ? "own-entry" : ""}
     >
-      <th className="sticky left-0 z-10 w-[52px] min-w-[52px] max-w-[52px] border-b border-r border-slate-800 bg-[#111417] px-2 py-1.5 text-left font-black">
+      <th className="sticky left-0 z-10 w-[60px] min-w-[60px] max-w-[60px] border-b border-r border-slate-800 bg-[#111417] px-2 py-1.5 text-left font-black">
         {poolEntry.entry_code}
       </th>
-      {gridCellsFor(poolEntry.id).map((pick, index) => (
-        <td
-          key={index}
-          className={`h-10 min-w-10 border-b border-r border-slate-800 px-0.5 text-center ${pick ? resultTone(gameMap.get(pick.gameId), pick) : ""}`}
-        >
-          {pick ? (
-            pick.kind === "total" ? (
+      {gridCellsFor(poolEntry.id).map((slot, index) => {
+        const pick = slot && slot !== "hidden" ? slot : null;
+        return (
+          <td
+            key={index}
+            className={`h-10 min-w-10 border-b border-r border-slate-800 px-0.5 text-center ${pick ? resultTone(gameMap.get(pick.gameId), pick) : ""}`}
+          >
+            {pick ? (
+              pick.kind === "total" ? (
+                <span
+                  title={`${gameMap.get(pick.gameId)?.away} at ${gameMap.get(pick.gameId)?.home}`}
+                  className="text-xs font-black"
+                >
+                  {gameMap.get(pick.gameId)?.away}/
+                  {gameMap.get(pick.gameId)?.home}
+                  <br />
+                  <b>{pick.totalDirection === "over" ? "OVER" : "UNDER"}</b>
+                </span>
+              ) : (
+                <TeamMark
+                  team={pick.team!}
+                  logo={logoMap.get(pick.team!)}
+                  spread={
+                    pick.kind === "underdog"
+                      ? pick.team === gameMap.get(pick.gameId)?.away
+                        ? gameMap.get(pick.gameId)?.awaySpread
+                        : -(gameMap.get(pick.gameId)?.awaySpread ?? 0)
+                      : undefined
+                  }
+                />
+              )
+            ) : slot === "hidden" ? (
               <span
-                title={`${gameMap.get(pick.gameId)?.away} at ${gameMap.get(pick.gameId)?.home}`}
-                className="text-[9px] font-black"
+                aria-label="Submitted, unrevealed"
+                className="text-slate-300"
               >
-                {gameMap.get(pick.gameId)?.away}/
-                {gameMap.get(pick.gameId)?.home}
-                <br />
-                <b>{pick.totalDirection === "over" ? "OVER" : "UNDER"}</b>
+                —
               </span>
-            ) : (
-              <TeamMark
-                team={pick.team!}
-                logo={logoMap.get(pick.team!)}
-                spread={
-                  pick.kind === "underdog"
-                    ? pick.team === gameMap.get(pick.gameId)?.away
-                      ? gameMap.get(pick.gameId)?.awaySpread
-                      : -(gameMap.get(pick.gameId)?.awaySpread ?? 0)
-                    : undefined
-                }
-              />
-            )
-          ) : submittedEntries.has(poolEntry.id) ? (
-            <span className="text-slate-700">—</span>
-          ) : null}
-        </td>
-      ))}
-      <td className="max-w-52 border-b border-slate-800 px-3 py-2 text-[10px] leading-4 text-slate-400">
+            ) : null}
+          </td>
+        );
+      })}
+      <td className="max-w-52 border-b border-slate-800 px-3 py-2 text-xs leading-4 text-slate-300">
         {commentMap.get(poolEntry.id) ?? "—"}
       </td>
     </tr>
@@ -407,7 +433,7 @@ export default async function GridPage({
     count: number,
   ) => (
     <span
-      className={`block truncate text-[10px] font-black ${outcomeTextTone(mostPickedOutcome(label, name))}`}
+      className={`block truncate text-xs font-black ${outcomeTextTone(mostPickedOutcome(label, name))}`}
     >
       {count} {name}
       {label === "MAIN" &&
@@ -416,8 +442,8 @@ export default async function GridPage({
   );
   const weeklyTable = (rows: typeof weeklyRows) => (
     <div className="overflow-x-auto border-t border-slate-800">
-      <table className="w-full min-w-[330px] text-[10px]">
-        <thead className="bg-slate-950 text-slate-400">
+      <table className="pool-table w-full min-w-[390px]">
+        <thead className="bg-slate-950 text-slate-300">
           <tr>
             {["RK", "TM", "OVR", "ATS", "O/U"].map((header) => (
               <th key={header} className="px-2 py-2 text-left">
@@ -433,9 +459,9 @@ export default async function GridPage({
             return (
               <tr
                 key={poolEntry.id}
-                className={poolEntry.id === entry?.id ? "bg-slate-800/50" : ""}
+                className={poolEntry.id === entry?.id ? "own-entry" : ""}
               >
-                <td className="border-t border-slate-800 px-2 py-2 text-slate-500">
+                <td className="rank-cell border-t border-slate-800 px-2 py-2">
                   {weeklyRanks.get(poolEntry.id)}
                 </td>
                 <th className="border-t border-slate-800 px-2 py-2 text-left">
@@ -479,6 +505,7 @@ export default async function GridPage({
           />
           <CollapsiblePanel
             title="Weekly grid"
+            summary={`Main ${poolWinPercent} · ${poolRecord.wins}-${poolRecord.losses}-${poolRecord.ties}`}
             defaultOpen
             className="shadow-xl"
             preview={
@@ -488,12 +515,12 @@ export default async function GridPage({
             }
           >
             <StickyGridTable>{(entries ?? []).map(gridRow)}</StickyGridTable>
-            <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-[9px] font-bold text-slate-400">
+            <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300">
               <span className="text-emerald-400">Win</span>
               <span className="text-red-400">Loss</span>
               <span className="text-slate-300">Tie</span>
               <span className="text-amber-300">Live</span>
-              <span>— = submitted</span>
+              <span>— = submitted, unrevealed · Blank = no pick</span>
             </div>
           </CollapsiblePanel>
           <CollapsiblePanel
@@ -503,13 +530,13 @@ export default async function GridPage({
               <div className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800">
                 {mostGroups.map(([label, items]) => (
                   <div key={label} className="min-w-0 bg-slate-950 px-2 py-2.5">
-                    <small className="block text-[8px] font-black text-slate-500">
+                    <small className="block text-[11px] font-black text-slate-300">
                       {label}
                     </small>
                     {items[0] ? (
                       mostPickedItem(label, items[0][0], items[0][1])
                     ) : (
-                      <span className="text-[9px] text-slate-600">—</span>
+                      <span className="text-xs text-slate-600">—</span>
                     )}
                   </div>
                 ))}
@@ -522,7 +549,7 @@ export default async function GridPage({
             >
               {mostGroups.map(([label, items]) => (
                 <div key={label} className="min-w-0 bg-slate-950 px-2 py-2.5">
-                  <p className="text-[8px] font-black text-slate-500">
+                  <p className="text-[11px] font-black text-slate-300">
                     {label}
                   </p>
                   <div className="grid gap-2">

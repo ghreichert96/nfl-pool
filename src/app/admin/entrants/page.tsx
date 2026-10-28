@@ -151,7 +151,7 @@ export default async function EntrantsPage({
         </section>
       )}
       <section className="overflow-x-auto rounded-xl border border-slate-800">
-        <table className="w-full min-w-[680px] text-left text-xs">
+        <table className="pool-table w-full min-w-[680px] text-left text-xs">
           <thead className="bg-slate-900 text-xs uppercase tracking-wide text-slate-400">
             <tr>
               <th className="p-2">Entry</th>

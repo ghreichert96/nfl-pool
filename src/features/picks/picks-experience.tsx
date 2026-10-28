@@ -633,7 +633,7 @@ function GameRow({
     suddenDeathEliminated ||
     (picks.suddenDeath && picks.suddenDeath.gameId !== game.id),
   );
-  const sdTeamUsed = !allowLockedEdits && usedSuddenDeathTeams.includes(sdTeam);
+  const sdTeamUsed = usedSuddenDeathTeams.includes(sdTeam);
   const udUnavailable = Boolean(
     picks.underdog && picks.underdog.gameId !== game.id,
   );
@@ -870,7 +870,7 @@ function GameRow({
             ▼ U {game.total}
           </SmallToggle>
           <div
-            className={`relative min-h-9 rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${sdUnavailable ? "opacity-45" : ""} ${isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+            className={`relative flex min-h-9 overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${sdUnavailable || sdTeamUsed ? "sd-disabled" : isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
           >
             <button
               type="button"
@@ -881,7 +881,9 @@ function GameRow({
                   : "Double-tap or press and hold to show the other team"
               }
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
-              disabled={Boolean((locked && !allowLockedEdits) || sdUnavailable)}
+              disabled={Boolean(
+                (locked && !allowLockedEdits) || sdUnavailable || sdTeamUsed,
+              )}
               onPointerDown={startSdHold}
               onPointerUp={cancelSdHold}
               onPointerCancel={cancelSdHold}
@@ -909,11 +911,38 @@ function GameRow({
                 sdLastTapAt.current = now;
                 if (!sdTeamUsed) toggleSdTeam(sdTeam);
               }}
-              className={`h-full min-h-9 w-full touch-manipulation select-none text-[11px] font-black disabled:opacity-30 ${sdFlipping ? "sd-card-flip" : ""}`}
+              className={`relative min-h-9 flex-1 touch-manipulation select-none text-[11px] font-black disabled:cursor-not-allowed ${sdFlipping ? "sd-card-flip" : ""}`}
             >
               {sdTeam} · SD
-              {suddenDeathEliminated ? " · OUT" : sdTeamUsed ? " · USED" : ""}
+              {sdTeamUsed && (
+                <svg
+                  aria-label="Previously used team"
+                  className="pointer-events-none absolute inset-0 h-full w-full"
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M0 0L100 100M100 0L0 100"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              )}
             </button>
+            {!suddenDeathEliminated &&
+              !(locked && !allowLockedEdits) &&
+              !sdUnavailable && (
+                <button
+                  type="button"
+                  aria-label={`Switch Sudden Death team for ${game.away.abbreviation} at ${game.home.abbreviation}`}
+                  title="Show the other team"
+                  onClick={switchDisplayedSdTeam}
+                  className="grid w-6 shrink-0 place-items-center border-l border-slate-600 text-sm text-slate-200"
+                >
+                  ⇄
+                </button>
+              )}
           </div>
           <SmallToggle
             className={awayIsFavorite ? "order-4" : "order-1"}
@@ -1145,7 +1174,7 @@ function Preview({
   const sideStatusItems = [
     { label: "UD", filled: Boolean(picks.underdog) },
     {
-      label: suddenDeathEliminated ? "SD OUT" : "SD",
+      label: "SD",
       filled: suddenDeathEliminated || Boolean(picks.suddenDeath),
     },
   ];
@@ -1662,12 +1691,6 @@ export function PicksExperience({
         }
         action={<WeekSelector weeks={weeks} selected={weekNumber} />}
       />
-      {suddenDeathEliminated && (
-        <p role="note" className="mt-2 text-xs text-amber-300">
-          Eliminated from Sudden Death (2 strikes). Continue making Main and
-          Underdog picks.
-        </p>
-      )}
       <section
         className="mt-1.5 space-y-2"
         aria-label={`Week ${weekNumber} games`}

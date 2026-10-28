@@ -221,7 +221,7 @@ export function LinesTable({
         {message}
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full text-center text-xs">
+        <table className="pool-table w-full text-center text-xs">
           <thead>
             <tr>
               {["Type", "Away", "Spread", "Home", "Total", "Status"].map(
