@@ -47,7 +47,7 @@ export function StickyTableFrame({
       >
         {header}
       </div>
-      <div className="overflow-x-auto" onScroll={syncHeader}>
+      <div className="relative z-0 overflow-x-auto" onScroll={syncHeader}>
         {children}
       </div>
     </div>

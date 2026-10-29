@@ -575,9 +575,9 @@ html[data-large-font="true"] .performance-dialog svg text {
   box-shadow: inset 0 0 0 9999px rgb(56 189 248 / 0.08);
 }
 .pick-shell .sd-disabled {
-  background: #27303b;
-  border-color: #566171;
-  color: #abb5c3;
+  background: rgb(15 23 42 / 0.7);
+  border-color: #334155;
+  color: #64748b;
   box-shadow: none;
 }
 .pick-shell .sd-disabled button:disabled {
@@ -604,9 +604,9 @@ html[data-large-font="true"] .performance-dialog svg text {
   color: #b91c1c;
 }
 .pick-shell.light .sd-disabled {
-  background: #dce1e7;
-  color: #5b6574;
-  border-color: #8491a1;
+  background: #e2e8f0;
+  color: #94a3b8;
+  border-color: #cbd5e1;
 }
 
 .pick-shell.light .pool-table .result-pending {
