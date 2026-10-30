@@ -10,7 +10,6 @@ import {
   performanceHistory,
   ranksByPayout,
   sideOrder,
-  mainPayoutExplanation,
 } from "@/features/competition/performance";
 import { resultVisualClass } from "@/features/competition/result-style";
 import { TableTeam } from "@/components/table-team";
@@ -137,24 +136,8 @@ export default async function StandingsPage({
         ).ordered.map((e) => e.id)
       : data.standings.map((e) => e.entryId)
     : [];
-  const maxUd = Math.max(
-    0,
-    ...(data?.standings.map((s) => s.underdogPoints) ?? []),
-  );
-  const sdWinners =
-    data?.standings.filter((s) => !s.eliminated).map((s) => s.entryId) ?? [];
-  const udWinners =
-    data?.standings
-      .filter((s) => s.underdogPoints === maxUd)
-      .map((s) => s.entryId) ?? [];
   const detailEntries = orderedIds.map((id) => {
     const amounts = data!.financials.get(id)!;
-    const sideExplanation = (kind: "sd" | "sd2" | "ud", winners: number[]) =>
-      winners.length === 0
-        ? "No winner currently projected: no payment."
-        : winners.length === data!.entries.length
-          ? "All entries tied: no payment."
-          : `$${data!.sidePots[kind].toFixed(2)} combined payout ÷ ${winners.includes(id) ? `${winners.length} tied winners` : `${data!.entries.length - winners.length} losing entries sharing the cost`}.`;
     return {
       id,
       name: entryMap.get(id)?.entry_code ?? "",
@@ -164,41 +147,26 @@ export default async function StandingsPage({
           label: "Main",
           rank: ranks.get(id) ?? data!.entries.length,
           amount: amounts.main,
-          explanation: mainPayoutExplanation(
-            id,
-            data!.standings,
-            data!.payoutRows,
-          ),
         },
         {
           label: "SD1",
           rank: sd1Ranks.get(id) ?? data!.entries.length,
           amount: amounts.sd,
-          explanation: sideExplanation("sd", sdWinners),
         },
         {
           label: "SD2",
           rank: sd2Ranks.get(id) ?? data!.entries.length,
           amount: amounts.sd2,
-          explanation: sideExplanation(
-            "sd2",
-            data!.sdContests
-              .find((c) => c.number === 2)
-              ?.standings.filter((s) => !s.eliminated)
-              .map((s) => s.entryId) ?? [],
-          ),
         },
         {
           label: "UD",
           rank: udRanks.get(id) ?? data!.entries.length,
           amount: amounts.ud,
-          explanation: sideExplanation("ud", udWinners),
         },
         {
           label: "Total",
           rank: payoutRanks.get(id) ?? data!.entries.length,
           amount: amounts.net,
-          explanation: `Main $${amounts.main.toFixed(2)} + SD1 $${amounts.sd.toFixed(2)} + SD2 $${amounts.sd2.toFixed(2)} + UD $${amounts.ud.toFixed(2)}. Projected until the season is finalized.`,
         },
       ],
     };
