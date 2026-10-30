@@ -17,7 +17,6 @@ export type EntryPerformance = {
     label: string;
     rank: number;
     amount: number;
-    explanation: string;
   }[];
 };
 const DetailContext = createContext<(id: number, opener: HTMLElement) => void>(
@@ -109,11 +108,12 @@ export function EntryPerformanceProvider({
     setSelected(
       entries[Math.max(0, Math.min(entries.length - 1, index + delta))].id,
     );
-  const chartWidth = 420,
-    chartHeight = 230,
+  const chartHeight = 230,
     pad = 25;
   const points = entry?.history ?? [];
+  const chartWidth = Math.max(420, pad * 2 + (points.length - 1) * 48);
   const maxRank = Math.max(entries.length, 2);
+  const referenceRanks = [...new Set([1, Math.min(8, maxRank), maxRank])];
   const x = (i: number) =>
     pad +
     (points.length === 1 ? 0.5 : i / Math.max(1, points.length - 1)) *
@@ -210,31 +210,27 @@ export function EntryPerformanceProvider({
                         {payout.label === "Total" ? "=" : "+"}
                       </span>
                     )}
-                    <details className="relative min-w-0 flex-1 text-center">
-                      <summary className="cursor-pointer list-none">
-                        <span className="block text-[8px] uppercase opacity-70 sm:text-[10px]">
-                          {payout.label} ({ordinal(payout.rank)})
-                        </span>
-                        <strong
-                          className={`whitespace-nowrap text-xs font-black tabular-nums sm:text-base ${payoutTone(payout.amount)}`}
+                    <div className="min-w-0 flex-1 text-center">
+                      <span className="mb-0.5 flex items-center justify-center gap-1 whitespace-nowrap text-[8px] uppercase sm:text-[10px]">
+                        <span className="opacity-70">{payout.label}</span>
+                        <span
+                          className={`payout-rank rounded px-1 font-black tabular-nums ${payoutRankTone(payout.rank)}`}
                         >
-                          {payout.amount < 0
-                            ? "−"
-                            : payout.amount > 0
-                              ? "+"
-                              : ""}
-                          ${Math.abs(payout.amount).toFixed(2)}
-                        </strong>
-                      </summary>
-                      <p className="performance-dialog absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border p-3 text-left text-xs leading-relaxed shadow-lg">
-                        {payout.explanation}
-                      </p>
-                    </details>
+                          {ordinal(payout.rank)}
+                        </span>
+                      </span>
+                      <strong
+                        className={`whitespace-nowrap text-xs font-black tabular-nums sm:text-base ${payoutTone(payout.amount)}`}
+                      >
+                        {payout.amount < 0 ? "−" : payout.amount > 0 ? "+" : ""}
+                        ${Math.abs(payout.amount).toFixed(2)}
+                      </strong>
+                    </div>
                   </div>
                 ))}
               </div>
               <div className="mt-2 grid grid-cols-[5.25rem_1fr] gap-1 sm:grid-cols-[6.5rem_1fr] sm:gap-2">
-                <div className="grid grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] items-center gap-0.5">
+                <div className="grid grid-rows-[1fr_auto_1fr] justify-items-center gap-0.5">
                   <button
                     type="button"
                     className="performance-control performance-carousel-control grid size-6 place-items-center rounded border font-black disabled:opacity-35"
@@ -256,7 +252,7 @@ export function EntryPerformanceProvider({
                   <div className="min-w-0 text-center leading-tight">
                     <strong
                       id="performance-title"
-                      className="block truncate text-[11px] font-black sm:text-sm"
+                      className="block break-words text-[11px] font-black sm:text-sm"
                     >
                       {entry.name}
                     </strong>
@@ -296,86 +292,94 @@ export function EntryPerformanceProvider({
                           onClick={() => setMode(value)}
                         >
                           {value === "overall"
-                            ? "Overall Standing"
+                            ? "Payout Rank"
                             : value === "standings"
-                              ? "Main Standing"
-                              : "Main Weekly Ranking"}
+                              ? "Main Pool Standing"
+                              : "Main Finish by Week"}
                         </button>
                       ),
                     )}
                   </div>
                   {points.length ? (
-                    <svg
-                      viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                      role="img"
-                      aria-label={`${entry.name} ${mode === "overall" ? "total payout rank" : mode === "standings" ? "main standing" : "main weekly ranking"} by week`}
-                      className="mt-1 w-full overflow-visible"
+                    <div
+                      role="region"
+                      aria-label="Scrollable performance chart"
+                      tabIndex={0}
+                      className="mt-1 min-w-0 overflow-x-auto"
                     >
-                      {[1, maxRank].map((rank) => (
-                        <g key={rank}>
-                          <line
-                            x1={pad}
-                            y1={y(rank)}
-                            x2={chartWidth - pad}
-                            y2={y(rank)}
-                            stroke="currentColor"
-                            opacity=".12"
-                          />
-                          <text
-                            x={2}
-                            y={y(rank) + 3}
-                            fill="currentColor"
-                            fontSize="10"
-                          >
-                            {rank}
-                          </text>
-                        </g>
-                      ))}
-                      {points.map((point, i) => {
-                        const prior = points[i - 1];
-                        const color =
-                          !prior || point[mode] === prior[mode]
-                            ? "#eab308"
-                            : point[mode] < prior[mode]
-                              ? "#22c55e"
-                              : "#ef4444";
-                        return (
-                          <g key={point.week}>
-                            {prior && (
-                              <line
-                                x1={x(i - 1)}
-                                y1={y(prior[mode])}
-                                x2={x(i)}
-                                y2={y(point[mode])}
-                                stroke={color}
-                                strokeWidth="2.5"
-                                strokeDasharray={
-                                  point.provisional ? "4 3" : undefined
-                                }
-                              />
-                            )}
-                            <circle
-                              cx={x(i)}
-                              cy={y(point[mode])}
-                              r="3.5"
-                              fill={color}
-                            >
-                              <title>{`Week ${point.week}: rank ${point[mode]}${point.provisional ? " (provisional)" : ""}`}</title>
-                            </circle>
+                      <svg
+                        viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                        role="img"
+                        aria-label={`${entry.name} ${mode === "overall" ? "payout rank" : mode === "standings" ? "main pool standing" : "main finish"} by week`}
+                        className="block max-w-none overflow-visible"
+                        style={{ width: chartWidth }}
+                      >
+                        {referenceRanks.map((rank) => (
+                          <g key={rank}>
+                            <line
+                              x1={pad}
+                              y1={y(rank)}
+                              x2={chartWidth - pad}
+                              y2={y(rank)}
+                              stroke="currentColor"
+                              opacity=".12"
+                            />
                             <text
-                              x={x(i)}
-                              y={chartHeight - 4}
-                              textAnchor="middle"
+                              x={2}
+                              y={y(rank) + 3}
                               fill="currentColor"
-                              fontSize="9"
+                              fontSize="10"
                             >
-                              {point.week}
-                              {point.provisional ? "*" : ""}
+                              {rank}
                             </text>
                           </g>
-                        );
-                      })}
-                    </svg>
+                        ))}
+                        {points.map((point, i) => {
+                          const prior = points[i - 1];
+                          const color =
+                            !prior || point[mode] === prior[mode]
+                              ? "#eab308"
+                              : point[mode] < prior[mode]
+                                ? "#22c55e"
+                                : "#ef4444";
+                          return (
+                            <g key={point.week}>
+                              {prior && (
+                                <line
+                                  x1={x(i - 1)}
+                                  y1={y(prior[mode])}
+                                  x2={x(i)}
+                                  y2={y(point[mode])}
+                                  stroke={color}
+                                  strokeWidth="2.5"
+                                  strokeDasharray={
+                                    point.provisional ? "4 3" : undefined
+                                  }
+                                />
+                              )}
+                              <circle
+                                cx={x(i)}
+                                cy={y(point[mode])}
+                                r="3.5"
+                                fill={color}
+                              >
+                                <title>{`Week ${point.week}: rank ${point[mode]}${point.provisional ? " (provisional)" : ""}`}</title>
+                              </circle>
+                              <text
+                                x={x(i)}
+                                y={chartHeight - 4}
+                                textAnchor="middle"
+                                fill="currentColor"
+                                fontSize="9"
+                              >
+                                {point.week}
+                                {point.provisional ? "*" : ""}
+                              </text>
+                            </g>
+                          );
+                        })}
+                      </svg>
+                    </div>
                   ) : (
                     <p className="mt-4 text-xs opacity-70">
                       Available after the first kickoff.
@@ -403,6 +407,16 @@ function payoutTone(amount: number) {
     : amount < 0
       ? "payout-negative"
       : "payout-neutral";
+}
+
+function payoutRankTone(rank: number) {
+  return rank === 1
+    ? "payout-rank-first"
+    : rank <= 3
+      ? "payout-rank-top-three"
+      : rank <= 6
+        ? "payout-rank-top-six"
+        : "payout-rank-other";
 }
 
 function ordinal(rank: number) {
