@@ -49,6 +49,38 @@ describe("independent SD contests", () => {
       false,
     );
   });
+  it("does not strike the locked opener when a later Week 8 game remains to pick", () => {
+    const opener = { ...game(8), id: 80 };
+    const later = {
+      ...game(8),
+      id: 81,
+      weekId: 8,
+      away: "KC",
+      home: "DEN",
+      status: "scheduled" as const,
+      awayScore: null,
+      homeScore: null,
+    };
+    const chosen: ScoringPick = { ...pick(1, 8, "KC"), gameId: 81 };
+    const inProgress = scoreSdContest(
+      contest,
+      [1, 2],
+      [opener, later],
+      [chosen],
+      8,
+    );
+    expect(inProgress.standings.map((s) => s.suddenDeathStrikes)).toEqual([
+      0, 0,
+    ]);
+
+    const final = scoreSdContest(
+      contest,
+      [1, 2],
+      [opener, { ...later, status: "final", awayScore: 30, homeScore: 20 }],
+      [chosen],
+    );
+    expect(final.standings.map((s) => s.suddenDeathStrikes)).toEqual([0, 1]);
+  });
   it("stops strikes at a sole survivor and keeps later omissions out", () => {
     const result = scoreSdContest(
       contest,

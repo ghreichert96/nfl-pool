@@ -98,8 +98,8 @@ clients; inspect advisors and validate both old/new submission signatures.
 7. Apply the additive migration before deployment; verify SD1 and SD2 participants,
    Week 8 eligibility, and payout amount. Run full app/database CI and smoke-test
    owner and commissioner flows without altering real entrants' selections.
-8. Activate SD2 before the first Week 8 kickoff. If rollout is delayed past kickoff,
-   do not silently backdate eligibility; resolve whether Week 8 is skipped or how the
-   already-locked game affects Week 8 entrants first. As of October 30, 2026, the
-   first Week 8 kickoff has passed; production migration and release await that decision.
-   After activation, monitor submission errors and contest-scoped eligibility.
+8. SD2 remains in Week 8 after the opener has kicked off. The opener itself is not a
+   survivor selection and adds no strike. Entrants may choose any other unlocked
+   Week 8 game; only a loss or missing weekly selection after the full slate is final
+   adds a strike. No one selected the opener through the text submissions. Apply the
+   migration, release, and verify Week 8 picks and eligibility; monitor submission errors.
