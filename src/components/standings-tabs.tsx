@@ -9,8 +9,9 @@ import { completeNavigation, startNavigation } from "./navigation-progress";
 const tabs = [
   ["overall", "Overall"],
   ["main", "Main"],
-  ["sd", "Sudden Death"],
-  ["ud", "Underdog"],
+  ["sd1", "SD1"],
+  ["sd2", "SD2"],
+  ["ud", "UD"],
 ] as const;
 
 export function StandingsTabs({
@@ -48,7 +49,7 @@ export function StandingsTabs({
             }}
             className={`min-h-9 rounded border px-2 text-[10px] font-black ${visibleView === key ? "control-pressed" : "control-raised"}`}
           >
-            {key === "sd" ? "SD" : key === "ud" ? "UD" : label}
+            {label}
           </button>
         ))}
       </div>

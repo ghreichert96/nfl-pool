@@ -138,7 +138,7 @@ export function validationMessage(picks: Picks) {
     picks.ats.length === 6 ? null : `${6 - picks.ats.length} ATS`,
     picks.totals.length === 3 ? null : `${3 - picks.totals.length} O/U`,
     picks.bestBet ? null : "Best Bet",
-    picks.suddenDeath ? null : "Sudden Death",
+    picks.suddenDeath ? null : "SD",
     picks.underdog ? null : "Underdog",
   ].filter(Boolean);
 

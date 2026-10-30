@@ -21,6 +21,7 @@ export type ScoringPick = {
   team: string | null;
   totalDirection: "over" | "under" | null;
   isBestBet: boolean;
+  sdContestId?: number | null;
 };
 
 export type EntryStanding = {
@@ -32,6 +33,7 @@ export type EntryStanding = {
   suddenDeathStrikes: number;
   suddenDeathStrikeWeeks?: number[];
   eliminated: boolean;
+  sdCompletedWeek?: number;
 };
 
 export type RecordSummary = { wins: number; losses: number; ties: number };
@@ -103,7 +105,9 @@ export function calculateStandings(
   entryIds: number[],
   games: ScoringGame[],
   picks: ScoringPick[],
+  sdOptions: { strikeLimit?: number; stopAtWinner?: boolean } = {},
 ): EntryStanding[] {
+  const strikeLimit = sdOptions.strikeLimit ?? 2;
   const gameMap = new Map(games.map((game) => [game.id, game]));
   const finalWeeks = new Map<number, ScoringGame[]>();
   for (const game of games) {
@@ -112,7 +116,7 @@ export function calculateStandings(
     finalWeeks.set(game.weekId, weekGames);
   }
 
-  const standings = entryIds.map((entryId) => {
+  const standings: EntryStanding[] = entryIds.map((entryId) => {
     const entryPicks = picks.filter((pick) => pick.entryId === entryId);
     let wins = 0,
       losses = 0,
@@ -192,14 +196,22 @@ export function calculateStandings(
       active.every(
         (standing) =>
           standing.suddenDeathStrikes + (deltas.get(standing.entryId) ?? 0) >=
-          2,
+          strikeLimit,
       );
     for (const standing of active) {
       const delta = allWouldExit ? 0 : (deltas.get(standing.entryId) ?? 0);
       const target = standingMap.get(standing.entryId)!;
       target.suddenDeathStrikes += delta;
       if (delta) target.suddenDeathStrikeWeeks!.push(weekGames[0].weekNumber);
-      target.eliminated = target.suddenDeathStrikes >= 2;
+      target.eliminated = target.suddenDeathStrikes >= strikeLimit;
+    }
+    if (
+      sdOptions.stopAtWinner &&
+      standings.filter((s) => !s.eliminated).length === 1
+    ) {
+      for (const standing of standings)
+        standing.sdCompletedWeek = weekGames[0].weekNumber;
+      break;
     }
   }
   return standings;

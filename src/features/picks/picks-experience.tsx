@@ -1,7 +1,14 @@
 "use client";
 import { UpdateStatus } from "@/components/update-status";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { TeamLogo } from "@/components/team-logo";
 import { resultVisualClass } from "@/features/competition/result-style";
@@ -30,6 +37,7 @@ import {
   type TotalPick,
 } from "./model";
 
+const SdLabelContext = createContext("SD1");
 const draftStorageKey = "hppp:2026:week-1:draft";
 const selectedClass = "control-pressed";
 const idleClass = "control-raised text-slate-100";
@@ -429,6 +437,7 @@ function SmallToggle({
 }
 
 function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
+  const sdLabel = useContext(SdLabelContext);
   const status = game.status ?? "upcoming";
   const locked = status !== "upcoming";
   const lineLocked = locked || Boolean(game.lineFrozen);
@@ -445,7 +454,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
     result: "win" | "loss" | "tie" | undefined;
   }> = [
     {
-      label: `${sdTeam}·SD`,
+      label: `${sdTeam}·${sdLabel}`,
       selected: sdSelected,
       result: standingForTeam(game, sdTeam, "side"),
     },
@@ -530,6 +539,7 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
 }
 
 function CompactFinalInfo({ game, picks }: { game: Game; picks: Picks }) {
+  const sdLabel = useContext(SdLabelContext);
   const favorite = favoriteFor(game);
   const underdog = underdogFor(game);
   const total = picks.totals.find((pick) => pick.gameId === game.id);
@@ -538,7 +548,7 @@ function CompactFinalInfo({ game, picks }: { game: Game; picks: Picks }) {
   const sdTeam = sdSelected ? picks.suddenDeath!.team : favorite;
   const controls = [
     {
-      label: `${sdTeam}·SD`,
+      label: `${sdTeam}·${sdLabel}`,
       selected: sdSelected,
       result: standingForTeam(game, sdTeam, "side"),
     },
@@ -609,6 +619,7 @@ function GameRow({
   suddenDeathEliminated: boolean;
   allowLockedEdits: boolean;
 }) {
+  const sdLabel = useContext(SdLabelContext);
   const [finalCollapsed, setFinalCollapsed] = useState(false);
   const [sdDisplayOverride, setSdDisplayOverride] = useState<string | null>(
     null,
@@ -874,10 +885,10 @@ function GameRow({
           >
             <button
               type="button"
-              aria-label={`Sudden Death ${sdTeam}`}
+              aria-label={`${sdLabel} ${sdTeam}`}
               title={
                 suddenDeathEliminated
-                  ? "Eliminated from Sudden Death"
+                  ? `${sdLabel} unavailable`
                   : "Double-tap or press and hold to show the other team"
               }
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
@@ -913,7 +924,7 @@ function GameRow({
               }}
               className={`relative min-h-9 flex-1 touch-manipulation select-none text-[11px] font-black disabled:cursor-not-allowed ${sdFlipping ? "sd-card-flip" : ""}`}
             >
-              {sdTeam} · SD
+              {sdTeam} · {sdLabel}
               {sdTeamUsed && (
                 <svg
                   aria-label="Previously used team"
@@ -935,7 +946,7 @@ function GameRow({
               !sdUnavailable && (
                 <button
                   type="button"
-                  aria-label={`Switch Sudden Death team for ${game.away.abbreviation} at ${game.home.abbreviation}`}
+                  aria-label={`Switch ${sdLabel} team for ${game.away.abbreviation} at ${game.home.abbreviation}`}
                   title="Show the other team"
                   onClick={switchDisplayedSdTeam}
                   className="grid w-6 shrink-0 place-items-center border-l border-slate-600 text-sm text-slate-200"
@@ -994,11 +1005,15 @@ function WeeklyCommentEditor({
   locked,
   action,
 }: {
-  draftTarget?: { entryId: number; weekId: number };
+  draftTarget?: {
+    entryId: number;
+    weekId: number;
+    sdContestId?: number | null;
+  };
   initialComment: string;
   locked: boolean;
   action?: (
-    target: { entryId: number; weekId: number },
+    target: { entryId: number; weekId: number; sdContestId?: number | null },
     body: string,
   ) => Promise<{ ok: boolean; message: string }>;
 }) {
@@ -1115,9 +1130,13 @@ function Preview({
   picks: Picks;
   setPicks: React.Dispatch<React.SetStateAction<Picks>>;
   games: Game[];
-  draftTarget?: { entryId: number; weekId: number };
+  draftTarget?: {
+    entryId: number;
+    weekId: number;
+    sdContestId?: number | null;
+  };
   submitAction?: (
-    target: { entryId: number; weekId: number },
+    target: { entryId: number; weekId: number; sdContestId?: number | null },
     picks: Picks,
   ) => Promise<{ ok: boolean; message: string }>;
   submittedDraft: string | null;
@@ -1125,6 +1144,7 @@ function Preview({
   allowLockedEdits: boolean;
   suddenDeathEliminated: boolean;
 }) {
+  const sdLabel = useContext(SdLabelContext);
   const [message, setMessage] = useState(
     draftTarget ? "Draft saved" : "Draft saved on this device",
   );
@@ -1174,7 +1194,7 @@ function Preview({
   const sideStatusItems = [
     { label: "UD", filled: Boolean(picks.underdog) },
     {
-      label: "SD",
+      label: sdLabel,
       filled: suddenDeathEliminated || Boolean(picks.suddenDeath),
     },
   ];
@@ -1348,12 +1368,12 @@ function Preview({
             <span
               aria-label={
                 picks.suddenDeath
-                  ? `${picks.suddenDeath.team} Sudden Death`
-                  : "Sudden Death not selected"
+                  ? `${picks.suddenDeath.team} ${sdLabel}`
+                  : `${sdLabel} not selected`
               }
               className={`truncate rounded-full border px-1 py-1 text-center ${picks.suddenDeath ? previewResultClass(gameMap.get(picks.suddenDeath.gameId), standingForTeam(gameMap.get(picks.suddenDeath.gameId), picks.suddenDeath.team, "side")) : "border-dashed border-slate-700 text-slate-600"}`}
             >
-              {picks.suddenDeath?.team ?? "—"}·SD
+              {picks.suddenDeath?.team ?? "—"}·{sdLabel}
             </span>
           </div>
         </div>
@@ -1449,19 +1469,24 @@ function Preview({
 }
 
 type PicksExperienceProps = {
+  sdLabel?: string;
   games?: Game[];
   initialPicks?: Picks;
-  draftTarget?: { entryId: number; weekId: number };
+  draftTarget?: {
+    entryId: number;
+    weekId: number;
+    sdContestId?: number | null;
+  };
   entryCode?: string;
   weekNumber?: number;
   submitAction?: (
-    target: { entryId: number; weekId: number },
+    target: { entryId: number; weekId: number; sdContestId?: number | null },
     picks: Picks,
   ) => Promise<{ ok: boolean; message: string }>;
   initialComment?: string;
   commentLocked?: boolean;
   commentAction?: (
-    target: { entryId: number; weekId: number },
+    target: { entryId: number; weekId: number; sdContestId?: number | null },
     body: string,
   ) => Promise<{ ok: boolean; message: string }>;
   usedSuddenDeathTeams?: string[];
@@ -1475,6 +1500,7 @@ type PicksExperienceProps = {
 };
 
 export function PicksExperience({
+  sdLabel = "SD1",
   games = MOCK_GAMES,
   initialPicks = EMPTY_PICKS,
   draftTarget,
@@ -1548,15 +1574,17 @@ export function PicksExperience({
     }
 
     const timer = window.setTimeout(async () => {
-      const { error } = await createClient().from("weekly_drafts").upsert(
-        {
-          entry_id: draftTarget.entryId,
-          week_id: draftTarget.weekId,
-          payload: picks,
-          schema_version: 1,
-        },
-        { onConflict: "entry_id,week_id" },
-      );
+      const { error } = await createClient()
+        .from("weekly_drafts")
+        .upsert(
+          {
+            entry_id: draftTarget.entryId,
+            week_id: draftTarget.weekId,
+            payload: { ...picks, sdContestId: draftTarget.sdContestId },
+            schema_version: 1,
+          },
+          { onConflict: "entry_id,week_id" },
+        );
       if (error) console.error("Draft save failed", error.message);
     }, 500);
 
@@ -1573,157 +1601,159 @@ export function PicksExperience({
   );
   const hasSubmittedPicks = submittedPicks !== null;
   return (
-    <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
-      <CompactPageHeader
-        sticky
-        className="-mx-2"
-        title={
-          <span
-            ref={statusKeyRef}
-            className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase"
-          >
-            <span className="relative">
-              <button
-                type="button"
-                aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
-                aria-expanded={statusKey === "lines"}
-                aria-controls="lines-status-key"
-                onClick={() =>
-                  setStatusKey((current) =>
-                    current === "lines" ? null : "lines",
-                  )
-                }
-                className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-blue-600 text-blue-300" : "border-amber-600 text-amber-300"}`}
-              >
-                Lines
-                <HeaderStatusIcon kind="lines" active={linesFrozen} />
-              </button>
-              {statusKey === "lines" && (
-                <span
-                  id="lines-status-key"
-                  role="note"
-                  className="game-card absolute top-full left-0 z-50 mt-1 grid w-36 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
+    <SdLabelContext.Provider value={sdLabel}>
+      <div className="mx-auto max-w-2xl px-2 pb-[calc(12rem+env(safe-area-inset-bottom))] sm:pb-36">
+        <CompactPageHeader
+          sticky
+          className="-mx-2"
+          title={
+            <span
+              ref={statusKeyRef}
+              className="flex min-w-0 items-center gap-1 text-[9px] font-black uppercase"
+            >
+              <span className="relative">
+                <button
+                  type="button"
+                  aria-label={linesFrozen ? "Lines locked" : "Lines unlocked"}
+                  aria-expanded={statusKey === "lines"}
+                  aria-controls="lines-status-key"
+                  onClick={() =>
+                    setStatusKey((current) =>
+                      current === "lines" ? null : "lines",
+                    )
+                  }
+                  className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${linesFrozen ? "border-blue-600 text-blue-300" : "border-amber-600 text-amber-300"}`}
                 >
+                  Lines
+                  <HeaderStatusIcon kind="lines" active={linesFrozen} />
+                </button>
+                {statusKey === "lines" && (
                   <span
-                    aria-current={!linesFrozen ? "true" : undefined}
-                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-amber-300 ${!linesFrozen ? "border-amber-500 bg-amber-950/50" : "border-transparent opacity-70"}`}
+                    id="lines-status-key"
+                    role="note"
+                    className="game-card absolute top-full left-0 z-50 mt-1 grid w-36 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
                   >
-                    <span className="uppercase">Lines</span>
-                    <HeaderStatusIcon kind="lines" active={false} />
-                    <span className="text-slate-200">= Lines open</span>
+                    <span
+                      aria-current={!linesFrozen ? "true" : undefined}
+                      className={`flex items-center gap-1.5 rounded border px-1 py-1 text-amber-300 ${!linesFrozen ? "border-amber-500 bg-amber-950/50" : "border-transparent opacity-70"}`}
+                    >
+                      <span className="uppercase">Lines</span>
+                      <HeaderStatusIcon kind="lines" active={false} />
+                      <span className="text-slate-200">= Lines open</span>
+                    </span>
+                    <span
+                      aria-current={linesFrozen ? "true" : undefined}
+                      className={`flex items-center gap-1.5 rounded border px-1 py-1 text-blue-300 ${linesFrozen ? "border-blue-500 bg-blue-950/50" : "border-transparent opacity-70"}`}
+                    >
+                      <span className="uppercase">Lines</span>
+                      <HeaderStatusIcon kind="lines" active />
+                      <span className="text-slate-200">= Lines frozen</span>
+                    </span>
                   </span>
-                  <span
-                    aria-current={linesFrozen ? "true" : undefined}
-                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-blue-300 ${linesFrozen ? "border-blue-500 bg-blue-950/50" : "border-transparent opacity-70"}`}
-                  >
-                    <span className="uppercase">Lines</span>
-                    <HeaderStatusIcon kind="lines" active />
-                    <span className="text-slate-200">= Lines frozen</span>
-                  </span>
-                </span>
-              )}
-            </span>
-            <span className="relative">
-              <button
-                type="button"
-                aria-label={
-                  allPicksSubmitted
-                    ? "Picks submitted"
-                    : hasSubmittedPicks
-                      ? "Picks submitted incomplete"
-                      : "Picks not submitted"
-                }
-                aria-expanded={statusKey === "picks"}
-                aria-controls="picks-status-key"
-                onClick={() =>
-                  setStatusKey((current) =>
-                    current === "picks" ? null : "picks",
-                  )
-                }
-                className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-violet-600 text-violet-300" : "border-red-700 text-red-300"}`}
-              >
-                Picks
-                <HeaderStatusIcon
-                  kind="picks"
-                  active={allPicksSubmitted}
-                  partial={hasSubmittedPicks && !allPicksSubmitted}
-                />
-              </button>
-              {statusKey === "picks" && (
-                <span
-                  id="picks-status-key"
-                  role="note"
-                  className="game-card absolute top-full left-0 z-50 mt-1 grid w-40 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
+                )}
+              </span>
+              <span className="relative">
+                <button
+                  type="button"
+                  aria-label={
+                    allPicksSubmitted
+                      ? "Picks submitted"
+                      : hasSubmittedPicks
+                        ? "Picks submitted incomplete"
+                        : "Picks not submitted"
+                  }
+                  aria-expanded={statusKey === "picks"}
+                  aria-controls="picks-status-key"
+                  onClick={() =>
+                    setStatusKey((current) =>
+                      current === "picks" ? null : "picks",
+                    )
+                  }
+                  className={`inline-flex items-center gap-1 rounded border px-1.5 py-1 ${allPicksSubmitted ? "border-emerald-700 text-emerald-300" : hasSubmittedPicks ? "border-violet-600 text-violet-300" : "border-red-700 text-red-300"}`}
                 >
+                  Picks
+                  <HeaderStatusIcon
+                    kind="picks"
+                    active={allPicksSubmitted}
+                    partial={hasSubmittedPicks && !allPicksSubmitted}
+                  />
+                </button>
+                {statusKey === "picks" && (
                   <span
-                    aria-current={!hasSubmittedPicks ? "true" : undefined}
-                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-red-300 ${!hasSubmittedPicks ? "border-red-500 bg-red-950/50" : "border-transparent opacity-70"}`}
+                    id="picks-status-key"
+                    role="note"
+                    className="game-card absolute top-full left-0 z-50 mt-1 grid w-40 gap-1.5 rounded-md border p-2 text-[9px] normal-case shadow-xl"
                   >
-                    <span className="uppercase">Picks</span>
-                    <HeaderStatusIcon kind="picks" active={false} />
-                    <span className="text-slate-200">= Not submitted</span>
+                    <span
+                      aria-current={!hasSubmittedPicks ? "true" : undefined}
+                      className={`flex items-center gap-1.5 rounded border px-1 py-1 text-red-300 ${!hasSubmittedPicks ? "border-red-500 bg-red-950/50" : "border-transparent opacity-70"}`}
+                    >
+                      <span className="uppercase">Picks</span>
+                      <HeaderStatusIcon kind="picks" active={false} />
+                      <span className="text-slate-200">= Not submitted</span>
+                    </span>
+                    <span
+                      aria-current={
+                        hasSubmittedPicks && !allPicksSubmitted
+                          ? "true"
+                          : undefined
+                      }
+                      className={`flex items-center gap-1.5 rounded border px-1 py-1 text-violet-300 ${hasSubmittedPicks && !allPicksSubmitted ? "border-violet-500 bg-violet-950/50" : "border-transparent opacity-70"}`}
+                    >
+                      <span className="uppercase">Picks</span>
+                      <HeaderStatusIcon kind="picks" active={false} partial />
+                      <span className="text-slate-200">= Incomplete</span>
+                    </span>
+                    <span
+                      aria-current={allPicksSubmitted ? "true" : undefined}
+                      className={`flex items-center gap-1.5 rounded border px-1 py-1 text-emerald-300 ${allPicksSubmitted ? "border-emerald-500 bg-emerald-950/50" : "border-transparent opacity-70"}`}
+                    >
+                      <span className="uppercase">Picks</span>
+                      <HeaderStatusIcon kind="picks" active />
+                      <span className="text-slate-200">= Submitted</span>
+                    </span>
                   </span>
-                  <span
-                    aria-current={
-                      hasSubmittedPicks && !allPicksSubmitted
-                        ? "true"
-                        : undefined
-                    }
-                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-violet-300 ${hasSubmittedPicks && !allPicksSubmitted ? "border-violet-500 bg-violet-950/50" : "border-transparent opacity-70"}`}
-                  >
-                    <span className="uppercase">Picks</span>
-                    <HeaderStatusIcon kind="picks" active={false} partial />
-                    <span className="text-slate-200">= Incomplete</span>
-                  </span>
-                  <span
-                    aria-current={allPicksSubmitted ? "true" : undefined}
-                    className={`flex items-center gap-1.5 rounded border px-1 py-1 text-emerald-300 ${allPicksSubmitted ? "border-emerald-500 bg-emerald-950/50" : "border-transparent opacity-70"}`}
-                  >
-                    <span className="uppercase">Picks</span>
-                    <HeaderStatusIcon kind="picks" active />
-                    <span className="text-slate-200">= Submitted</span>
-                  </span>
-                </span>
-              )}
+                )}
+              </span>
+              <UpdateStatus freshness={scoreFreshness} />
             </span>
-            <UpdateStatus freshness={scoreFreshness} />
-          </span>
-        }
-        action={<WeekSelector weeks={weeks} selected={weekNumber} />}
-      />
-      <section
-        className="mt-1.5 space-y-2"
-        aria-label={`Week ${weekNumber} games`}
-      >
-        {games.map((game) => (
-          <GameRow
-            key={game.id}
-            game={game}
-            picks={picks}
-            setPicks={setPicks}
-            usedSuddenDeathTeams={usedSuddenDeathTeams}
-            suddenDeathEliminated={suddenDeathEliminated}
-            allowLockedEdits={allowLockedEdits}
-          />
-        ))}
-        <WeeklyCommentEditor
-          draftTarget={draftTarget}
-          initialComment={initialComment}
-          locked={commentLocked}
-          action={commentAction}
+          }
+          action={<WeekSelector weeks={weeks} selected={weekNumber} />}
         />
-      </section>
-      <Preview
-        picks={picks}
-        setPicks={setPicks}
-        games={games}
-        draftTarget={draftTarget}
-        submitAction={submitAction}
-        submittedDraft={submittedDraft}
-        setSubmittedDraft={setSubmittedDraft}
-        suddenDeathEliminated={suddenDeathEliminated}
-        allowLockedEdits={allowLockedEdits}
-      />
-    </div>
+        <section
+          className="mt-1.5 space-y-2"
+          aria-label={`Week ${weekNumber} games`}
+        >
+          {games.map((game) => (
+            <GameRow
+              key={game.id}
+              game={game}
+              picks={picks}
+              setPicks={setPicks}
+              usedSuddenDeathTeams={usedSuddenDeathTeams}
+              suddenDeathEliminated={suddenDeathEliminated}
+              allowLockedEdits={allowLockedEdits}
+            />
+          ))}
+          <WeeklyCommentEditor
+            draftTarget={draftTarget}
+            initialComment={initialComment}
+            locked={commentLocked}
+            action={commentAction}
+          />
+        </section>
+        <Preview
+          picks={picks}
+          setPicks={setPicks}
+          games={games}
+          draftTarget={draftTarget}
+          submitAction={submitAction}
+          submittedDraft={submittedDraft}
+          setSubmittedDraft={setSubmittedDraft}
+          suddenDeathEliminated={suddenDeathEliminated}
+          allowLockedEdits={allowLockedEdits}
+        />
+      </div>
+    </SdLabelContext.Provider>
   );
 }

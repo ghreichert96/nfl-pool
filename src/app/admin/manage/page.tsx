@@ -1,7 +1,7 @@
 import { PageShell } from "@/components/page-shell";
 import { requireCommissioner } from "@/lib/admin";
 import { PayoutScaleEditor } from "../payout-scale-editor";
-import { saveSidePots } from "./actions";
+import { saveSidePots, saveSdContest } from "./actions";
 export default async function ManagePoolPage({
   searchParams,
 }: {
@@ -30,6 +30,23 @@ export default async function ManagePoolPage({
       .select("amount")
       .eq("season_id", season.id),
   ]);
+  const { data: contests, error: contestError } = await supabase
+    .from("sd_contests")
+    .select("id,number,start_week,end_week,strike_limit,pot")
+    .eq("season_id", season.id)
+    .order("number");
+  if (contestError) throw contestError;
+  const { data: seasonWeeks } = await supabase
+    .from("pool_weeks")
+    .select("id,week_number,games(kickoff_at)")
+    .eq("season_id", season.id);
+  const locked = (c: { start_week: number; end_week: number }) =>
+    (seasonWeeks ?? []).some(
+      (w) =>
+        w.week_number >= c.start_week &&
+        w.week_number <= c.end_week &&
+        w.games.some((g) => Date.parse(g.kickoff_at) <= Date.now()),
+    );
   return (
     <PageShell isCommissioner>
       <h1 className="mb-3 font-black">Rules & payouts · {season.year}</h1>
@@ -40,7 +57,8 @@ export default async function ManagePoolPage({
       )}
       {(params.error || params.payout_error) && (
         <p role="alert" className="mb-3 text-sm text-red-400">
-          Payouts could not be saved. Check the values and retry.
+          Settings could not be saved. SD settings lock at the first kickoff.
+          Check the values and retry.
         </p>
       )}
       <section className="game-card mb-3 rounded-lg border p-3">
@@ -73,13 +91,14 @@ export default async function ManagePoolPage({
         <div className="grid grid-cols-2 gap-3">
           {(
             [
-              ["sd_pot", "Sudden Death"],
+              ["sd_pot", "SD1"],
               ["ud_pot", "Underdog"],
             ] as const
           ).map(([key, label]) => (
             <label key={key} className="grid gap-1 text-sm">
               {label}
               <input
+                readOnly={key === "sd_pot" && !!contests?.length}
                 name={key}
                 type="number"
                 min="0"
@@ -94,6 +113,57 @@ export default async function ManagePoolPage({
         </div>
         <button className="admin-button justify-self-end">Save payouts</button>
       </form>
+      {(contests ?? []).map((c) => (
+        <form
+          key={c.id}
+          action={saveSdContest}
+          className="game-card mt-3 grid gap-3 rounded-lg border p-3"
+        >
+          <input type="hidden" name="contest_id" value={c.id} />
+          <h2 className="font-bold">
+            SD{c.number} · Weeks {c.start_week}–{c.end_week}
+          </h2>
+          <p className="text-xs text-slate-400">
+            {locked(c)
+              ? "Settings locked at the first kickoff."
+              : "Settings can be changed until the first kickoff."}
+          </p>
+          <fieldset
+            disabled={locked(c)}
+            className="grid grid-cols-2 gap-3 disabled:opacity-60"
+          >
+            <label className="grid gap-1 text-sm">
+              Strikes
+              <select
+                name="strike_limit"
+                defaultValue={c.strike_limit}
+                className="control-raised min-h-10 rounded border px-2"
+              >
+                <option value="1">1</option>
+                <option value="2">2</option>
+              </select>
+            </label>
+            <label className="grid gap-1 text-sm">
+              Payout
+              <input
+                name="pot"
+                type="number"
+                min="0"
+                max="100000"
+                step="0.01"
+                required
+                defaultValue={Number(c.pot)}
+                className="control-raised min-h-10 w-full rounded border px-2"
+              />
+            </label>
+            {!locked(c) && (
+              <button className="admin-button col-span-2 justify-self-end">
+                Save SD{c.number}
+              </button>
+            )}
+          </fieldset>
+        </form>
+      ))}
     </PageShell>
   );
 }

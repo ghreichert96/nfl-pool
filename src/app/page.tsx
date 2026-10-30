@@ -1,3 +1,4 @@
+import { loadSdEligibility } from "@/features/picks/sd-eligibility";
 import { scoreFreshness as getScoreFreshness } from "@/lib/scores/freshness";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -105,7 +106,7 @@ export default async function Home({
     { data: draft },
     { data: comment },
     { data: latestSubmission },
-    { data: sdStrikes, error: sdError },
+    sdEligibility,
   ] = await Promise.all([
     supabase
       .from("games")
@@ -135,45 +136,15 @@ export default async function Home({
       .order("revision", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase.rpc("sudden_death_strikes_before_week", {
-      target_entry_id: entry.id,
-      target_week_id: week.id,
-    }),
+    loadSdEligibility(supabase, entry.id, week.id),
   ]);
-  if (sdError) throw sdError;
-  const suddenDeathEliminated = Number(sdStrikes) >= 2;
+  const suddenDeathEliminated = sdEligibility.unavailable;
   const { data: submittedRows } = latestSubmission
     ? await supabase
         .from("picks")
         .select("game_id, kind, team, total_direction, is_best_bet")
         .eq("submission_id", latestSubmission.id)
     : { data: [] };
-  const { data: priorWeeks } = await supabase
-    .from("pool_weeks")
-    .select("id")
-    .eq("season_id", entry.season_id)
-    .lt("week_number", week.week_number);
-  const priorWeekIds = (priorWeeks ?? []).map((item) => item.id);
-  const { data: priorSubmissions } = priorWeekIds.length
-    ? await supabase
-        .from("weekly_submissions")
-        .select("id, week_id, revision")
-        .eq("entry_id", entry.id)
-        .in("week_id", priorWeekIds)
-        .order("revision", { ascending: false })
-    : { data: [] };
-  const latestPrior = new Map<number, number>();
-  for (const submission of priorSubmissions ?? [])
-    if (!latestPrior.has(submission.week_id))
-      latestPrior.set(submission.week_id, submission.id);
-  const { data: priorSdRows } = latestPrior.size
-    ? await supabase
-        .from("picks")
-        .select("team")
-        .in("submission_id", [...latestPrior.values()])
-        .eq("kind", "sudden_death")
-    : { data: [] };
-
   const teamNames = new Map(
     (teams ?? []).map((team) => [team.abbreviation, team.name]),
   );
@@ -293,9 +264,25 @@ export default async function Home({
     >
       <PicksExperience
         games={games}
-        initialPicks={parsedDraft.success ? parsedDraft.data : submittedPicks}
+        key={`${entry.id}:${week.id}:${sdEligibility.contestId}`}
+        sdLabel={sdEligibility.label}
+        initialPicks={
+          parsedDraft.success
+            ? {
+                ...parsedDraft.data,
+                suddenDeath:
+                  draft?.payload?.sdContestId === sdEligibility.contestId
+                    ? parsedDraft.data.suddenDeath
+                    : (submittedPicks?.suddenDeath ?? null),
+              }
+            : submittedPicks
+        }
         initialSubmittedPicks={submittedPicks}
-        draftTarget={{ entryId: entry.id, weekId: week.id }}
+        draftTarget={{
+          entryId: entry.id,
+          weekId: week.id,
+          sdContestId: sdEligibility.contestId,
+        }}
         entryCode={entry.entry_code}
         weekNumber={week.week_number}
         submitAction={submitWeeklyPicks}
@@ -305,9 +292,7 @@ export default async function Home({
           games.length > 0 && games.every((game) => game.status !== "upcoming")
         }
         suddenDeathEliminated={suddenDeathEliminated}
-        usedSuddenDeathTeams={(priorSdRows ?? []).flatMap((pick) =>
-          pick.team ? [pick.team] : [],
-        )}
+        usedSuddenDeathTeams={sdEligibility.usedTeams}
         weeks={(availableWeeks ?? []).map(({ week_number, label }) => ({
           week_number,
           label,

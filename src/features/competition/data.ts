@@ -1,3 +1,4 @@
+import { scoreSdContest, type SdContest } from "./sd-contests";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { allRows } from "@/lib/supabase/all-rows";
@@ -35,6 +36,7 @@ export async function loadCompetition(
     { data: payoutRows },
     { data: teams },
     { data: seasonPots, error: potsError },
+    { data: contestRows },
   ] = await Promise.all([
     allRows(() =>
       supabase
@@ -78,6 +80,13 @@ export async function loadCompetition(
       .select("sd_pot,ud_pot")
       .eq("id", seasonId)
       .single(),
+    allRows(() =>
+      supabase
+        .from("sd_contests")
+        .select("id,number,start_week,end_week,strike_limit,pot,completed_week")
+        .eq("season_id", seasonId)
+        .order("number"),
+    ),
   ]);
   if (potsError) throw potsError;
   const weekIds = (weeks ?? []).map((week) => week.id);
@@ -132,7 +141,7 @@ export async function loadCompetition(
         supabase
           .from("picks")
           .select(
-            "id, submission_id, game_id, kind, team, total_direction, is_best_bet",
+            "id, submission_id, game_id, kind, team, total_direction, is_best_bet, sd_contest_id",
           )
           .in("submission_id", latestIds)
           .order("id"),
@@ -175,6 +184,7 @@ export async function loadCompetition(
             totalDirection:
               row.total_direction as ScoringPick["totalDirection"],
             isBestBet: row.is_best_bet,
+            sdContestId: row.sd_contest_id,
           },
         ]
       : [];
@@ -186,6 +196,49 @@ export async function loadCompetition(
       picks,
     ),
   );
+  const contestIds = (contestRows ?? []).map((c) => c.id);
+  const { data: participants } = contestIds.length
+    ? await allRows(() =>
+        supabase
+          .from("sd_participants")
+          .select("contest_id,entry_id")
+          .in("contest_id", contestIds)
+          .order("contest_id")
+          .order("entry_id"),
+      )
+    : { data: [] };
+  const through =
+    throughWeekNumber ??
+    Math.max(0, ...(weeks ?? []).map((w) => w.week_number));
+  const sdContests = ((contestRows ?? []) as SdContest[]).map((c) =>
+    scoreSdContest(
+      c,
+      (participants ?? [])
+        .filter((p) => p.contest_id === c.id)
+        .map((p) => p.entry_id),
+      games,
+      picks,
+      through,
+    ),
+  );
+  const sd1 = sdContests.find((c) => c.number === 1);
+  const sd2 = sdContests.find((c) => c.number === 2);
+  if (sd1)
+    for (const standing of standings) {
+      const side = sd1.standings.find((s) => s.entryId === standing.entryId);
+      standing.suddenDeathStrikes = side?.suddenDeathStrikes ?? 0;
+      standing.suddenDeathStrikeWeeks = side?.suddenDeathStrikeWeeks ?? [];
+      standing.eliminated = side?.eliminated ?? false;
+    }
+  const contestPayout = (id: number, contest: typeof sd1) =>
+    contest?.started
+      ? sidePoolPayout(
+          id,
+          contest.participantIds,
+          contest.standings.filter((s) => !s.eliminated).map((s) => s.entryId),
+          Number(contest.pot),
+        )
+      : 0;
   const schedule = new Map(
     (payoutRows ?? []).map((row) => [row.rank, Number(row.amount)]),
   );
@@ -213,12 +266,15 @@ export async function loadCompetition(
       standing.entryId,
       {
         main: mainPayout.get(standing.entryId) ?? 0,
-        sd: sidePoolPayout(
-          standing.entryId,
-          allEntryIds,
-          sdWinnerIds,
-          Number(seasonPots.sd_pot),
-        ),
+        sd2: contestPayout(standing.entryId, sd2),
+        sd: sd1
+          ? contestPayout(standing.entryId, sd1)
+          : sidePoolPayout(
+              standing.entryId,
+              allEntryIds,
+              sdWinnerIds,
+              Number(seasonPots.sd_pot),
+            ),
         ud: sidePoolPayout(
           standing.entryId,
           allEntryIds,
@@ -227,12 +283,15 @@ export async function loadCompetition(
         ),
         net:
           (mainPayout.get(standing.entryId) ?? 0) +
-          sidePoolPayout(
-            standing.entryId,
-            allEntryIds,
-            sdWinnerIds,
-            Number(seasonPots.sd_pot),
-          ) +
+          (sd1
+            ? contestPayout(standing.entryId, sd1)
+            : sidePoolPayout(
+                standing.entryId,
+                allEntryIds,
+                sdWinnerIds,
+                Number(seasonPots.sd_pot),
+              )) +
+          contestPayout(standing.entryId, sd2) +
           sidePoolPayout(
             standing.entryId,
             allEntryIds,
@@ -243,6 +302,7 @@ export async function loadCompetition(
     ]),
   );
   return {
+    sdContests,
     entries: entries ?? [],
     weeks: weeks ?? [],
     games,
@@ -254,6 +314,10 @@ export async function loadCompetition(
     comments: comments ?? [],
     teams: teams ?? [],
     payoutRows: payoutRows ?? [],
-    sidePots: { sd: Number(seasonPots.sd_pot), ud: Number(seasonPots.ud_pot) },
+    sidePots: {
+      sd: Number(sd1?.pot ?? seasonPots.sd_pot),
+      sd2: Number(sd2?.pot ?? 0),
+      ud: Number(seasonPots.ud_pot),
+    },
   };
 }

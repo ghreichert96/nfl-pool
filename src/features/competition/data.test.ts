@@ -175,3 +175,85 @@ describe("loadCompetition season history", () => {
     ).rejects.toThrow("Pick page failed");
   });
 });
+
+it("isolates historical SD payouts and keeps Overall ranked by Main", async () => {
+  const fixture = seasonFixture();
+  const tables: Record<string, object[]> = {
+    ...fixture,
+    pool_entries: fixture.pool_entries.slice(0, 2),
+    pool_weeks: [1, 7, 8, 9].map((n) => ({
+      id: n,
+      season_id: 1,
+      week_number: n,
+      published_at: "2026-09-01",
+      label: `Week ${n}`,
+    })),
+    games: [1, 7, 8, 9].map((n) => ({
+      ...fixture.games[0],
+      id: n,
+      week_id: n,
+    })),
+    weekly_submissions: [1, 7, 8, 9].flatMap((n) =>
+      [1, 2].map((id) => ({
+        id: n * 10 + id,
+        entry_id: id,
+        week_id: n,
+        revision: 1,
+      })),
+    ),
+    picks: [1, 7, 8, 9].flatMap((n) =>
+      [1, 2].flatMap((id) => [
+        {
+          id: n * 100 + id,
+          submission_id: n * 10 + id,
+          game_id: n,
+          kind: "sudden_death",
+          team: (n < 8 ? id === 1 : id === 2) ? "BUF" : "MIA",
+          sd_contest_id: n < 8 ? 1 : 2,
+        },
+        {
+          id: n * 100 + id + 10,
+          submission_id: n * 10 + id,
+          game_id: n,
+          kind: "ats",
+          team: id === 1 ? "BUF" : "MIA",
+          is_best_bet: true,
+        },
+      ]),
+    ),
+    sd_contests: [
+      {
+        id: 1,
+        season_id: 1,
+        number: 1,
+        start_week: 1,
+        end_week: 7,
+        completed_week: 7,
+        strike_limit: 2,
+        pot: 225,
+      },
+      {
+        id: 2,
+        season_id: 1,
+        number: 2,
+        start_week: 8,
+        end_week: 18,
+        completed_week: null,
+        strike_limit: 2,
+        pot: 225,
+      },
+    ],
+    sd_participants: [1, 2].flatMap((contest_id) =>
+      [1, 2].map((entry_id) => ({ contest_id, entry_id })),
+    ),
+  };
+  const before = await loadCompetition(clientFor(tables), 1, 7);
+  const during = await loadCompetition(clientFor(tables), 1, 8);
+  const after = await loadCompetition(clientFor(tables), 1, 9);
+  expect(before.financials.get(1)).toMatchObject({ sd: 225, sd2: 0 });
+  expect(during.financials.get(1)).toMatchObject({ sd: 225, sd2: 0 });
+  expect(after.financials.get(1)).toMatchObject({ sd: 225, sd2: -225 });
+  expect(after.financials.get(2)).toMatchObject({ sd: -225, sd2: 225 });
+  expect(after.sdContests[0]).toEqual(before.sdContests[0]);
+  expect(after.standings.map((s) => s.entryId)).toEqual([1, 2]);
+});

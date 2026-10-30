@@ -1,3 +1,4 @@
+import { loadSdEligibility } from "@/features/picks/sd-eligibility";
 import { notFound } from "next/navigation";
 
 import { PageShell } from "@/components/page-shell";
@@ -58,11 +59,7 @@ export default async function CommissionerPickSheet({
   const week =
     (weeks ?? []).find((item) => item.id === requestedWeek) ?? weeks?.[0];
   if (!week) notFound();
-  const { data: sdStrikes, error: sdError } = await supabase.rpc(
-    "sudden_death_strikes_before_week",
-    { target_entry_id: entry.id, target_week_id: week.id },
-  );
-  if (sdError) throw sdError;
+  const sdEligibility = await loadSdEligibility(supabase, entry.id, week.id);
   const [{ data: rows }, { data: teams }, { data: latest }] = await Promise.all(
     [
       admin
@@ -182,11 +179,17 @@ export default async function CommissionerPickSheet({
       <PicksExperience
         games={games}
         initialPicks={initial}
-        draftTarget={{ entryId: entry.id, weekId: week.id }}
+        draftTarget={{
+          entryId: entry.id,
+          weekId: week.id,
+          sdContestId: sdEligibility.contestId,
+        }}
+        sdLabel={sdEligibility.label}
+        usedSuddenDeathTeams={sdEligibility.usedTeams}
         entryCode={entry.entry_code}
         weekNumber={week.week_number}
         submitAction={submitCommissionerPicks}
-        suddenDeathEliminated={Number(sdStrikes) >= 2}
+        suddenDeathEliminated={sdEligibility.unavailable}
         allowLockedEdits
         persistDraft={false}
       />

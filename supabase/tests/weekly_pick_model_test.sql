@@ -98,6 +98,8 @@ cross join (
 ) as fixture(id, user_id, entry_code)
 where pool.slug = 'hppp' and season.year = 2026;
 
+insert into public.sd_participants(contest_id,entry_id) select c.id,e.id from public.sd_contests c join public.pool_entries e on e.season_id=c.season_id where e.id in (9001,9002);
+
 insert into public.teams (abbreviation, name)
 values ('AAA', 'Away Testers'), ('HHH', 'Home Testers');
 

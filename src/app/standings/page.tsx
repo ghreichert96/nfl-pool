@@ -1,4 +1,8 @@
 import {
+  sdBeforeWeek,
+  type SdResult,
+} from "@/features/competition/sd-contests";
+import {
   EntryPerformanceProvider,
   EntryDetailRow,
 } from "@/components/entry-performance";
@@ -38,7 +42,7 @@ export default async function StandingsPage({
 }) {
   const { supabase, entry, isCommissioner } = await getPoolContext();
   const params = await searchParams;
-  const view = params.view ?? "overall";
+  const view = params.view === "sd" ? "sd1" : (params.view ?? "overall");
   const { data: availableWeeks } = entry
     ? await supabase
         .from("pool_weeks")
@@ -47,7 +51,7 @@ export default async function StandingsPage({
         .not("published_at", "is", null)
         .order("week_number")
     : { data: [] };
-  const isSidePool = view === "sd" || view === "ud";
+  const isSidePool = view === "sd1" || view === "sd2" || view === "ud";
   const requestedWeek = isSidePool ? NaN : Number(params.week);
   const selectedWeek = selectPoolWeek(availableWeeks ?? [], requestedWeek);
   const data =
@@ -59,7 +63,7 @@ export default async function StandingsPage({
           {
             includeComments: false,
             includePayouts: true,
-            includeTeams: view === "sd" || view === "ud",
+            includeTeams: view === "sd1" || view === "sd2" || view === "ud",
           },
         )
       : null;
@@ -77,12 +81,21 @@ export default async function StandingsPage({
         data.picks,
       )
     : new Map();
+  const selectedContest = data?.sdContests.find(
+    (c) => c.number === (view === "sd2" ? 2 : 1),
+  );
   const orderedIds = data
     ? isSidePool
       ? sideOrder(
-          data.standings,
-          data.entries,
-          view as "sd" | "ud",
+          view === "ud"
+            ? data.standings
+            : (selectedContest?.standings ?? data.standings),
+          selectedContest && view !== "ud"
+            ? data.entries.filter((e) =>
+                selectedContest.participantIds.includes(e.id),
+              )
+            : data.entries,
+          view === "ud" ? "ud" : "sd",
         ).ordered.map((e) => e.id)
       : data.standings.map((e) => e.entryId)
     : [];
@@ -98,7 +111,7 @@ export default async function StandingsPage({
       .map((s) => s.entryId) ?? [];
   const detailEntries = orderedIds.map((id) => {
     const amounts = data!.financials.get(id)!;
-    const sideExplanation = (kind: "sd" | "ud", winners: number[]) =>
+    const sideExplanation = (kind: "sd" | "sd2" | "ud", winners: number[]) =>
       winners.length === 0
         ? "No winner currently projected: no payment."
         : winners.length === data!.entries.length
@@ -119,9 +132,20 @@ export default async function StandingsPage({
           ),
         },
         {
-          label: "SD",
+          label: "SD1",
           amount: amounts.sd,
           explanation: sideExplanation("sd", sdWinners),
+        },
+        {
+          label: "SD2",
+          amount: amounts.sd2,
+          explanation: sideExplanation(
+            "sd2",
+            data!.sdContests
+              .find((c) => c.number === 2)
+              ?.standings.filter((s) => !s.eliminated)
+              .map((s) => s.entryId) ?? [],
+          ),
         },
         {
           label: "UD",
@@ -131,7 +155,7 @@ export default async function StandingsPage({
         {
           label: "Total",
           amount: amounts.net,
-          explanation: `Main $${amounts.main.toFixed(2)} + SD $${amounts.sd.toFixed(2)} + UD $${amounts.ud.toFixed(2)}. Projected until the season is finalized.`,
+          explanation: `Main $${amounts.main.toFixed(2)} + SD1 $${amounts.sd.toFixed(2)} + SD2 $${amounts.sd2.toFixed(2)} + UD $${amounts.ud.toFixed(2)}. Projected until the season is finalized.`,
         },
       ],
     };
@@ -179,7 +203,8 @@ export default async function StandingsPage({
             />
           ) : (
             <SidePoolTable
-              kind={view === "sd" ? "sudden_death" : "underdog"}
+              kind={view === "ud" ? "underdog" : "sudden_death"}
+              contest={view === "ud" ? undefined : selectedContest}
               data={data}
               entryMap={entryMap}
               gameMap={gameMap}
@@ -211,14 +236,14 @@ function RecordTable({
     ? sideOrder(data.standings, data.entries, "ud").ranks
     : new Map<number, number>();
   const headers = overall
-    ? ["RK", "TM", "W-L-T", "Win %", "GB", "UD Pts", "SD", "Payout"]
+    ? ["RK", "TM", "W-L-T", "Win %", "GB", "UD Pts", "SD1", "SD2", "Payout"]
     : ["RK", "TM", "W-L-T", "BB", "ATS", "O/U", "Payout"];
   return (
     <section className="game-card overflow-clip rounded-xl border shadow-xl">
       <StickyTableHeader
         columnWidths={
           overall
-            ? [44, 64, 82, 64, 52, 64, 60, 92]
+            ? [44, 64, 82, 64, 52, 64, 52, 52, 92]
             : [44, 64, 82, 72, 72, 72, 92]
         }
       >
@@ -280,6 +305,22 @@ function RecordTable({
                       <td>
                         <StrikeMark strikes={standing.suddenDeathStrikes} />
                       </td>
+                      <td>
+                        {(() => {
+                          const c = data.sdContests.find((c) => c.number === 2);
+                          const row = c?.standings.find(
+                            (s) => s.entryId === standing.entryId,
+                          );
+                          return c?.started && row ? (
+                            <StrikeMark
+                              strikes={row.suddenDeathStrikes}
+                              limit={c.strike_limit}
+                            />
+                          ) : (
+                            <span aria-label="SD2 not started">—</span>
+                          );
+                        })()}
+                      </td>
                     </>
                   ) : (
                     <>
@@ -331,26 +372,62 @@ function formatMoney(value: number) {
 type CompetitionData = Awaited<ReturnType<typeof loadCompetition>>;
 function SidePoolTable({
   kind,
-  data,
+  contest,
+  data: sourceData,
   entryMap,
   gameMap,
   logoMap,
 }: {
   kind: "sudden_death" | "underdog";
+  contest?: SdResult;
   data: CompetitionData | null;
   entryMap: Map<number, { entry_code: string }>;
   gameMap: Map<number, ScoringGame>;
   logoMap: Map<string, string | null>;
 }) {
-  if (!data) return null;
+  if (!sourceData) return null;
+  const data = contest
+    ? {
+        ...sourceData,
+        entries: sourceData.entries.filter((e) =>
+          contest.participantIds.includes(e.id),
+        ),
+        weeks: sourceData.weeks.filter(
+          (w) =>
+            w.week_number >= contest.start_week &&
+            w.week_number <= (contest.completedWeek ?? contest.end_week),
+        ),
+        standings: contest.standings,
+        picks: sourceData.picks.filter((p) => p.sdContestId === contest.id),
+      }
+    : sourceData;
   const sd = kind === "sudden_death";
-  const eliminatedByWeek = sd
-    ? suddenDeathEliminationsByWeek(
-        data.entries.map((e) => e.id),
-        data.games,
-        data.picks,
+  const eliminatedByWeek = contest
+    ? new Map(
+        data.weeks.map((w) => {
+          const prior = sdBeforeWeek(
+            contest,
+            sourceData.games,
+            sourceData.picks,
+            w.week_number,
+          );
+          return [
+            w.id,
+            new Set(
+              prior.standings
+                .filter((s) => s.eliminated || prior.completedWeek !== null)
+                .map((s) => s.entryId),
+            ),
+          ];
+        }),
       )
-    : new Map<number, Set<number>>();
+    : sd
+      ? suddenDeathEliminationsByWeek(
+          data.entries.map((e) => e.id),
+          data.games,
+          data.picks,
+        )
+      : new Map<number, Set<number>>();
   const { ordered, ranks } = sideOrder(
     data.standings,
     data.entries,
@@ -442,7 +519,10 @@ function SidePoolTable({
                   })}
                   <td className="font-black">
                     {sd ? (
-                      <StrikeMark strikes={standing.suddenDeathStrikes} />
+                      <StrikeMark
+                        strikes={standing.suddenDeathStrikes}
+                        limit={contest?.strike_limit}
+                      />
                     ) : (
                       <span
                         className={underdogRankColor(
@@ -455,8 +535,9 @@ function SidePoolTable({
                   </td>
                   <td className="payout-cell sticky right-0 z-10 font-black">
                     {formatMoney(
-                      data.financials.get(poolEntry.id)?.[sd ? "sd" : "ud"] ??
-                        0,
+                      data.financials.get(poolEntry.id)?.[
+                        sd ? (contest?.number === 2 ? "sd2" : "sd") : "ud"
+                      ] ?? 0,
                     )}
                   </td>
                 </EntryDetailRow>
@@ -466,7 +547,8 @@ function SidePoolTable({
         </table>
       </StickyTableHeader>
       <p className="border-t border-slate-700 px-3 py-2 text-xs text-slate-300">
-        Current projected {sd ? "Sudden Death" : "Underdog"} payouts.
+        {contest?.completedWeek ? "Final" : "Current projected"}{" "}
+        {sd ? `SD${contest?.number ?? 1}` : "Underdog"} payouts.
       </p>
     </section>
   );

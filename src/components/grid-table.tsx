@@ -31,7 +31,7 @@ function GridColumns() {
   );
 }
 
-function HeaderRow() {
+function HeaderRow({ sdLabel }: { sdLabel: string }) {
   return (
     <tr>
       {headers.map((label, index) => (
@@ -40,14 +40,20 @@ function HeaderRow() {
           style={{ width: columnWidths[index] }}
           className={`border-b border-r border-slate-800 py-2 text-left text-[11px] font-black uppercase text-slate-100 ${index === 0 ? "w-[60px] min-w-[60px] max-w-[60px] bg-slate-950 px-2" : "px-1"}`}
         >
-          {label}
+          {label === "SD" ? sdLabel : label}
         </th>
       ))}
     </tr>
   );
 }
 
-export function GridPreviewTable({ children }: { children: ReactNode }) {
+export function GridPreviewTable({
+  children,
+  sdLabel = "SD1",
+}: {
+  children: ReactNode;
+  sdLabel?: string;
+}) {
   return (
     <div className="overflow-x-auto border-t border-slate-800">
       <table
@@ -56,7 +62,7 @@ export function GridPreviewTable({ children }: { children: ReactNode }) {
       >
         <GridColumns />
         <thead className="bg-slate-950">
-          <HeaderRow />
+          <HeaderRow sdLabel={sdLabel} />
         </thead>
         <tbody>{children}</tbody>
       </table>
@@ -64,7 +70,13 @@ export function GridPreviewTable({ children }: { children: ReactNode }) {
   );
 }
 
-export function StickyGridTable({ children }: { children: ReactNode }) {
+export function StickyGridTable({
+  children,
+  sdLabel = "SD1",
+}: {
+  children: ReactNode;
+  sdLabel?: string;
+}) {
   const headerRef = useRef<HTMLTableElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -94,7 +106,7 @@ export function StickyGridTable({ children }: { children: ReactNode }) {
         >
           <GridColumns />
           <thead>
-            <HeaderRow />
+            <HeaderRow sdLabel={sdLabel} />
           </thead>
         </table>
         <div

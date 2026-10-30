@@ -35,21 +35,30 @@ const defaults = [
 
 export default async function RulesPage() {
   const { supabase, entry, isCommissioner } = await getPoolContext();
-  const [{ data: payoutRows }, { data: season }] = await Promise.all([
-    entry
-      ? supabase
-          .from("payout_schedules")
-          .select("amount")
-          .eq("season_id", entry.season_id)
-      : Promise.resolve({ data: [] }),
-    entry
-      ? supabase
-          .from("seasons")
-          .select("sd_pot,ud_pot")
-          .eq("id", entry.season_id)
-          .single()
-      : Promise.resolve({ data: null }),
-  ]);
+  const [{ data: payoutRows }, { data: season }, { data: contests }] =
+    await Promise.all([
+      entry
+        ? supabase
+            .from("payout_schedules")
+            .select("amount")
+            .eq("season_id", entry.season_id)
+        : Promise.resolve({ data: [] }),
+      entry
+        ? supabase
+            .from("seasons")
+            .select("sd_pot,ud_pot")
+            .eq("id", entry.season_id)
+            .single()
+        : Promise.resolve({ data: null }),
+      entry
+        ? supabase
+            .from("sd_contests")
+            .select("number,start_week,strike_limit,pot")
+            .eq("season_id", entry.season_id)
+            .order("number")
+        : Promise.resolve({ data: [] }),
+    ]);
+  const sd2 = contests?.find((c) => c.number === 2);
   const sd = Number(season?.sd_pot ?? 225);
   const ud = Number(season?.ud_pot ?? 225);
   const amounts = (payoutRows ?? []).map((row) => Number(row.amount));
@@ -59,12 +68,17 @@ export default async function RulesPage() {
 
   const displayedSections = defaults.map((section) => {
     if (section.section_key === "sudden_death")
-      return { ...section, summary: `Sudden Death $${sd} · Underdog $${ud}.` };
+      return {
+        ...section,
+        title: "SD1, SD2 and UD",
+        summary: `SD1 $${sd} · SD2 $${sd2?.pot ?? 225} · UD $${ud}.`,
+        detail: `SD1: Complete through Week 7; results and payouts preserved\nSD2: Starts Week ${sd2?.start_week ?? 8}; all existing entries; fresh strikes and all teams available\nSD2 strikes: ${sd2?.strike_limit ?? 2} strikes eliminates\nSD pick: One outright winner each week; locks at game kickoff\nSD loss/missing: One strike; tie adds none\nSD reuse: No team reuse within the same contest; SD1 teams may be used in SD2\nField reprieve: If everyone remaining would be eliminated, no strikes that week\nCompletion: Last survivor after a final weekly slate wins; multiple survivors after Week 18 split\nSD2 funding: Winners share $${sd2?.pot ?? 225}; non-winners share the cost; everyone tied pays $0\nUD: Outright win earns frozen positive spread; tie/loss/missing earns 0`,
+      };
     if (section.section_key === "scoring")
       return {
         ...section,
-        summary: `Main ${payoutRange} · SD $${sd} · UD $${ud}.`,
-        detail: `Main: ${payoutRange}\nTies: Average occupied rank slots\nSudden Death: $${sd} combined; split among winners\nUnderdog: $${ud} combined; split among winners\nSide pool costs: Shared evenly by non-winners; everyone tied pays $0\nPlayoffs: 100 points; $20/entry; 1st/2nd/3rd paid\nSettlement: After season via Venmo or Zelle`,
+        summary: `Main ${payoutRange} · SD1 $${sd} · SD2 $${sd2?.pot ?? 225} · UD $${ud}.`,
+        detail: `Main: ${payoutRange}\nTies: Average occupied rank slots\nSD1: $${sd} combined; final after Week 7\nSD2: $${sd2?.pot ?? 225} combined; split among winners\nUnderdog: $${ud} combined; split among winners\nSide pool costs: Shared evenly by non-winners; everyone tied pays $0\nPlayoffs: 100 points; $20/entry; 1st/2nd/3rd paid\nSettlement: After season via Venmo or Zelle`,
       };
     return section;
   });

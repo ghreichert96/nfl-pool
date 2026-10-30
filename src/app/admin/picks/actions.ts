@@ -8,7 +8,11 @@ import { picksSchema, toSubmissionPicks } from "@/features/picks/submission";
 import { requireCommissioner } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type SubmissionTarget = { entryId: number; weekId: number };
+type SubmissionTarget = {
+  entryId: number;
+  weekId: number;
+  sdContestId?: number | null;
+};
 
 export async function submitCommissionerPicks(
   target: SubmissionTarget,
@@ -47,7 +51,7 @@ export async function submitCommissionerPicks(
   if (sdError)
     return {
       ok: false as const,
-      message: "Could not verify Sudden Death eligibility",
+      message: "Could not verify SD eligibility",
     };
   if (Number(sdStrikes) >= 2 && parsed.data.suddenDeath)
     return {
@@ -69,6 +73,9 @@ export async function submitCommissionerPicks(
     team: pick.team,
     total_direction: pick.totalDirection,
     is_best_bet: pick.isBestBet,
+    ...(pick.kind === "sudden_death" && target.sdContestId !== undefined
+      ? { sd_contest_id: target.sdContestId }
+      : {}),
   }));
   if (
     requested.some((pick) => {

@@ -4,7 +4,11 @@ import { picksSchema, toSubmissionPicks } from "@/features/picks/submission";
 import type { Picks } from "@/features/picks/model";
 import { createClient } from "@/lib/supabase/server";
 
-type SubmissionTarget = { entryId: number; weekId: number };
+type SubmissionTarget = {
+  entryId: number;
+  weekId: number;
+  sdContestId?: number | null;
+};
 
 export async function saveWeeklyComment(
   target: SubmissionTarget,
@@ -65,6 +69,9 @@ export async function submitWeeklyPicks(
       team: pick.team,
       total_direction: pick.totalDirection,
       is_best_bet: pick.isBestBet,
+      ...(pick.kind === "sudden_death" && target.sdContestId !== undefined
+        ? { sd_contest_id: target.sdContestId }
+        : {}),
     })),
   });
 
@@ -73,7 +80,7 @@ export async function submitWeeklyPicks(
         ok: false as const,
         message:
           error.message === "Sudden Death entry is eliminated"
-            ? "You are eliminated from Sudden Death. Reload to submit your Main and Underdog picks."
+            ? "SD is unavailable for this entry or contest. Reload to submit Main and Underdog picks."
             : "Submission failed",
       }
     : { ok: true as const, message: "Picks submitted" };
