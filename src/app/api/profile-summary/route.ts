@@ -30,6 +30,14 @@ export async function GET() {
           gamesBack: gamesBack(standing, data.standings).toFixed(1),
           underdogPoints: standing.underdogPoints.toFixed(1),
           suddenDeath: `${standing.suddenDeathStrikes}/2`,
+          suddenDeath2: (() => {
+            const c = data.sdContests.find((c) => c.number === 2);
+            return c?.started
+              ? `${c.standings.find((s) => s.entryId === entry.id)?.suddenDeathStrikes ?? 0}/${c.strike_limit}`
+              : "—";
+          })(),
+          sd1Dollars: formatMoney(financial?.sd ?? 0),
+          sd2Dollars: formatMoney(financial?.sd2 ?? 0),
           mainDollars: formatMoney(financial?.main ?? 0),
           netDollars: formatMoney(financial?.net ?? 0),
         }

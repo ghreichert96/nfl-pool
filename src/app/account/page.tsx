@@ -76,8 +76,19 @@ export default async function AccountPage({
               ],
               ["GB", gamesBack(standing, competition!.standings).toFixed(1)],
               ["UD Pts", standing.underdogPoints.toFixed(1)],
-              ["SD", `${standing.suddenDeathStrikes}/2`],
+              ["SD1", `${standing.suddenDeathStrikes}/2`],
+              [
+                "SD2",
+                (() => {
+                  const c = competition?.sdContests.find((c) => c.number === 2);
+                  return c?.started
+                    ? `${c.standings.find((s) => s.entryId === entry?.id)?.suddenDeathStrikes ?? 0}/${c.strike_limit}`
+                    : "—";
+                })(),
+              ],
               ["Main $", formatMoney(financial?.main ?? 0)],
+              ["SD1 $", formatMoney(financial?.sd ?? 0)],
+              ["SD2 $", formatMoney(financial?.sd2 ?? 0)],
               ["Net $", formatMoney(financial?.net ?? 0)],
             ]}
           />

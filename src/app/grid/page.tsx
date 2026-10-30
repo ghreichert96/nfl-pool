@@ -189,7 +189,7 @@ export default async function GridPage({
         supabase
           .from("picks")
           .select(
-            "id, submission_id, game_id, kind, team, total_direction, is_best_bet",
+            "id, submission_id, game_id, kind, team, total_direction, is_best_bet, sd_contest_id",
           )
           .in("submission_id", submissionIds)
           .order("id"),
@@ -216,9 +216,16 @@ export default async function GridPage({
       (row) => [row.entry_id, row],
     ),
   );
+  const activeContest = priorCompetition?.sdContests.find(
+    (c) =>
+      week &&
+      week.week_number >= c.start_week &&
+      week.week_number <= c.end_week,
+  );
+  const sdLabel = activeContest ? `SD${activeContest.number}` : "SD1";
   const eliminatedEntries = new Set(
-    priorCompetition?.standings
-      .filter((s) => s.eliminated)
+    (activeContest?.standings ?? priorCompetition?.standings)
+      ?.filter((s) => s.eliminated || Boolean(activeContest?.completedWeek))
       .map((s) => s.entryId) ?? [],
   );
   const entryBySubmission = new Map(
@@ -233,7 +240,9 @@ export default async function GridPage({
     if (
       !entryId ||
       !kickoff ||
-      (pick.kind === "sudden_death" && eliminatedEntries.has(entryId))
+      (pick.kind === "sudden_death" &&
+        (eliminatedEntries.has(entryId) ||
+          (activeContest && pick.sd_contest_id !== activeContest.id)))
     )
       return [];
     return [
@@ -293,7 +302,7 @@ export default async function GridPage({
       if (label === "MAIN") return pick.kind === "ats" && pick.team === name;
       if (label === "UD")
         return pick.kind === "underdog" && pick.team === name.split(" ", 1)[0];
-      if (label === "SD")
+      if (label === sdLabel)
         return pick.kind === "sudden_death" && pick.team === name;
       const game = gameMap.get(pick.gameId);
       return (
@@ -425,7 +434,7 @@ export default async function GridPage({
     ["MAIN", most.ats],
     ["O/U", most.totals],
     ["UD", most.ud],
-    ["SD", most.sd],
+    [sdLabel, most.sd],
   ] as const;
   const mostPickedItem = (
     label: (typeof mostGroups)[number][0],
@@ -505,16 +514,20 @@ export default async function GridPage({
           />
           <CollapsiblePanel
             title="Weekly grid"
-            summary={`Main ${poolWinPercent} · ${poolRecord.wins}-${poolRecord.losses}-${poolRecord.ties}`}
+            summary={`MAIN ${poolRecord.wins}-${poolRecord.losses}-${poolRecord.ties} (${poolWinPercent})`}
             defaultOpen
             className="shadow-xl"
             preview={
               ownEntry ? (
-                <GridPreviewTable>{gridRow(ownEntry)}</GridPreviewTable>
+                <GridPreviewTable sdLabel={sdLabel}>
+                  {gridRow(ownEntry)}
+                </GridPreviewTable>
               ) : undefined
             }
           >
-            <StickyGridTable>{(entries ?? []).map(gridRow)}</StickyGridTable>
+            <StickyGridTable sdLabel={sdLabel}>
+              {(entries ?? []).map(gridRow)}
+            </StickyGridTable>
             <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300">
               <span className="text-emerald-400">Win</span>
               <span className="text-red-400">Loss</span>

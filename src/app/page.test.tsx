@@ -20,11 +20,9 @@ describe("Home", () => {
 
   it("blocks SD after elimination while keeping Main and Underdog available", () => {
     render(<PicksExperience suddenDeathEliminated />);
-    expect(
-      screen.queryByText(/Eliminated from Sudden Death/),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Eliminated from SD1/)).not.toBeInTheDocument();
     for (const button of screen.getAllByRole("button", {
-      name: /^Sudden Death /,
+      name: /^SD1 /,
     })) {
       expect(button).toBeDisabled();
       fireEvent.click(button);
@@ -38,7 +36,7 @@ describe("Home", () => {
     const { rerender } = render(
       <PicksExperience usedSuddenDeathTeams={["LAR"]} />,
     );
-    const used = screen.getByRole("button", { name: "Sudden Death LAR" });
+    const used = screen.getByRole("button", { name: "SD1 LAR" });
     expect(used).toBeDisabled();
     expect(
       used.querySelector('svg[aria-label="Previously used team"]'),
@@ -46,23 +44,19 @@ describe("Home", () => {
     expect(used).not.toHaveTextContent(/USED|OUT/);
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Switch Sudden Death team for SF at LAR",
+        name: "Switch SD1 team for SF at LAR",
       }),
     );
-    expect(
-      screen.getByRole("button", { name: "Sudden Death SF" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "SD1 SF" })).toBeEnabled();
     rerender(
       <PicksExperience usedSuddenDeathTeams={["LAR"]} suddenDeathEliminated />,
     );
     for (const button of screen.getAllByRole("button", {
-      name: /^Sudden Death /,
+      name: /^SD1 /,
     }))
       expect(button).toBeDisabled();
     expect(
-      screen
-        .getByRole("button", { name: "Sudden Death SF" })
-        .querySelector("svg"),
+      screen.getByRole("button", { name: "SD1 SF" }).querySelector("svg"),
     ).toBeNull();
   });
 
@@ -472,32 +466,31 @@ describe("Home", () => {
   it("offers a keyboard equivalent for switching the SD team", () => {
     render(<PicksExperience />);
 
-    fireEvent.keyDown(
-      screen.getByRole("button", { name: "Sudden Death LAR" }),
-      {
-        key: "ArrowUp",
-      },
-    );
+    fireEvent.keyDown(screen.getByRole("button", { name: "SD1 LAR" }), {
+      key: "ArrowUp",
+    });
 
-    expect(
-      screen.getByRole("button", { name: "Sudden Death SF" }),
-    ).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "SD1 SF" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("reveals the alternate SD team on a quick double tap", () => {
     render(<PicksExperience />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Sudden Death LAR" }));
-    fireEvent.click(screen.getByRole("button", { name: "Sudden Death LAR" }));
+    fireEvent.click(screen.getByRole("button", { name: "SD1 LAR" }));
+    fireEvent.click(screen.getByRole("button", { name: "SD1 LAR" }));
 
-    const alternate = screen.getByRole("button", { name: "Sudden Death SF" });
+    const alternate = screen.getByRole("button", { name: "SD1 SF" });
     expect(alternate).toHaveTextContent("SF · SD");
     expect(alternate).toHaveClass("sd-card-flip");
 
     fireEvent.click(alternate);
-    expect(
-      screen.getByRole("button", { name: "Sudden Death SF" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "SD1 SF" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("collapses a started game and retains only relevant selections", () => {
@@ -505,11 +498,11 @@ describe("Home", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "SF +8.5" }));
     fireEvent.click(screen.getByRole("button", { name: "Over 45.5" }));
-    fireEvent.click(screen.getByRole("button", { name: "Sudden Death LAR" }));
+    fireEvent.click(screen.getByRole("button", { name: "SD1 LAR" }));
     rerender(<PicksExperience games={liveGames()} />);
 
     expect(screen.getByText(/SF 24/)).toBeInTheDocument();
-    expect(screen.getAllByText("LAR·SD")).toHaveLength(2);
+    expect(screen.getAllByText("LAR·SD1")).toHaveLength(2);
     expect(screen.getByText("O45.5")).toBeInTheDocument();
     expect(screen.getByText("U45.5")).toBeInTheDocument();
     expect(screen.getByText("SF·UD")).toBeInTheDocument();

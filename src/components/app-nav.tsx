@@ -127,7 +127,7 @@ function Icon({ name }: { name: IconName }) {
 
 function pageHelp(pathname: string) {
   if (pathname === "/")
-    return "Choose six MAIN picks, three totals, one underdog, and one Sudden Death team. Each selection locks at its game's kickoff.";
+    return "Choose six MAIN picks, three totals, one underdog, and one team for the active SD contest. Each selection locks at its game's kickoff.";
   if (pathname.startsWith("/grid"))
     return "The Picks Grid shows one week. Other entries' picks and Most Picked totals appear only after each game's kickoff.";
   if (pathname.startsWith("/standings"))
@@ -163,6 +163,9 @@ export function AppNav({
     gamesBack: string;
     underdogPoints: string;
     suddenDeath: string;
+    suddenDeath2?: string;
+    sd1Dollars?: string;
+    sd2Dollars?: string;
     mainDollars: string;
     netDollars: string;
   } | null>(null);
@@ -430,7 +433,10 @@ export function AppNav({
                       ["Record", summary.record],
                       ["GB", summary.gamesBack],
                       ["UD Pts", summary.underdogPoints],
-                      ["SD", summary.suddenDeath],
+                      ["SD1", summary.suddenDeath],
+                      ["SD2", summary.suddenDeath2 ?? "—"],
+                      ["SD1 $", summary.sd1Dollars ?? "—"],
+                      ["SD2 $", summary.sd2Dollars ?? "—"],
                       ["Main $", summary.mainDollars],
                       ["Net $", summary.netDollars],
                     ].map(([label, value]) => (

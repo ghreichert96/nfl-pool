@@ -148,7 +148,7 @@ export function EntryPerformanceProvider({
               aria-modal="true"
               aria-labelledby="performance-title"
               tabIndex={-1}
-              className="performance-dialog max-h-[92dvh] w-full max-w-4xl overflow-auto rounded-2xl border p-4 sm:p-6 shadow-2xl outline-none"
+              className="performance-dialog relative max-h-[92dvh] w-full max-w-4xl overflow-auto rounded-2xl border p-3 shadow-2xl outline-none sm:p-4"
               onKeyDown={(event) => {
                 if (event.key === "Escape") {
                   event.preventDefault();
@@ -183,11 +183,40 @@ export function EntryPerformanceProvider({
                 }
               }}
             >
-              <div className="grid grid-cols-[3.75rem_1fr] gap-3 sm:grid-cols-[5rem_1fr] sm:gap-5">
-                <div className="flex flex-col items-center justify-center gap-4">
+              <button
+                type="button"
+                className="absolute right-2 top-2 grid size-7 place-items-center rounded text-xl"
+                aria-label="Close performance details"
+                onClick={close}
+              >
+                ×
+              </button>
+              <div className="relative grid grid-cols-5 gap-1 pr-7 sm:gap-2">
+                {entry.payouts.map((payout) => (
+                  <details
+                    key={payout.label}
+                    className="min-w-0 rounded-md border border-[var(--line)] px-1 py-1.5 text-center sm:px-2"
+                  >
+                    <summary className="cursor-pointer list-none">
+                      <span className="block text-[9px] uppercase opacity-70 sm:text-[10px]">
+                        {payout.label}
+                      </span>
+                      <strong className="whitespace-nowrap text-[10px] tabular-nums sm:text-sm">
+                        {payout.amount < 0 ? "−" : payout.amount > 0 ? "+" : ""}
+                        ${Math.abs(payout.amount).toFixed(2)}
+                      </strong>
+                    </summary>
+                    <p className="performance-dialog absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border p-3 text-left text-xs leading-relaxed shadow-lg">
+                      {payout.explanation}
+                    </p>
+                  </details>
+                ))}
+              </div>
+              <div className="mt-2 grid grid-cols-[2.75rem_1fr] gap-2 sm:grid-cols-[3.5rem_1fr] sm:gap-3">
+                <div className="flex flex-col items-center justify-center gap-2">
                   <button
                     type="button"
-                    className="submit-ready grid min-h-12 w-full place-items-center rounded-lg border text-xl font-black shadow-lg disabled:opacity-35"
+                    className="performance-control grid min-h-9 w-full place-items-center rounded-md border font-black disabled:opacity-35"
                     aria-label="Previous entry"
                     disabled={index === 0}
                     onClick={() => move(-1)}
@@ -195,7 +224,7 @@ export function EntryPerformanceProvider({
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 24 24"
-                      className="size-7"
+                      className="size-5"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="3"
@@ -205,13 +234,13 @@ export function EntryPerformanceProvider({
                   </button>
                   <strong
                     id="performance-title"
-                    className="text-center text-base font-black sm:text-lg"
+                    className="text-center text-xs font-black sm:text-base"
                   >
                     {entry.name}
                   </strong>
                   <button
                     type="button"
-                    className="submit-ready grid min-h-12 w-full place-items-center rounded-lg border text-xl font-black shadow-lg disabled:opacity-35"
+                    className="performance-control grid min-h-9 w-full place-items-center rounded-md border font-black disabled:opacity-35"
                     aria-label="Next entry"
                     disabled={index === entries.length - 1}
                     onClick={() => move(1)}
@@ -219,7 +248,7 @@ export function EntryPerformanceProvider({
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 24 24"
-                      className="size-7"
+                      className="size-5"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="3"
@@ -229,43 +258,8 @@ export function EntryPerformanceProvider({
                   </button>
                 </div>
                 <div className="min-w-0">
-                  <div className="mb-3 flex justify-end">
-                    <button
-                      type="button"
-                      className="rounded px-2 text-xl"
-                      aria-label="Close performance details"
-                      onClick={close}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {entry.payouts.map((payout) => (
-                      <details
-                        key={payout.label}
-                        className="rounded-lg border border-[var(--line)] p-2"
-                      >
-                        <summary className="cursor-pointer list-none">
-                          <span className="block text-[10px] uppercase opacity-70">
-                            {payout.label}
-                          </span>
-                          <strong className="text-sm">
-                            {payout.amount < 0
-                              ? "−"
-                              : payout.amount > 0
-                                ? "+"
-                                : ""}
-                            ${Math.abs(payout.amount).toFixed(2)}
-                          </strong>
-                        </summary>
-                        <p className="mt-2 text-[11px] leading-relaxed">
-                          {payout.explanation}
-                        </p>
-                      </details>
-                    ))}
-                  </div>
                   <div
-                    className="mt-5 grid grid-cols-3 gap-2"
+                    className="grid grid-cols-3 gap-1 sm:gap-2"
                     role="group"
                     aria-label="Performance chart mode"
                   >
@@ -275,7 +269,7 @@ export function EntryPerformanceProvider({
                           key={value}
                           type="button"
                           aria-pressed={mode === value}
-                          className={`min-h-12 rounded-lg border px-2 py-2 text-xs font-black shadow-md ${mode === value ? "submit-saved" : "submit-neutral"}`}
+                          className={`performance-control min-h-9 rounded-md border px-1 py-1 text-[10px] font-bold leading-tight sm:text-xs ${mode === value ? "performance-control-selected" : ""}`}
                           onClick={() => setMode(value)}
                         >
                           {value === "overall"
@@ -292,7 +286,7 @@ export function EntryPerformanceProvider({
                       viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                       role="img"
                       aria-label={`${entry.name} ${mode === "overall" ? "overall standing" : mode === "standings" ? "main standing" : "main weekly ranking"} by week, rank one at the top`}
-                      className="mt-3 w-full overflow-visible"
+                      className="mt-1 w-full overflow-visible"
                     >
                       {[1, maxRank].map((rank) => (
                         <g key={rank}>

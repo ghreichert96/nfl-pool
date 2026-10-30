@@ -28,7 +28,7 @@ export function CollapsiblePanel({
         className="game-card overflow-clip rounded-xl border"
       >
         {summary && (
-          <div className="border-b border-slate-700 px-3 py-2 text-xs font-bold text-slate-200">
+          <div className="border-b border-slate-700 px-3 py-2 text-right text-xs font-bold text-slate-200">
             {summary}
           </div>
         )}
@@ -48,7 +48,7 @@ export function CollapsiblePanel({
       >
         <span>{title}</span>
         {summary && (
-          <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-200">
+          <span className="min-w-0 flex-1 truncate text-right text-xs font-bold text-slate-200">
             {summary}
           </span>
         )}
