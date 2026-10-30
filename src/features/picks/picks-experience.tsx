@@ -626,8 +626,8 @@ function GameRow({
   );
   const [sdFlipping, setSdFlipping] = useState(false);
   const sdHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sdSwapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sdFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sdLastTapAt = useRef(0);
   const sdLongPressFired = useRef(false);
   const locked = (game.status ?? "upcoming") !== "upcoming";
   const ats = picks.ats.find((pick) => pick.gameId === game.id);
@@ -700,11 +700,15 @@ function GameRow({
 
   function switchDisplayedSdTeam() {
     if (suddenDeathEliminated) return;
-    setSdDisplayOverride(sdTeam === favorite ? underdog : favorite);
-    setPicks((current) => ({ ...current, suddenDeath: null }));
+    const nextTeam = sdTeam === favorite ? underdog : favorite;
     setSdFlipping(true);
+    if (sdSwapTimer.current) clearTimeout(sdSwapTimer.current);
     if (sdFlipTimer.current) clearTimeout(sdFlipTimer.current);
-    sdFlipTimer.current = setTimeout(() => setSdFlipping(false), 300);
+    sdSwapTimer.current = setTimeout(() => {
+      setSdDisplayOverride(nextTeam);
+      setPicks((current) => ({ ...current, suddenDeath: null }));
+    }, 210);
+    sdFlipTimer.current = setTimeout(() => setSdFlipping(false), 420);
   }
 
   function cancelSdHold() {
@@ -713,7 +717,7 @@ function GameRow({
   }
 
   function startSdHold(event: React.PointerEvent<HTMLButtonElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     sdLongPressFired.current = false;
     sdHoldTimer.current = setTimeout(() => {
       switchDisplayedSdTeam();
@@ -725,6 +729,7 @@ function GameRow({
   useEffect(
     () => () => {
       if (sdHoldTimer.current) clearTimeout(sdHoldTimer.current);
+      if (sdSwapTimer.current) clearTimeout(sdSwapTimer.current);
       if (sdFlipTimer.current) clearTimeout(sdFlipTimer.current);
     },
     [],
@@ -881,7 +886,7 @@ function GameRow({
             ▼ U {game.total}
           </SmallToggle>
           <div
-            className={`relative flex min-h-9 overflow-hidden rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${sdUnavailable || sdTeamUsed ? "sd-disabled" : isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
+            className={`relative flex min-h-9 overflow-visible rounded-md border transition-colors ${awayIsFavorite ? "order-1" : "order-4"} ${sdFlipping ? "sd-card-flip" : ""} ${sdUnavailable || sdTeamUsed ? "sd-disabled" : isTeamSelected(picks.suddenDeath, game.id, sdTeam) ? selectedClass : idleClass}`}
           >
             <button
               type="button"
@@ -889,12 +894,13 @@ function GameRow({
               title={
                 suddenDeathEliminated
                   ? `${sdLabel} unavailable`
-                  : "Double-tap or press and hold to show the other team"
+                  : "Press and hold to show the other team"
               }
               aria-pressed={isTeamSelected(picks.suddenDeath, game.id, sdTeam)}
-              disabled={Boolean(
+              aria-disabled={Boolean(
                 (locked && !allowLockedEdits) || sdUnavailable || sdTeamUsed,
               )}
+              disabled={Boolean((locked && !allowLockedEdits) || sdUnavailable)}
               onPointerDown={startSdHold}
               onPointerUp={cancelSdHold}
               onPointerCancel={cancelSdHold}
@@ -910,19 +916,9 @@ function GameRow({
                   sdLongPressFired.current = false;
                   return;
                 }
-                const now = performance.now();
-                if (
-                  sdLastTapAt.current > 0 &&
-                  now - sdLastTapAt.current <= 240
-                ) {
-                  sdLastTapAt.current = 0;
-                  switchDisplayedSdTeam();
-                  return;
-                }
-                sdLastTapAt.current = now;
                 if (!sdTeamUsed) toggleSdTeam(sdTeam);
               }}
-              className={`relative min-h-9 flex-1 touch-manipulation select-none text-[11px] font-black disabled:cursor-not-allowed ${sdFlipping ? "sd-card-flip" : ""}`}
+              className="relative min-h-9 flex-1 touch-manipulation select-none text-[11px] font-black disabled:cursor-not-allowed"
             >
               {sdTeam} · {sdLabel}
               {sdTeamUsed && (
@@ -941,19 +937,6 @@ function GameRow({
                 </svg>
               )}
             </button>
-            {!suddenDeathEliminated &&
-              !(locked && !allowLockedEdits) &&
-              !sdUnavailable && (
-                <button
-                  type="button"
-                  aria-label={`Switch ${sdLabel} team for ${game.away.abbreviation} at ${game.home.abbreviation}`}
-                  title="Show the other team"
-                  onClick={switchDisplayedSdTeam}
-                  className="grid w-6 shrink-0 place-items-center border-l border-slate-600 text-sm text-slate-200"
-                >
-                  ⇄
-                </button>
-              )}
           </div>
           <SmallToggle
             className={awayIsFavorite ? "order-4" : "order-1"}

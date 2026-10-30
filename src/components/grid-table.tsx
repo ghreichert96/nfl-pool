@@ -57,7 +57,7 @@ export function GridPreviewTable({
   return (
     <div className="overflow-x-auto border-t border-slate-800">
       <table
-        className="pool-table table-fixed border-separate border-spacing-0 text-xs"
+        className="pool-table grid-pick-table table-fixed border-separate border-spacing-0 text-xs"
         style={{ width: tableWidth }}
       >
         <GridColumns />
@@ -101,7 +101,7 @@ export function StickyGridTable({
       <div className="sticky top-[var(--table-sticky-top,93px)] z-20 overflow-hidden border-t border-slate-800 bg-slate-950 sm:top-[var(--table-sticky-top,101px)]">
         <table
           ref={headerRef}
-          className="pool-table table-fixed border-separate border-spacing-0 text-xs"
+          className="pool-table grid-pick-table table-fixed border-separate border-spacing-0 text-xs"
           style={{ width: tableWidth }}
         >
           <GridColumns />
@@ -118,7 +118,7 @@ export function StickyGridTable({
       </div>
       <div className="overflow-x-auto overscroll-y-auto" onScroll={syncHeader}>
         <table
-          className="pool-table table-fixed border-separate border-spacing-0 text-xs"
+          className="pool-table grid-pick-table table-fixed border-separate border-spacing-0 text-xs"
           style={{ width: tableWidth }}
         >
           <GridColumns />

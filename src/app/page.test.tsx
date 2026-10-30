@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_GAMES } from "../features/picks/mock-games";
@@ -16,7 +22,10 @@ const finalGames = () =>
 
 describe("Home", () => {
   beforeEach(() => window.localStorage.clear());
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   it("blocks SD after elimination while keeping Main and Underdog available", () => {
     render(<PicksExperience suddenDeathEliminated />);
@@ -37,17 +46,20 @@ describe("Home", () => {
       <PicksExperience usedSuddenDeathTeams={["LAR"]} />,
     );
     const used = screen.getByRole("button", { name: "SD1 LAR" });
-    expect(used).toBeDisabled();
+    expect(used).toHaveAttribute("aria-disabled", "true");
     expect(
       used.querySelector('svg[aria-label="Previously used team"]'),
     ).not.toBeNull();
     expect(used).not.toHaveTextContent(/USED|OUT/);
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Switch SD1 team for SF at LAR",
-      }),
-    );
+    expect(
+      screen.queryByRole("button", { name: /Switch SD1 team/ }),
+    ).not.toBeInTheDocument();
+    vi.useFakeTimers();
+    fireEvent.keyDown(used, { key: "ArrowUp" });
+    act(() => vi.advanceTimersByTime(210));
     expect(screen.getByRole("button", { name: "SD1 SF" })).toBeEnabled();
+    act(() => vi.advanceTimersByTime(210));
+    vi.useRealTimers();
     rerender(
       <PicksExperience usedSuddenDeathTeams={["LAR"]} suddenDeathEliminated />,
     );
@@ -466,31 +478,41 @@ describe("Home", () => {
   it("offers a keyboard equivalent for switching the SD team", () => {
     render(<PicksExperience />);
 
+    vi.useFakeTimers();
     fireEvent.keyDown(screen.getByRole("button", { name: "SD1 LAR" }), {
       key: "ArrowUp",
     });
+    act(() => vi.advanceTimersByTime(210));
 
     expect(screen.getByRole("button", { name: "SD1 SF" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
+    act(() => vi.advanceTimersByTime(210));
+    vi.useRealTimers();
   });
 
-  it("reveals the alternate SD team on a quick double tap", () => {
+  it("reveals the alternate SD team only after a deliberate hold", () => {
     render(<PicksExperience />);
 
-    fireEvent.click(screen.getByRole("button", { name: "SD1 LAR" }));
-    fireEvent.click(screen.getByRole("button", { name: "SD1 LAR" }));
+    vi.useFakeTimers();
+    const current = screen.getByRole("button", { name: "SD1 LAR" });
+    fireEvent.pointerDown(current, { pointerId: 1 });
+    act(() => vi.advanceTimersByTime(400));
+    fireEvent.pointerUp(current, { pointerId: 1 });
+    fireEvent.click(current);
+    act(() => vi.advanceTimersByTime(210));
 
     const alternate = screen.getByRole("button", { name: "SD1 SF" });
     expect(alternate).toHaveTextContent("SF · SD");
-    expect(alternate).toHaveClass("sd-card-flip");
+    expect(alternate.closest(".sd-card-flip")).not.toBeNull();
 
     fireEvent.click(alternate);
     expect(screen.getByRole("button", { name: "SD1 SF" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+    vi.useRealTimers();
   });
 
   it("collapses a started game and retains only relevant selections", () => {

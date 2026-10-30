@@ -8,6 +8,7 @@ import {
 } from "@/components/entry-performance";
 import {
   performanceHistory,
+  ranksByPayout,
   sideOrder,
   mainPayoutExplanation,
 } from "@/features/competition/performance";
@@ -32,6 +33,10 @@ import {
 } from "@/features/competition/scoring";
 import { getPoolContext } from "@/lib/pool-context";
 import { selectPoolWeek } from "@/lib/pool-weeks";
+import {
+  StandingsRecordTable,
+  type StandingsRecordRow,
+} from "@/components/standings-record-table";
 
 export const dynamic = "force-dynamic";
 
@@ -79,8 +84,41 @@ export default async function StandingsPage({
         data.entries.map((e) => e.id),
         data.games,
         data.picks,
+        undefined,
+        {
+          payoutRows: data.payoutRows,
+          sidePots: data.sidePots,
+          sdContests: data.sdContests,
+        },
       )
     : new Map();
+  const payoutRanks = ranksByPayout(
+    new Map(
+      [...(data?.financials ?? new Map())].map(([id, amounts]) => [
+        id,
+        amounts.net,
+      ]),
+    ),
+  );
+  const sd1Ranks = data
+    ? sideOrder(
+        data.sdContests.find((contest) => contest.number === 1)?.standings ??
+          data.standings,
+        data.entries,
+        "sd",
+      ).ranks
+    : new Map<number, number>();
+  const sd2Ranks = data
+    ? sideOrder(
+        data.sdContests.find((contest) => contest.number === 2)?.standings ??
+          data.standings,
+        data.entries,
+        "sd",
+      ).ranks
+    : new Map<number, number>();
+  const udRanks = data
+    ? sideOrder(data.standings, data.entries, "ud").ranks
+    : new Map<number, number>();
   const selectedContest = data?.sdContests.find(
     (c) => c.number === (view === "sd2" ? 2 : 1),
   );
@@ -124,6 +162,7 @@ export default async function StandingsPage({
       payouts: [
         {
           label: "Main",
+          rank: ranks.get(id) ?? data!.entries.length,
           amount: amounts.main,
           explanation: mainPayoutExplanation(
             id,
@@ -133,11 +172,13 @@ export default async function StandingsPage({
         },
         {
           label: "SD1",
+          rank: sd1Ranks.get(id) ?? data!.entries.length,
           amount: amounts.sd,
           explanation: sideExplanation("sd", sdWinners),
         },
         {
           label: "SD2",
+          rank: sd2Ranks.get(id) ?? data!.entries.length,
           amount: amounts.sd2,
           explanation: sideExplanation(
             "sd2",
@@ -149,17 +190,63 @@ export default async function StandingsPage({
         },
         {
           label: "UD",
+          rank: udRanks.get(id) ?? data!.entries.length,
           amount: amounts.ud,
           explanation: sideExplanation("ud", udWinners),
         },
         {
           label: "Total",
+          rank: payoutRanks.get(id) ?? data!.entries.length,
           amount: amounts.net,
           explanation: `Main $${amounts.main.toFixed(2)} + SD1 $${amounts.sd.toFixed(2)} + SD2 $${amounts.sd2.toFixed(2)} + UD $${amounts.ud.toFixed(2)}. Projected until the season is finalized.`,
         },
       ],
     };
   });
+  const sd2Contest = data?.sdContests.find((c) => c.number === 2);
+  const recordRows: StandingsRecordRow[] = data
+    ? data.standings.map((standing) => {
+        const picks = data.picks.filter(
+          (pick) => pick.entryId === standing.entryId,
+        );
+        const sd2Row = sd2Contest?.standings.find(
+          (row) => row.entryId === standing.entryId,
+        );
+        return {
+          entryId: standing.entryId,
+          name:
+            data.entries.find((entry) => entry.id === standing.entryId)
+              ?.entry_code ?? "",
+          mainRank: ranks.get(standing.entryId) ?? data.entries.length,
+          wins: standing.wins,
+          losses: standing.losses,
+          ties: standing.ties,
+          winPercentage: winningPercentage(standing),
+          gamesBack: gamesBack(standing, data.standings).toFixed(1),
+          underdogPoints: standing.underdogPoints.toFixed(1),
+          underdogRank: udRanks.get(standing.entryId) ?? 99,
+          sd1Strikes: standing.suddenDeathStrikes,
+          sd2Strikes: sd2Row?.suddenDeathStrikes ?? null,
+          sd2StrikeLimit: sd2Contest?.strike_limit ?? 2,
+          sd2Started: Boolean(sd2Contest?.started),
+          bestBetRecord: displayRecord(
+            recordForPicks(
+              data.games,
+              picks.filter((pick) => pick.isBestBet),
+              ["ats"],
+            ),
+          ),
+          atsRecord: displayRecord(
+            recordForPicks(data.games, picks, ["ats"], true),
+          ),
+          totalRecord: displayRecord(
+            recordForPicks(data.games, picks, ["total"]),
+          ),
+          mainPayout: data.financials.get(standing.entryId)?.main ?? 0,
+          totalPayout: data.financials.get(standing.entryId)?.net ?? 0,
+        };
+      })
+    : [];
 
   return (
     <PageShell
@@ -195,10 +282,9 @@ export default async function StandingsPage({
             }
           />
           {view === "overall" || view === "main" ? (
-            <RecordTable
-              data={data}
+            <StandingsRecordTable
+              rows={recordRows}
               entryId={entry?.id}
-              ranks={ranks}
               overall={view === "overall"}
             />
           ) : (
@@ -221,154 +307,10 @@ function displayRecord(record: { wins: number; losses: number; ties: number }) {
   return `${record.wins}-${record.losses}-${record.ties}`;
 }
 
-function RecordTable({
-  data,
-  entryId,
-  ranks,
-  overall,
-}: {
-  data: CompetitionData | null;
-  entryId?: number;
-  ranks: Map<number, number>;
-  overall: boolean;
-}) {
-  const udRanks = data
-    ? sideOrder(data.standings, data.entries, "ud").ranks
-    : new Map<number, number>();
-  const headers = overall
-    ? ["RK", "TM", "W-L-T", "Win %", "GB", "UD Pts", "SD1", "SD2", "Payout"]
-    : ["RK", "TM", "W-L-T", "BB", "ATS", "O/U", "Payout"];
-  return (
-    <section className="game-card overflow-clip rounded-xl border shadow-xl">
-      <StickyTableHeader
-        columnWidths={
-          overall
-            ? [44, 64, 82, 64, 52, 64, 52, 52, 92]
-            : [44, 64, 82, 72, 72, 72, 92]
-        }
-      >
-        <table className="pool-table w-full border-separate border-spacing-0">
-          <thead>
-            <tr>
-              {headers.map((header, i) => (
-                <th
-                  key={header}
-                  scope="col"
-                  className={
-                    i === 0
-                      ? "rank-cell sticky left-0 z-30"
-                      : i === 1
-                        ? "entry-cell sticky left-11 z-20"
-                        : i === headers.length - 1
-                          ? "payout-cell sticky right-0 z-20"
-                          : ""
-                  }
-                >
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data?.standings.map((standing) => {
-              const picks = data.picks.filter(
-                (pick) => pick.entryId === standing.entryId,
-              );
-              const name =
-                data.entries.find((e) => e.id === standing.entryId)
-                  ?.entry_code ?? "";
-              return (
-                <EntryDetailRow
-                  key={standing.entryId}
-                  entryId={standing.entryId}
-                  name={name}
-                  className={standing.entryId === entryId ? "own-entry" : ""}
-                >
-                  <td className="rank-cell sticky left-0 z-20">
-                    {ranks.get(standing.entryId)}
-                  </td>
-                  <th scope="row" className="entry-cell sticky left-11 z-10">
-                    {name}
-                  </th>
-                  <td className="whitespace-nowrap font-bold">
-                    {displayRecord(standing)}
-                  </td>
-                  {overall ? (
-                    <>
-                      <td>{winningPercentage(standing)}</td>
-                      <td>{gamesBack(standing, data.standings).toFixed(1)}</td>
-                      <td
-                        className={`font-black ${underdogRankColor(udRanks.get(standing.entryId) ?? 99)}`}
-                      >
-                        {standing.underdogPoints.toFixed(1)}
-                      </td>
-                      <td>
-                        <StrikeMark strikes={standing.suddenDeathStrikes} />
-                      </td>
-                      <td>
-                        {(() => {
-                          const c = data.sdContests.find((c) => c.number === 2);
-                          const row = c?.standings.find(
-                            (s) => s.entryId === standing.entryId,
-                          );
-                          return c?.started && row ? (
-                            <StrikeMark
-                              strikes={row.suddenDeathStrikes}
-                              limit={c.strike_limit}
-                            />
-                          ) : (
-                            <span aria-label="SD2 not started">—</span>
-                          );
-                        })()}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td>
-                        {displayRecord(
-                          recordForPicks(
-                            data.games,
-                            picks.filter((pick) => pick.isBestBet),
-                            ["ats"],
-                          ),
-                        )}
-                      </td>
-                      <td>
-                        {displayRecord(
-                          recordForPicks(data.games, picks, ["ats"], true),
-                        )}
-                      </td>
-                      <td>
-                        {displayRecord(
-                          recordForPicks(data.games, picks, ["total"]),
-                        )}
-                      </td>
-                    </>
-                  )}
-                  <td className="payout-cell sticky right-0 z-10 font-black">
-                    {formatMoney(
-                      data.financials.get(standing.entryId)?.[
-                        overall ? "net" : "main"
-                      ] ?? 0,
-                    )}
-                  </td>
-                </EntryDetailRow>
-              );
-            })}
-          </tbody>
-        </table>
-      </StickyTableHeader>
-      <p className="border-t border-slate-700 px-3 py-2 text-xs text-slate-300">
-        Payouts reflect results through the selected week.
-        {!overall &&
-          " ATS includes Best Bet twice; BB shows its separate record."}
-      </p>
-    </section>
-  );
-}
 function formatMoney(value: number) {
   return `${value > 0 ? "+" : value < 0 ? "−" : ""}$${Math.abs(value).toFixed(value % 1 ? 2 : 0)}`;
 }
+
 type CompetitionData = Awaited<ReturnType<typeof loadCompetition>>;
 function SidePoolTable({
   kind,

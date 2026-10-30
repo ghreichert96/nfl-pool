@@ -2,11 +2,14 @@ import {
   calculateStandings,
   rankStandings,
   ranksByGamesBack,
+  sharedRankPayout,
+  sidePoolPayout,
   sameRank,
   type EntryStanding,
   type ScoringGame,
   type ScoringPick,
 } from "./scoring";
+import { scoreSdContest, type SdResult } from "./sd-contests";
 export function sideOrder(
   standings: EntryStanding[],
   entries: { id: number; entry_code: string }[],
@@ -51,11 +54,107 @@ export type PerformancePoint = {
   weekly: number;
   provisional: boolean;
 };
+
+export type PerformancePayoutConfig = {
+  payoutRows: { rank: number; amount: number | string }[];
+  sidePots: { sd: number; sd2: number; ud: number };
+  sdContests: SdResult[];
+};
+
+export function ranksByPayout(
+  payouts: ReadonlyMap<number, number>,
+  direction: "descending" | "ascending" = "descending",
+) {
+  const ordered = [...payouts].sort(([leftId, left], [rightId, right]) => {
+    const value = direction === "descending" ? right - left : left - right;
+    return value || leftId - rightId;
+  });
+  const ranks = new Map<number, number>();
+  ordered.forEach(([id, amount], index) => {
+    const prior = index > 0 ? ordered[index - 1] : undefined;
+    ranks.set(
+      id,
+      prior && Math.round(prior[1] * 100) === Math.round(amount * 100)
+        ? ranks.get(prior[0])!
+        : index + 1,
+    );
+  });
+  return ranks;
+}
+
+function projectedTotalPayouts(
+  entryIds: number[],
+  standings: EntryStanding[],
+  games: ScoringGame[],
+  picks: ScoringPick[],
+  week: number,
+  config: PerformancePayoutConfig,
+) {
+  const schedule = new Map(
+    config.payoutRows.map((row) => [row.rank, Number(row.amount)]),
+  );
+  const ranked = rankStandings(standings);
+  const amounts = new Map(entryIds.map((id) => [id, 0]));
+  for (let index = 0; index < ranked.length;) {
+    let count = 1;
+    while (
+      index + count < ranked.length &&
+      sameRank(ranked[index], ranked[index + count])
+    )
+      count += 1;
+    const amount = sharedRankPayout(index + 1, count, schedule);
+    for (let offset = 0; offset < count; offset++)
+      amounts.set(ranked[index + offset].entryId, amount);
+    index += count;
+  }
+
+  for (const contest of config.sdContests) {
+    const result = scoreSdContest(
+      contest,
+      contest.participantIds,
+      games,
+      picks,
+      week,
+    );
+    if (!result.started) continue;
+    const winners = result.standings
+      .filter((standing) => !standing.eliminated)
+      .map((standing) => standing.entryId);
+    for (const id of contest.participantIds)
+      amounts.set(
+        id,
+        (amounts.get(id) ?? 0) +
+          sidePoolPayout(
+            id,
+            contest.participantIds,
+            winners,
+            Number(contest.pot),
+          ),
+      );
+  }
+
+  const maxUnderdog = Math.max(
+    0,
+    ...standings.map((row) => row.underdogPoints),
+  );
+  const underdogWinners = standings
+    .filter((row) => row.underdogPoints === maxUnderdog)
+    .map((row) => row.entryId);
+  for (const id of entryIds)
+    amounts.set(
+      id,
+      (amounts.get(id) ?? 0) +
+        sidePoolPayout(id, entryIds, underdogWinners, config.sidePots.ud),
+    );
+  return amounts;
+}
+
 export function performanceHistory(
   entryIds: number[],
   games: (ScoringGame & { kickoffAt?: string })[],
   picks: ScoringPick[],
   now = Date.now(),
+  payoutConfig?: PerformancePayoutConfig,
 ) {
   const history = new Map<number, PerformancePoint[]>(
     entryIds.map((id) => [id, []]),
@@ -74,23 +173,32 @@ export function performanceHistory(
       )
     )
       continue;
-    const cumulative = ranksByGamesBack(
-      rankStandings(
-        calculateStandings(
-          entryIds,
-          games.filter((g) => g.weekNumber <= week),
-          picks,
-        ),
-      ),
+    const cumulativeGames = games.filter((g) => g.weekNumber <= week);
+    const cumulativeStandings = calculateStandings(
+      entryIds,
+      cumulativeGames,
+      picks,
     );
+    const mainRanks = ranksByGamesBack(rankStandings(cumulativeStandings));
+    const payoutValues = payoutConfig
+      ? projectedTotalPayouts(
+          entryIds,
+          cumulativeStandings,
+          cumulativeGames,
+          picks,
+          week,
+          payoutConfig,
+        )
+      : undefined;
+    const overallRanks = payoutValues ? ranksByPayout(payoutValues) : mainRanks;
     const weekly = ranksByGamesBack(
       rankStandings(calculateStandings(entryIds, slate, picks)),
     );
     for (const id of entryIds)
       history.get(id)!.push({
         week,
-        standings: cumulative.get(id)!,
-        overall: cumulative.get(id)!,
+        standings: mainRanks.get(id)!,
+        overall: overallRanks.get(id)!,
         weekly: weekly.get(id)!,
         provisional: slate.some((g) => g.status !== "final"),
       });

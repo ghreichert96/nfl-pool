@@ -302,18 +302,27 @@ select {
 
 @keyframes sd-card-flip {
   0% {
-    transform: perspective(240px) rotateY(0deg);
+    transform: perspective(360px) rotateY(0deg) scale(1);
+  }
+  35% {
+    transform: perspective(360px) rotateY(55deg) scale(1.14);
   }
   50% {
-    transform: perspective(240px) rotateY(90deg);
+    transform: perspective(360px) rotateY(90deg) scale(1.18);
+  }
+  65% {
+    transform: perspective(360px) rotateY(55deg) scale(1.14);
   }
   100% {
-    transform: perspective(240px) rotateY(0deg);
+    transform: perspective(360px) rotateY(0deg) scale(1);
   }
 }
 
 .sd-card-flip {
-  animation: sd-card-flip 300ms ease-in-out;
+  z-index: 30;
+  transform-origin: center;
+  transform-style: preserve-3d;
+  animation: sd-card-flip 420ms ease-in-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -538,6 +547,11 @@ html[data-large-font="true"] .performance-dialog svg text {
   border-bottom: 1px solid var(--line, #334155);
   text-align: left;
 }
+.pick-shell .grid-pick-table tbody th,
+.pick-shell .grid-pick-table tbody td {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
 .pick-shell .pool-table thead th {
   background: var(--panel-raised);
   color: var(--text-primary);
@@ -630,7 +644,7 @@ html[data-large-font="true"] .performance-dialog svg text {
     0 2px 0 #94a3b8;
 }
 .performance-control-selected,
-.performance-control:active {
+.performance-carousel-control:active {
   background: #ffffff;
   color: #0f172a;
   border-color: #64748b;
@@ -638,4 +652,34 @@ html[data-large-font="true"] .performance-dialog svg text {
 }
 .performance-control-selected {
   font-weight: 900;
+}
+
+.performance-control:focus-visible,
+.performance-carousel-control:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+.performance-dialog .payout-positive {
+  color: #4ade80;
+}
+
+.performance-dialog .payout-negative {
+  color: #f87171;
+}
+
+.performance-dialog .payout-neutral {
+  color: #facc15;
+}
+
+.light .performance-dialog .payout-positive {
+  color: #047857;
+}
+
+.light .performance-dialog .payout-negative {
+  color: #b91c1c;
+}
+
+.light .performance-dialog .payout-neutral {
+  color: #a16207;
 }
