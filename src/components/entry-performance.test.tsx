@@ -19,7 +19,7 @@ it("opens on one tap, switches chart modes, traverses table order, and restores 
         provisional: false,
       },
     ],
-    payouts: [{ label: "Main", amount: 100, explanation: "Rank 1" }],
+    payouts: [{ label: "Main", rank: 1, amount: 100, explanation: "Rank 1" }],
   }));
   render(
     <EntryPerformanceProvider entries={entries}>

@@ -13,7 +13,12 @@ export type EntryPerformance = {
   id: number;
   name: string;
   history: PerformancePoint[];
-  payouts: { label: string; amount: number; explanation: string }[];
+  payouts: {
+    label: string;
+    rank: number;
+    amount: number;
+    explanation: string;
+  }[];
 };
 const DetailContext = createContext<(id: number, opener: HTMLElement) => void>(
   () => {},
@@ -191,32 +196,48 @@ export function EntryPerformanceProvider({
               >
                 ×
               </button>
-              <div className="relative grid grid-cols-5 gap-1 pr-7 sm:gap-2">
-                {entry.payouts.map((payout) => (
-                  <details
+              <div className="relative flex items-center gap-1 pr-7">
+                {entry.payouts.map((payout, index) => (
+                  <div
                     key={payout.label}
-                    className="min-w-0 rounded-md border border-[var(--line)] px-1 py-1.5 text-center sm:px-2"
+                    className={`flex min-w-0 flex-1 items-center gap-1 ${payout.label === "Total" ? "rounded-md border border-[var(--line)] px-1.5 py-1" : ""}`}
                   >
-                    <summary className="cursor-pointer list-none">
-                      <span className="block text-[9px] uppercase opacity-70 sm:text-[10px]">
-                        {payout.label}
+                    {index > 0 && (
+                      <span
+                        aria-hidden="true"
+                        className="shrink-0 text-[10px] opacity-55"
+                      >
+                        {payout.label === "Total" ? "=" : "+"}
                       </span>
-                      <strong className="whitespace-nowrap text-[10px] tabular-nums sm:text-sm">
-                        {payout.amount < 0 ? "−" : payout.amount > 0 ? "+" : ""}
-                        ${Math.abs(payout.amount).toFixed(2)}
-                      </strong>
-                    </summary>
-                    <p className="performance-dialog absolute left-0 right-0 top-full z-10 mt-1 rounded-lg border p-3 text-left text-xs leading-relaxed shadow-lg">
-                      {payout.explanation}
-                    </p>
-                  </details>
+                    )}
+                    <details className="relative min-w-0 flex-1 text-center">
+                      <summary className="cursor-pointer list-none">
+                        <span className="block text-[8px] uppercase opacity-70 sm:text-[10px]">
+                          {payout.label} ({ordinal(payout.rank)})
+                        </span>
+                        <strong
+                          className={`whitespace-nowrap text-xs font-black tabular-nums sm:text-base ${payoutTone(payout.amount)}`}
+                        >
+                          {payout.amount < 0
+                            ? "−"
+                            : payout.amount > 0
+                              ? "+"
+                              : ""}
+                          ${Math.abs(payout.amount).toFixed(2)}
+                        </strong>
+                      </summary>
+                      <p className="performance-dialog absolute left-0 right-0 top-full z-20 mt-1 rounded-lg border p-3 text-left text-xs leading-relaxed shadow-lg">
+                        {payout.explanation}
+                      </p>
+                    </details>
+                  </div>
                 ))}
               </div>
-              <div className="mt-2 grid grid-cols-[2.75rem_1fr] gap-2 sm:grid-cols-[3.5rem_1fr] sm:gap-3">
-                <div className="flex flex-col items-center justify-center gap-2">
+              <div className="mt-2 grid grid-cols-[5.25rem_1fr] gap-1 sm:grid-cols-[6.5rem_1fr] sm:gap-2">
+                <div className="grid grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] items-center gap-0.5">
                   <button
                     type="button"
-                    className="performance-control grid min-h-9 w-full place-items-center rounded-md border font-black disabled:opacity-35"
+                    className="performance-control performance-carousel-control grid size-6 place-items-center rounded border font-black disabled:opacity-35"
                     aria-label="Previous entry"
                     disabled={index === 0}
                     onClick={() => move(-1)}
@@ -224,7 +245,7 @@ export function EntryPerformanceProvider({
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 24 24"
-                      className="size-5"
+                      className="size-4"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="3"
@@ -232,15 +253,17 @@ export function EntryPerformanceProvider({
                       <path d="m5 15 7-7 7 7" />
                     </svg>
                   </button>
-                  <strong
-                    id="performance-title"
-                    className="text-center text-xs font-black sm:text-base"
-                  >
-                    {entry.name}
-                  </strong>
+                  <div className="min-w-0 text-center leading-tight">
+                    <strong
+                      id="performance-title"
+                      className="block truncate text-[11px] font-black sm:text-sm"
+                    >
+                      {entry.name}
+                    </strong>
+                  </div>
                   <button
                     type="button"
-                    className="performance-control grid min-h-9 w-full place-items-center rounded-md border font-black disabled:opacity-35"
+                    className="performance-control performance-carousel-control grid size-6 place-items-center rounded border font-black disabled:opacity-35"
                     aria-label="Next entry"
                     disabled={index === entries.length - 1}
                     onClick={() => move(1)}
@@ -248,7 +271,7 @@ export function EntryPerformanceProvider({
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 24 24"
-                      className="size-5"
+                      className="size-4"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="3"
@@ -269,7 +292,7 @@ export function EntryPerformanceProvider({
                           key={value}
                           type="button"
                           aria-pressed={mode === value}
-                          className={`performance-control min-h-9 rounded-md border px-1 py-1 text-[10px] font-bold leading-tight sm:text-xs ${mode === value ? "performance-control-selected" : ""}`}
+                          className={`performance-control min-h-8 rounded-md border px-1 py-1 text-[9px] font-bold leading-tight sm:text-xs ${mode === value ? "performance-control-selected" : ""}`}
                           onClick={() => setMode(value)}
                         >
                           {value === "overall"
@@ -285,7 +308,7 @@ export function EntryPerformanceProvider({
                     <svg
                       viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                       role="img"
-                      aria-label={`${entry.name} ${mode === "overall" ? "overall standing" : mode === "standings" ? "main standing" : "main weekly ranking"} by week, rank one at the top`}
+                      aria-label={`${entry.name} ${mode === "overall" ? "total payout rank" : mode === "standings" ? "main standing" : "main weekly ranking"} by week`}
                       className="mt-1 w-full overflow-visible"
                     >
                       {[1, maxRank].map((rank) => (
@@ -359,10 +382,7 @@ export function EntryPerformanceProvider({
                     </p>
                   )}
                   <p className="mt-2 text-[10px] opacity-70">
-                    Week · Rank 1 is best
-                    {mode === "overall"
-                      ? " · Overall rank follows Main record"
-                      : ""}
+                    Week
                     {points.some((p) => p.provisional)
                       ? " · * provisional"
                       : ""}
@@ -375,4 +395,27 @@ export function EntryPerformanceProvider({
         )}
     </DetailContext.Provider>
   );
+}
+
+function payoutTone(amount: number) {
+  return amount > 0
+    ? "payout-positive"
+    : amount < 0
+      ? "payout-negative"
+      : "payout-neutral";
+}
+
+function ordinal(rank: number) {
+  const remainder100 = rank % 100;
+  if (remainder100 >= 11 && remainder100 <= 13) return `${rank}th`;
+  switch (rank % 10) {
+    case 1:
+      return `${rank}st`;
+    case 2:
+      return `${rank}nd`;
+    case 3:
+      return `${rank}rd`;
+    default:
+      return `${rank}th`;
+  }
 }
