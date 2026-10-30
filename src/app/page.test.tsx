@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_GAMES } from "../features/picks/mock-games";
@@ -16,7 +22,10 @@ const finalGames = () =>
 
 describe("Home", () => {
   beforeEach(() => window.localStorage.clear());
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
 
   it("blocks SD after elimination while keeping Main and Underdog available", () => {
     render(<PicksExperience suddenDeathEliminated />);
@@ -47,9 +56,9 @@ describe("Home", () => {
     ).not.toBeInTheDocument();
     vi.useFakeTimers();
     fireEvent.keyDown(used, { key: "ArrowUp" });
-    vi.advanceTimersByTime(210);
+    act(() => vi.advanceTimersByTime(210));
     expect(screen.getByRole("button", { name: "SD1 SF" })).toBeEnabled();
-    vi.advanceTimersByTime(210);
+    act(() => vi.advanceTimersByTime(210));
     vi.useRealTimers();
     rerender(
       <PicksExperience usedSuddenDeathTeams={["LAR"]} suddenDeathEliminated />,
@@ -473,13 +482,13 @@ describe("Home", () => {
     fireEvent.keyDown(screen.getByRole("button", { name: "SD1 LAR" }), {
       key: "ArrowUp",
     });
-    vi.advanceTimersByTime(210);
+    act(() => vi.advanceTimersByTime(210));
 
     expect(screen.getByRole("button", { name: "SD1 SF" })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
-    vi.advanceTimersByTime(210);
+    act(() => vi.advanceTimersByTime(210));
     vi.useRealTimers();
   });
 
@@ -489,10 +498,10 @@ describe("Home", () => {
     vi.useFakeTimers();
     const current = screen.getByRole("button", { name: "SD1 LAR" });
     fireEvent.pointerDown(current, { pointerId: 1 });
-    vi.advanceTimersByTime(400);
+    act(() => vi.advanceTimersByTime(400));
     fireEvent.pointerUp(current, { pointerId: 1 });
     fireEvent.click(current);
-    vi.advanceTimersByTime(210);
+    act(() => vi.advanceTimersByTime(210));
 
     const alternate = screen.getByRole("button", { name: "SD1 SF" });
     expect(alternate).toHaveTextContent("SF · SD");
