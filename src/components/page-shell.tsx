@@ -10,17 +10,22 @@ export function PageShell({
   isCommissioner = false,
   compact = false,
   refreshWhileLive = false,
+  deadlineDelayMs,
 }: {
   children: ReactNode;
   entryCode?: string;
   isCommissioner?: boolean;
   compact?: boolean;
   refreshWhileLive?: boolean;
+  deadlineDelayMs?: number;
 }) {
   return (
     <div className="pick-shell gunmetal min-h-screen bg-slate-950 pb-[calc(4rem+env(safe-area-inset-bottom))] text-slate-100 sm:pb-0">
       <ThemeInitializer />
-      <LiveScoreRefresh enabled={refreshWhileLive} />
+      <LiveScoreRefresh
+        enabled={refreshWhileLive}
+        deadlineDelayMs={deadlineDelayMs}
+      />
       <AppNav entryCode={entryCode} isCommissioner={isCommissioner} />
       <main
         className={`mx-auto w-full max-w-6xl px-3 sm:px-5 ${compact ? "py-0" : "py-5 sm:py-8"}`}

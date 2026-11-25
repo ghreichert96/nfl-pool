@@ -95,7 +95,7 @@ export function StandingsRecordTable({
             : [44, 64, 82, 72, 72, 72, 92]
         }
       >
-        <table className="pool-table w-full border-separate border-spacing-0">
+        <table className="pool-table standings-table w-full border-separate border-spacing-0">
           <thead>
             <tr>
               {headers.map((header, index) => (
@@ -145,7 +145,7 @@ export function StandingsRecordTable({
                 key={row.entryId}
                 entryId={row.entryId}
                 name={row.name}
-                className={row.entryId === entryId ? "own-entry" : ""}
+                className={row.entryId === entryId ? "standings-own-entry" : ""}
               >
                 <td className="rank-cell sticky left-0 z-20">
                   {overall && sortMode !== "main"

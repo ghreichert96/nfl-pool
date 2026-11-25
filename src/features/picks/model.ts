@@ -15,6 +15,7 @@ export type Game = {
   location: string;
   status?: "upcoming" | "live" | "final";
   lineFrozen?: boolean;
+  lineUpdatedAt?: string;
   score?: {
     away: number;
     home: number;

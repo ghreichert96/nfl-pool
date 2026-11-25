@@ -8,7 +8,6 @@ import {
   sendPasswordReset,
   updateEntrantCode,
 } from "./actions";
-import Link from "next/link";
 import { PhoneInput } from "@/components/phone-input";
 import { SignupLinkButton } from "../signup-link-button";
 import { inviteEntry, revokeInvitation } from "../actions";
@@ -58,12 +57,7 @@ export default async function EntrantsPage({
 
   return (
     <PageShell isCommissioner>
-      <div className="mb-3 flex items-center justify-between">
-        <h1 className="font-black">Entrants</h1>
-        <Link href="/admin/picks" className="admin-button">
-          Manage picks
-        </Link>
-      </div>
+      <h1 className="mb-3 font-black">Entrants</h1>
       <details className="game-card mb-3 rounded-lg border p-3">
         <summary className="cursor-pointer font-bold">Invite entrant</summary>
         <div className="mt-3">

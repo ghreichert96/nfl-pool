@@ -5,6 +5,11 @@ import {
 import { CompactPageHeader } from "@/components/compact-page-header";
 import { CollapsiblePanel } from "@/components/collapsible-panel";
 import { GridPreviewTable, StickyGridTable } from "@/components/grid-table";
+import {
+  MatchupPicksProvider,
+  MatchupPicksTrigger,
+} from "@/components/matchup-picks";
+import { canShowMatchupPicks } from "@/features/picks/matchup-picks";
 import { PageShell } from "@/components/page-shell";
 import { WeekSelector } from "@/components/week-selector";
 import { TableTeam } from "@/components/table-team";
@@ -234,6 +239,11 @@ export default async function GridPage({
   // Grid visibility changes at request time as games kick off.
   // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
+  const nextKickoff = Math.min(
+    ...Array.from(kickoffMap.values(), (kickoff) => Date.parse(kickoff)).filter(
+      (kickoff) => kickoff > now,
+    ),
+  );
   const authorizedPicks: GridPick[] = (pickRows ?? []).flatMap((pick) => {
     const entryId = entryBySubmission.get(pick.submission_id);
     const kickoff = kickoffMap.get(pick.game_id);
@@ -381,35 +391,46 @@ export default async function GridPage({
       </th>
       {gridCellsFor(poolEntry.id).map((slot, index) => {
         const pick = slot && slot !== "hidden" ? slot : null;
+        const game = pick ? gameMap.get(pick.gameId) : undefined;
         return (
           <td
             key={index}
-            className={`h-10 min-w-10 border-b border-r border-slate-800 px-0.5 text-center ${pick ? resultTone(gameMap.get(pick.gameId), pick) : ""}`}
+            className={`h-10 min-w-10 border-b border-r border-slate-800 px-0.5 text-center ${pick ? resultTone(game, pick) : ""}`}
           >
-            {pick ? (
-              pick.kind === "total" ? (
-                <span
-                  title={`${gameMap.get(pick.gameId)?.away} at ${gameMap.get(pick.gameId)?.home}`}
-                  className="text-xs font-black"
-                >
-                  {gameMap.get(pick.gameId)?.away}/
-                  {gameMap.get(pick.gameId)?.home}
-                  <br />
-                  <b>{pick.totalDirection === "over" ? "OVER" : "UNDER"}</b>
-                </span>
-              ) : (
-                <TeamMark
-                  team={pick.team!}
-                  logo={logoMap.get(pick.team!)}
-                  spread={
-                    pick.kind === "underdog"
-                      ? pick.team === gameMap.get(pick.gameId)?.away
-                        ? gameMap.get(pick.gameId)?.awaySpread
-                        : -(gameMap.get(pick.gameId)?.awaySpread ?? 0)
-                      : undefined
-                  }
-                />
-              )
+            {pick && game ? (
+              <MatchupPicksTrigger
+                gameId={game.id}
+                label={`${game.away} at ${game.home}`}
+                selection={
+                  pick.kind === "total"
+                    ? `${pick.totalDirection === "over" ? "Over" : "Under"} ${game.total}`
+                    : (pick.team ?? undefined)
+                }
+                className="block min-h-10 w-full"
+              >
+                {pick.kind === "total" ? (
+                  <span
+                    title={`${game.away} at ${game.home}`}
+                    className="text-xs font-black"
+                  >
+                    {game.away}/{game.home}
+                    <br />
+                    <b>{pick.totalDirection === "over" ? "OVER" : "UNDER"}</b>
+                  </span>
+                ) : (
+                  <TeamMark
+                    team={pick.team!}
+                    logo={logoMap.get(pick.team!)}
+                    spread={
+                      pick.kind === "underdog"
+                        ? pick.team === game.away
+                          ? game.awaySpread
+                          : -game.awaySpread
+                        : undefined
+                    }
+                  />
+                )}
+              </MatchupPicksTrigger>
             ) : slot === "hidden" ? (
               <span
                 aria-label="Submitted, unrevealed"
@@ -499,98 +520,115 @@ export default async function GridPage({
       isCommissioner={isCommissioner}
       compact
       refreshWhileLive={games.some((game) => game.status === "live")}
+      deadlineDelayMs={
+        Number.isFinite(nextKickoff) ? nextKickoff - now : undefined
+      }
     >
-      <GridNavigation>
-        <div className="pb-3 sm:pb-5">
-          <CompactPageHeader
-            sticky
-            title={<GridNavigationTitle />}
-            className="mb-3"
-            action={
-              week ? (
-                <WeekSelector weeks={weeks ?? []} selected={week.week_number} />
-              ) : undefined
-            }
-          />
-          <CollapsiblePanel
-            title="Weekly grid"
-            summary={`MAIN ${poolRecord.wins}-${poolRecord.losses}-${poolRecord.ties} (${poolWinPercent})`}
-            defaultOpen
-            className="shadow-xl"
-            preview={
-              ownEntry ? (
-                <GridPreviewTable sdLabel={sdLabel}>
-                  {gridRow(ownEntry)}
-                </GridPreviewTable>
-              ) : undefined
-            }
-          >
-            <StickyGridTable sdLabel={sdLabel}>
-              {(entries ?? []).map(gridRow)}
-            </StickyGridTable>
-            <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300">
-              <span className="text-emerald-400">Win</span>
-              <span className="text-red-400">Loss</span>
-              <span className="text-slate-300">Tie</span>
-              <span className="text-amber-300">Live</span>
-              <span>— = submitted, unrevealed · Blank = no pick</span>
-            </div>
-          </CollapsiblePanel>
-          <CollapsiblePanel
-            title="Most Picked"
-            className="mt-4"
-            preview={
-              <div className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800">
+      <MatchupPicksProvider
+        gameIds={(gameRows ?? [])
+          .filter((game) =>
+            canShowMatchupPicks(game.status, game.kickoff_at, now),
+          )
+          .map((game) => game.id)}
+      >
+        <GridNavigation>
+          <div className="pb-3 sm:pb-5">
+            <CompactPageHeader
+              sticky
+              title={<GridNavigationTitle />}
+              className="mb-3"
+              action={
+                week ? (
+                  <WeekSelector
+                    weeks={weeks ?? []}
+                    selected={week.week_number}
+                  />
+                ) : undefined
+              }
+            />
+            <CollapsiblePanel
+              title="Weekly grid"
+              summary={`MAIN ${poolRecord.wins}-${poolRecord.losses}-${poolRecord.ties} (${poolWinPercent})`}
+              defaultOpen
+              className="shadow-xl"
+              preview={
+                ownEntry ? (
+                  <GridPreviewTable sdLabel={sdLabel}>
+                    {gridRow(ownEntry)}
+                  </GridPreviewTable>
+                ) : undefined
+              }
+            >
+              <StickyGridTable sdLabel={sdLabel}>
+                {(entries ?? []).map(gridRow)}
+              </StickyGridTable>
+              <div className="flex flex-wrap gap-4 border-t border-slate-800 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-300">
+                <span className="text-emerald-400">Win</span>
+                <span className="text-red-400">Loss</span>
+                <span className="text-slate-300">Tie</span>
+                <span className="text-amber-300">Live</span>
+                <span>— = submitted, unrevealed · Blank = no pick</span>
+              </div>
+            </CollapsiblePanel>
+            <CollapsiblePanel
+              title="Most Picked"
+              className="mt-4"
+              preview={
+                <div className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800">
+                  {mostGroups.map(([label, items]) => (
+                    <div
+                      key={label}
+                      className="min-w-0 bg-slate-950 px-2 py-2.5"
+                    >
+                      <small className="block text-[11px] font-black text-slate-300">
+                        {label}
+                      </small>
+                      {items[0] ? (
+                        mostPickedItem(label, items[0][0], items[0][1])
+                      ) : (
+                        <span className="text-xs text-slate-600">—</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              }
+            >
+              <section
+                className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800"
+                aria-label="Most picked"
+              >
                 {mostGroups.map(([label, items]) => (
                   <div key={label} className="min-w-0 bg-slate-950 px-2 py-2.5">
-                    <small className="block text-[11px] font-black text-slate-300">
+                    <p className="text-[11px] font-black text-slate-300">
                       {label}
-                    </small>
-                    {items[0] ? (
-                      mostPickedItem(label, items[0][0], items[0][1])
-                    ) : (
-                      <span className="text-xs text-slate-600">—</span>
-                    )}
+                    </p>
+                    <div className="grid gap-2">
+                      {items.length ? (
+                        items.slice(0, 5).map(([name, count]) => (
+                          <span key={name} className="block min-w-0">
+                            {mostPickedItem(label, name, count)}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-600">
+                          Waiting for kickoff
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
-              </div>
-            }
-          >
-            <section
-              className="grid grid-cols-4 gap-px border-t border-slate-800 bg-slate-800"
-              aria-label="Most picked"
+              </section>
+            </CollapsiblePanel>
+            <CollapsiblePanel
+              title="Weekly Standings"
+              className="mt-3"
+              preview={ownWeeklyRow ? weeklyTable([ownWeeklyRow]) : undefined}
             >
-              {mostGroups.map(([label, items]) => (
-                <div key={label} className="min-w-0 bg-slate-950 px-2 py-2.5">
-                  <p className="text-[11px] font-black text-slate-300">
-                    {label}
-                  </p>
-                  <div className="grid gap-2">
-                    {items.length ? (
-                      items.slice(0, 5).map(([name, count]) => (
-                        <span key={name} className="block min-w-0">
-                          {mostPickedItem(label, name, count)}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-slate-600">
-                        Waiting for kickoff
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </section>
-          </CollapsiblePanel>
-          <CollapsiblePanel
-            title="Weekly Standings"
-            className="mt-3"
-            preview={ownWeeklyRow ? weeklyTable([ownWeeklyRow]) : undefined}
-          >
-            {weeklyTable(weeklyRows)}
-          </CollapsiblePanel>
-        </div>
-      </GridNavigation>
+              {weeklyTable(weeklyRows)}
+            </CollapsiblePanel>
+          </div>
+        </GridNavigation>
+      </MatchupPicksProvider>
     </PageShell>
   );
 }
