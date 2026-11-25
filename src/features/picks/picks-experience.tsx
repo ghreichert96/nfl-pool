@@ -1,4 +1,5 @@
 "use client";
+import { MatchupPicksTrigger } from "@/components/matchup-picks";
 import { UpdateStatus } from "@/components/update-status";
 
 import {
@@ -19,6 +20,7 @@ import {
   PREVIEW_MINIMIZED_KEY,
 } from "@/components/profile-preferences";
 import { createClient } from "../../lib/supabase/client";
+import { PregameLineEditor, PregameLineLock } from "./pregame-line-controls";
 import { preserveLockedPicks } from "./submission";
 
 import { MOCK_GAMES } from "./mock-games";
@@ -441,6 +443,13 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
   const status = game.status ?? "upcoming";
   const locked = status !== "upcoming";
   const lineLocked = locked || Boolean(game.lineFrozen);
+  const canManageLine = !locked && Boolean(game.lineUpdatedAt);
+  const matchupLine = (
+    <strong className="mt-0.5 whitespace-nowrap text-[11px]">
+      {game.away.abbreviation} {formatSpread(game.awaySpread)} @{" "}
+      {game.home.abbreviation} · O/U {game.total}
+    </strong>
+  );
   const favorite = favoriteFor(game);
   const underdog = underdogFor(game);
   const awayIsFavorite = favorite === game.away.abbreviation;
@@ -491,9 +500,15 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
         >
           {game.badge}
         </span>
-        <span className="text-slate-300">
-          <LockIcon locked={lineLocked} />
-        </span>
+        {canManageLine ? (
+          <PregameLineLock game={game}>
+            <LockIcon locked={lineLocked} />
+          </PregameLineLock>
+        ) : (
+          <span className="text-slate-300">
+            <LockIcon locked={lineLocked} />
+          </span>
+        )}
         {locked && (
           <span className="whitespace-nowrap text-[10px] font-black uppercase text-amber-300">
             {status === "final" ? "Final" : game.score?.detail || "Live"}
@@ -524,10 +539,11 @@ function GameInfo({ game, picks }: { game: Game; picks: Picks }) {
         </>
       ) : (
         <>
-          <strong className="mt-0.5 whitespace-nowrap text-[11px]">
-            {game.away.abbreviation} {formatSpread(game.awaySpread)} @{" "}
-            {game.home.abbreviation} · O/U {game.total}
-          </strong>
+          {canManageLine && !lineLocked ? (
+            <PregameLineEditor game={game}>{matchupLine}</PregameLineEditor>
+          ) : (
+            matchupLine
+          )}
           <span className="max-w-full truncate whitespace-nowrap text-[9px] text-slate-400">
             {game.kickoff}
             {game.location ? ` · ${game.location}` : ""}
@@ -735,6 +751,44 @@ function GameRow({
     [],
   );
 
+  const matchupLabel = `${game.away.abbreviation} at ${game.home.abbreviation}`;
+  const matchupInfo = (info: React.ReactNode) => (
+    <MatchupPicksTrigger
+      gameId={Number(game.id)}
+      label={matchupLabel}
+      className="h-full min-w-0 text-inherit"
+    >
+      {info}
+    </MatchupPicksTrigger>
+  );
+  const finalInfo = (info: React.ReactNode) => (
+    <div className="grid h-full min-w-0 grid-cols-[1.5rem_minmax(0,1fr)] items-stretch">
+      <button
+        type="button"
+        aria-label={
+          finalCollapsed ? "Expand final game" : "Collapse final game"
+        }
+        aria-expanded={!finalCollapsed}
+        onClick={() => setFinalCollapsed((current) => !current)}
+        className="grid min-h-9 place-items-center rounded text-inherit hover:bg-slate-500/15 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-sky-500"
+      >
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`size-4 ${finalCollapsed ? "" : "rotate-180"}`}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      {matchupInfo(info)}
+    </div>
+  );
+
   if (game.status === "final" && finalCollapsed) {
     const compactTeam = (team: string) => {
       const selected = ats?.team === team;
@@ -767,21 +821,7 @@ function GameRow({
       <article className="game-card game-card-final relative rounded-xl border p-1.5">
         <div className="grid grid-cols-[72px_minmax(100px,1fr)_72px] items-center gap-0.5">
           {compactTeam(game.away.abbreviation)}
-          <button
-            type="button"
-            aria-label="Expand final game"
-            aria-expanded="false"
-            onClick={() => setFinalCollapsed(false)}
-            className="relative h-full min-w-0 cursor-pointer rounded text-inherit transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-400"
-          >
-            <span
-              aria-hidden="true"
-              className="absolute top-0.5 left-1 text-[11px] leading-none text-slate-500"
-            >
-              ⌄
-            </span>
-            <CompactFinalInfo game={game} picks={picks} />
-          </button>
+          {finalInfo(<CompactFinalInfo game={game} picks={picks} />)}
           {compactTeam(game.home.abbreviation)}
         </div>
       </article>
@@ -819,25 +859,9 @@ function GameRow({
           }
           allowLockedEdit={allowLockedEdits}
         />
-        {game.status === "final" ? (
-          <button
-            type="button"
-            aria-label="Collapse final game"
-            aria-expanded="true"
-            onClick={() => setFinalCollapsed(true)}
-            className="relative h-full min-w-0 cursor-pointer rounded text-inherit transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-slate-400"
-          >
-            <span
-              aria-hidden="true"
-              className="absolute top-1 left-1 text-[11px] leading-none text-slate-500"
-            >
-              ⌃
-            </span>
-            <GameInfo game={game} picks={picks} />
-          </button>
-        ) : (
-          <GameInfo game={game} picks={picks} />
-        )}
+        {game.status === "final"
+          ? finalInfo(<GameInfo game={game} picks={picks} />)
+          : matchupInfo(<GameInfo game={game} picks={picks} />)}
         <TeamToggle
           game={game}
           team={game.home.abbreviation}

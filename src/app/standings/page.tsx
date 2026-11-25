@@ -2,10 +2,7 @@ import {
   sdBeforeWeek,
   type SdResult,
 } from "@/features/competition/sd-contests";
-import {
-  EntryPerformanceProvider,
-  EntryDetailRow,
-} from "@/components/entry-performance";
+import { EntryPerformanceProvider } from "@/components/entry-performance";
 import {
   performanceHistory,
   ranksByPayout,
@@ -78,19 +75,20 @@ export default async function StandingsPage({
   );
   const ranks = ranksByGamesBack(data?.standings ?? []);
 
-  const history = data
-    ? performanceHistory(
-        data.entries.map((e) => e.id),
-        data.games,
-        data.picks,
-        undefined,
-        {
-          payoutRows: data.payoutRows,
-          sidePots: data.sidePots,
-          sdContests: data.sdContests,
-        },
-      )
-    : new Map();
+  const history =
+    data && !isSidePool
+      ? performanceHistory(
+          data.entries.map((e) => e.id),
+          data.games,
+          data.picks,
+          undefined,
+          {
+            payoutRows: data.payoutRows,
+            sidePots: data.sidePots,
+            sdContests: data.sdContests,
+          },
+        )
+      : new Map();
   const payoutRanks = ranksByPayout(
     new Map(
       [...(data?.financials ?? new Map())].map(([id, amounts]) => [
@@ -121,56 +119,44 @@ export default async function StandingsPage({
   const selectedContest = data?.sdContests.find(
     (c) => c.number === (view === "sd2" ? 2 : 1),
   );
-  const orderedIds = data
-    ? isSidePool
-      ? sideOrder(
-          view === "ud"
-            ? data.standings
-            : (selectedContest?.standings ?? data.standings),
-          selectedContest && view !== "ud"
-            ? data.entries.filter((e) =>
-                selectedContest.participantIds.includes(e.id),
-              )
-            : data.entries,
-          view === "ud" ? "ud" : "sd",
-        ).ordered.map((e) => e.id)
-      : data.standings.map((e) => e.entryId)
-    : [];
-  const detailEntries = orderedIds.map((id) => {
-    const amounts = data!.financials.get(id)!;
-    return {
-      id,
-      name: entryMap.get(id)?.entry_code ?? "",
-      history: history.get(id) ?? [],
-      payouts: [
-        {
-          label: "Main",
-          rank: ranks.get(id) ?? data!.entries.length,
-          amount: amounts.main,
-        },
-        {
-          label: "SD1",
-          rank: sd1Ranks.get(id) ?? data!.entries.length,
-          amount: amounts.sd,
-        },
-        {
-          label: "SD2",
-          rank: sd2Ranks.get(id) ?? data!.entries.length,
-          amount: amounts.sd2,
-        },
-        {
-          label: "UD",
-          rank: udRanks.get(id) ?? data!.entries.length,
-          amount: amounts.ud,
-        },
-        {
-          label: "Total",
-          rank: payoutRanks.get(id) ?? data!.entries.length,
-          amount: amounts.net,
-        },
-      ],
-    };
-  });
+  const detailEntries = (isSidePool ? [] : (data?.standings ?? [])).map(
+    ({ entryId: id }) => {
+      const amounts = data!.financials.get(id)!;
+      return {
+        id,
+        name: entryMap.get(id)?.entry_code ?? "",
+        rank: ranks.get(id),
+        history: history.get(id) ?? [],
+        payouts: [
+          {
+            label: "Main",
+            rank: ranks.get(id) ?? data!.entries.length,
+            amount: amounts.main,
+          },
+          {
+            label: "SD1",
+            rank: sd1Ranks.get(id) ?? data!.entries.length,
+            amount: amounts.sd,
+          },
+          {
+            label: "SD2",
+            rank: sd2Ranks.get(id) ?? data!.entries.length,
+            amount: amounts.sd2,
+          },
+          {
+            label: "UD",
+            rank: udRanks.get(id) ?? data!.entries.length,
+            amount: amounts.ud,
+          },
+          {
+            label: "Total",
+            rank: payoutRanks.get(id) ?? data!.entries.length,
+            amount: amounts.net,
+          },
+        ],
+      };
+    },
+  );
   const sd2Contest = data?.sdContests.find((c) => c.number === 2);
   const recordRows: StandingsRecordRow[] = data
     ? data.standings.map((standing) => {
@@ -225,48 +211,48 @@ export default async function StandingsPage({
         data?.games.some((game) => game.status === "live"),
       )}
     >
-      <EntryPerformanceProvider entries={detailEntries}>
-        <div className="pb-3 sm:pb-5">
-          <CompactPageHeader
-            sticky
-            title={<StandingsTitle />}
-            className="mb-3"
-            action={
-              selectedWeek ? (
-                <div className="flex items-center gap-1.5">
-                  <StandingsTabs
-                    view={view}
-                    weekNumber={selectedWeek.week_number}
+      <div className="pb-3 sm:pb-5">
+        <CompactPageHeader
+          sticky
+          title={<StandingsTitle />}
+          className="mb-3"
+          action={
+            selectedWeek ? (
+              <div className="flex items-center gap-1.5">
+                <StandingsTabs
+                  view={view}
+                  weekNumber={selectedWeek.week_number}
+                />
+                {!isSidePool && (
+                  <WeekSelector
+                    weeks={availableWeeks ?? []}
+                    selected={selectedWeek.week_number}
+                    preserve={{ view }}
                   />
-                  {!isSidePool && (
-                    <WeekSelector
-                      weeks={availableWeeks ?? []}
-                      selected={selectedWeek.week_number}
-                      preserve={{ view }}
-                    />
-                  )}
-                </div>
-              ) : undefined
-            }
-          />
-          {view === "overall" || view === "main" ? (
+                )}
+              </div>
+            ) : undefined
+          }
+        />
+        {view === "overall" || view === "main" ? (
+          <EntryPerformanceProvider entries={detailEntries}>
             <StandingsRecordTable
               rows={recordRows}
               entryId={entry?.id}
               overall={view === "overall"}
             />
-          ) : (
-            <SidePoolTable
-              kind={view === "ud" ? "underdog" : "sudden_death"}
-              contest={view === "ud" ? undefined : selectedContest}
-              data={data}
-              entryMap={entryMap}
-              gameMap={gameMap}
-              logoMap={logoMap}
-            />
-          )}
-        </div>
-      </EntryPerformanceProvider>
+          </EntryPerformanceProvider>
+        ) : (
+          <SidePoolTable
+            kind={view === "ud" ? "underdog" : "sudden_death"}
+            contest={view === "ud" ? undefined : selectedContest}
+            data={data}
+            entryId={entry?.id}
+            gameMap={gameMap}
+            logoMap={logoMap}
+          />
+        )}
+      </div>
     </PageShell>
   );
 }
@@ -284,14 +270,14 @@ function SidePoolTable({
   kind,
   contest,
   data: sourceData,
-  entryMap,
+  entryId,
   gameMap,
   logoMap,
 }: {
   kind: "sudden_death" | "underdog";
   contest?: SdResult;
   data: CompetitionData | null;
-  entryMap: Map<number, { entry_code: string }>;
+  entryId?: number;
   gameMap: Map<number, ScoringGame>;
   logoMap: Map<string, string | null>;
 }) {
@@ -346,15 +332,15 @@ function SidePoolTable({
   return (
     <section className="game-card overflow-clip rounded-xl border">
       <StickyTableHeader
-        columnWidths={[44, 64, ...data.weeks.map(() => 56), 68, 92]}
+        columnWidths={[34, 50, ...data.weeks.map(() => (sd ? 40 : 44)), 54, 72]}
       >
-        <table className="pool-table w-full border-separate border-spacing-0">
+        <table className="pool-table standings-table side-standings-table w-full border-separate border-spacing-0">
           <thead>
             <tr>
               <th scope="col" className="rank-cell sticky left-0 z-30">
                 RK
               </th>
-              <th scope="col" className="entry-cell sticky left-11 z-20">
+              <th scope="col" className="entry-cell sticky left-[34px] z-20">
                 TM
               </th>
               {data.weeks.map((w) => (
@@ -374,15 +360,19 @@ function SidePoolTable({
                 (s) => s.entryId === poolEntry.id,
               )!;
               return (
-                <EntryDetailRow
+                <tr
                   key={poolEntry.id}
-                  entryId={poolEntry.id}
-                  name={entryMap.get(poolEntry.id)?.entry_code ?? ""}
+                  className={
+                    poolEntry.id === entryId ? "standings-own-entry" : undefined
+                  }
                 >
                   <td className="rank-cell sticky left-0 z-20">
                     {ranks.get(poolEntry.id)}
                   </td>
-                  <th scope="row" className="entry-cell sticky left-11 z-10">
+                  <th
+                    scope="row"
+                    className="entry-cell sticky left-[34px] z-10"
+                  >
                     {poolEntry.entry_code}
                   </th>
                   {data.weeks.map((week) => {
@@ -411,17 +401,18 @@ function SidePoolTable({
                             : `${pick?.team ?? "No pick"}: ${outcome}${points ? `, +${points} points` : ""}`
                         }
                       >
-                        <span className="flex min-h-10 flex-col items-center justify-center font-black">
+                        <span className="flex min-h-6 flex-col items-center justify-center leading-tight font-black">
                           {!ineligible && pick?.team ? (
                             <TableTeam
                               team={pick.team}
                               src={logoMap.get(pick.team)}
+                              size={24}
                             />
                           ) : (
                             "—"
                           )}
                           {points > 0 && (
-                            <small className="text-xs">+{points}</small>
+                            <small className="text-[10px]">+{points}</small>
                           )}
                         </span>
                       </td>
@@ -450,7 +441,7 @@ function SidePoolTable({
                       ] ?? 0,
                     )}
                   </td>
-                </EntryDetailRow>
+                </tr>
               );
             })}
           </tbody>

@@ -1,15 +1,12 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import {
-  EntryPerformanceProvider,
-  EntryDetailButton,
-  EntryDetailRow,
-} from "./entry-performance";
+import { EntryPerformanceProvider, EntryDetailRow } from "./entry-performance";
 afterEach(cleanup);
 it("opens on one tap, switches chart modes, traverses table order, and restores focus", () => {
   const entries = [2, 1].map((id) => ({
     id,
     name: `ENT${id}`,
+    rank: id,
     history: Array.from({ length: 17 }, (_, index) => ({
       week: index + 1,
       overall: id,
@@ -21,15 +18,21 @@ it("opens on one tap, switches chart modes, traverses table order, and restores 
   }));
   render(
     <EntryPerformanceProvider entries={entries}>
-      <EntryDetailButton entryId={2}>ENT2</EntryDetailButton>
+      <table>
+        <tbody>
+          <EntryDetailRow entryId={2} name="ENT2">
+            <th>ENT2</th>
+          </EntryDetailRow>
+        </tbody>
+      </table>
     </EntryPerformanceProvider>,
   );
-  const trigger = screen.getByRole("button", {
+  const trigger = screen.getByRole("row", {
     name: "Performance details for ENT2",
   });
   trigger.focus();
-  fireEvent.click(trigger);
-  expect(screen.getByRole("dialog", { name: "ENT2" })).toBeVisible();
+  fireEvent.click(screen.getByRole("columnheader", { name: "ENT2" }));
+  expect(screen.getByRole("dialog", { name: "ENT2 #2" })).toBeVisible();
   const payoutRank = screen.getByRole("button", { name: "Payout Rank" });
   expect(payoutRank).toHaveAttribute("aria-pressed", "true");
   expect(payoutRank).toHaveClass("performance-control-selected");
@@ -44,12 +47,22 @@ it("opens on one tap, switches chart modes, traverses table order, and restores 
   ).toBeGreaterThan(700);
   expect(screen.getByText("1st")).toBeInTheDocument();
   expect(document.querySelector("details")).toBeNull();
+  expect(screen.getByRole("img")).toHaveAccessibleDescription(
+    /projected total payout across all pools/,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Main Pool Standing" }));
+  expect(screen.getByRole("img")).toHaveAccessibleDescription(
+    /season record through each week/,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Main Finish by Week" }));
   expect(screen.getByRole("img")).toHaveAccessibleName(/main finish by week/);
+  expect(screen.getByRole("img")).toHaveAccessibleDescription(
+    /only on that week’s results/,
+  );
   fireEvent.click(screen.getByRole("button", { name: "Next entry" }));
-  expect(screen.getByRole("dialog", { name: "ENT1" })).toBeVisible();
+  expect(screen.getByRole("dialog", { name: "ENT1 #1" })).toBeVisible();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "ArrowUp" });
-  expect(screen.getByRole("dialog", { name: "ENT2" })).toBeVisible();
+  expect(screen.getByRole("dialog", { name: "ENT2 #2" })).toBeVisible();
   fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(trigger).toHaveFocus();

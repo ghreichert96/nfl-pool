@@ -3,6 +3,8 @@ import { scoreFreshness as getScoreFreshness } from "@/lib/scores/freshness";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { MatchupPicksProvider } from "@/components/matchup-picks";
+import { canShowMatchupPicks } from "@/features/picks/matchup-picks";
 import { PageShell } from "@/components/page-shell";
 import { deriveGameResult, type Game } from "@/features/picks/model";
 import type { Picks } from "@/features/picks/model";
@@ -111,7 +113,7 @@ export default async function Home({
     supabase
       .from("games")
       .select(
-        "id, away_team, home_team, kickoff_at, line_lock_at, venue, game_type, status, away_score, home_score, status_detail, live_status_updated_at, pool_lines(away_spread, total)",
+        "id, away_team, home_team, kickoff_at, line_lock_at, line_lock_override, venue, game_type, status, away_score, home_score, status_detail, live_status_updated_at, pool_lines(away_spread, total, updated_at)",
       )
       .eq("week_id", week.id)
       .order("kickoff_at"),
@@ -195,8 +197,14 @@ export default async function Home({
       location: row.venue ?? "",
       status,
       lineFrozen:
-        new Date(row.line_lock_at).getTime() <= now ||
-        Boolean(week.lines_frozen_at),
+        status !== "upcoming" ||
+        (row.line_lock_override ??
+          (new Date(row.line_lock_at).getTime() <= now ||
+            Boolean(week.lines_frozen_at))),
+      lineUpdatedAt:
+        commissioner && status === "upcoming" && row.status === "scheduled"
+          ? line.updated_at
+          : undefined,
       ...(row.away_score !== null && row.home_score !== null
         ? {
             score: {
@@ -214,6 +222,14 @@ export default async function Home({
     if (status === "final") mappedGame.result = deriveGameResult(mappedGame);
     return [mappedGame];
   });
+  const nextDeadline = Math.min(
+    ...(gameRows ?? [])
+      .flatMap((game) => [
+        Date.parse(game.kickoff_at),
+        Date.parse(game.line_lock_at),
+      ])
+      .filter((deadline) => deadline > now),
+  );
   const parsedDraft = picksSchema.safeParse(draft?.payload);
   const hasLiveGames = games.some((game) => game.status === "live");
   const scoreFreshness = getScoreFreshness(gameRows ?? [], now);
@@ -261,52 +277,61 @@ export default async function Home({
       isCommissioner={Boolean(commissioner)}
       compact
       refreshWhileLive={hasLiveGames}
+      deadlineDelayMs={
+        Number.isFinite(nextDeadline) ? nextDeadline - now : undefined
+      }
     >
-      <PicksExperience
-        games={games}
-        key={`${entry.id}:${week.id}:${sdEligibility.contestId}`}
-        sdLabel={sdEligibility.label}
-        initialPicks={
-          parsedDraft.success
-            ? {
-                ...parsedDraft.data,
-                suddenDeath:
-                  draft?.payload?.sdContestId === sdEligibility.contestId
-                    ? parsedDraft.data.suddenDeath
-                    : (submittedPicks?.suddenDeath ?? null),
-              }
-            : submittedPicks
-        }
-        initialSubmittedPicks={submittedPicks}
-        draftTarget={{
-          entryId: entry.id,
-          weekId: week.id,
-          sdContestId: sdEligibility.contestId,
-        }}
-        entryCode={entry.entry_code}
-        weekNumber={week.week_number}
-        submitAction={submitWeeklyPicks}
-        commentAction={saveWeeklyComment}
-        initialComment={comment?.body ?? ""}
-        commentLocked={
-          games.length > 0 && games.every((game) => game.status !== "upcoming")
-        }
-        suddenDeathEliminated={suddenDeathEliminated}
-        usedSuddenDeathTeams={sdEligibility.usedTeams}
-        weeks={(availableWeeks ?? []).map(({ week_number, label }) => ({
-          week_number,
-          label,
-        }))}
-        linesFrozen={
-          Boolean(week.lines_frozen_at) ||
-          (gameRows?.length
-            ? gameRows.every(
-                (game) => new Date(game.line_lock_at).getTime() <= now,
-              )
-            : false)
-        }
-        scoreFreshness={scoreFreshness}
-      />
+      <MatchupPicksProvider
+        gameIds={(gameRows ?? [])
+          .filter((game) =>
+            canShowMatchupPicks(game.status, game.kickoff_at, now),
+          )
+          .map((game) => game.id)}
+      >
+        <PicksExperience
+          games={games}
+          key={`${entry.id}:${week.id}:${sdEligibility.contestId}`}
+          sdLabel={sdEligibility.label}
+          initialPicks={
+            parsedDraft.success
+              ? {
+                  ...parsedDraft.data,
+                  suddenDeath:
+                    draft?.payload?.sdContestId === sdEligibility.contestId
+                      ? parsedDraft.data.suddenDeath
+                      : (submittedPicks?.suddenDeath ?? null),
+                }
+              : submittedPicks
+          }
+          initialSubmittedPicks={submittedPicks}
+          draftTarget={{
+            entryId: entry.id,
+            weekId: week.id,
+            sdContestId: sdEligibility.contestId,
+          }}
+          entryCode={entry.entry_code}
+          weekNumber={week.week_number}
+          submitAction={submitWeeklyPicks}
+          commentAction={saveWeeklyComment}
+          initialComment={comment?.body ?? ""}
+          commentLocked={
+            games.length > 0 &&
+            games.every((game) => game.status !== "upcoming")
+          }
+          suddenDeathEliminated={suddenDeathEliminated}
+          usedSuddenDeathTeams={sdEligibility.usedTeams}
+          weeks={(availableWeeks ?? []).map(({ week_number, label }) => ({
+            week_number,
+            label,
+          }))}
+          linesFrozen={
+            games.length > 0
+              ? games.every((game) => game.lineFrozen)
+              : Boolean(week.lines_frozen_at)
+          }
+          scoreFreshness={scoreFreshness}
+        />
+      </MatchupPicksProvider>
     </PageShell>
   );
 }

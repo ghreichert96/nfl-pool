@@ -23,6 +23,7 @@ const secondary = [
 const adminTabs = [
   { href: "/admin/lines", label: "Lines" },
   { href: "/admin/entrants", label: "Entrants" },
+  { href: "/admin/picks", label: "Picks" },
   { href: "/admin/scores", label: "Scores" },
   { href: "/admin/manage", label: "Rules" },
   { href: "/admin/activity", label: "Activity Log" },
@@ -159,16 +160,13 @@ export function AppNav({
   const [panel, setPanel] = useState<"menu" | "help" | "profile" | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [summary, setSummary] = useState<{
+    entryCode: string;
     record: string;
     gamesBack: string;
-    underdogPoints: string;
-    suddenDeath: string;
-    suddenDeath2?: string;
-    sd1Dollars?: string;
-    sd2Dollars?: string;
-    mainDollars: string;
-    netDollars: string;
+    pools: { label: string; standing: string; payout: string }[];
+    totalPayout: string;
   } | null>(null);
+  const visibleEntryCode = entryCode ?? summary?.entryCode;
   const routeMatches = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
   const effectivePendingHref =
@@ -228,23 +226,16 @@ export function AppNav({
           <Link
             href="/"
             className="flex min-w-0 items-center gap-2"
-            aria-label="HPPP Picks"
+            aria-label="HP Picks Pool 2026"
           >
-            <span className="grid size-8 place-items-center rounded-md border border-slate-500 bg-slate-200 text-[10px] font-black text-slate-950">
-              HP
-            </span>
-            <span>
-              <strong className="block text-xs font-black uppercase tracking-[0.16em]">
-                Picks Pool
-              </strong>
-              <small className="block text-[9px] font-bold uppercase text-slate-400">
-                2026
-                {entryCode ? " · " : isCommissioner ? " · ADMIN" : ""}
-                {entryCode && (
-                  <span className="text-amber-300">{entryCode}</span>
-                )}
-              </small>
-            </span>
+            {(visibleEntryCode || isCommissioner) && (
+              <span className="grid h-8 min-w-8 shrink-0 place-items-center rounded-md border border-slate-500 bg-slate-200 px-1 text-[10px] font-black text-slate-950">
+                {visibleEntryCode ?? "ADMIN"}
+              </span>
+            )}
+            <strong className="block text-[10px] font-black uppercase leading-tight tracking-wide sm:text-xs">
+              HP Picks Pool 2026
+            </strong>
           </Link>
           <nav
             aria-label="Primary"
@@ -330,11 +321,14 @@ export function AppNav({
                 ))}
               </select>
             </label>
-            <div className="hidden grid-cols-5 gap-1 sm:grid">
+            <div className="hidden grid-cols-6 gap-1 sm:grid">
               {adminTabs.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
+                  aria-current={
+                    activeAdminTab.href === item.href ? "page" : undefined
+                  }
                   onPointerDown={() => setPendingHref(item.href)}
                   onClick={() => {
                     setPendingHref(item.href);
@@ -371,7 +365,7 @@ export function AppNav({
           className={
             panel === "menu"
               ? "fixed right-2 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-[60] w-56 rounded-xl border border-slate-700 bg-slate-950/98 p-2 shadow-2xl sm:top-14 sm:right-5 sm:bottom-auto"
-              : "fixed inset-x-4 top-1/2 z-[60] mx-auto max-w-md -translate-y-1/2 rounded-xl border border-slate-600 bg-slate-950 p-3 shadow-2xl sm:inset-x-auto sm:right-5 sm:top-16 sm:w-80 sm:translate-y-0"
+              : "fixed inset-x-4 top-1/2 z-[60] mx-auto max-w-md -translate-y-1/2 rounded-xl border border-slate-600 bg-slate-950 p-3 shadow-2xl sm:inset-x-auto sm:right-5 sm:top-16 sm:w-96 sm:translate-y-0"
           }
         >
           <div
@@ -425,34 +419,72 @@ export function AppNav({
                   Entry
                 </small>
                 <strong className="text-lg">
-                  {entryCode ?? (isCommissioner ? "Commissioner" : "Account")}
+                  {visibleEntryCode ??
+                    (isCommissioner ? "Commissioner" : "Account")}
                 </strong>
                 {summary && (
-                  <dl className="mt-2 grid grid-cols-6 overflow-hidden rounded-md border border-slate-800 text-center">
-                    {[
-                      ["Record", summary.record],
-                      ["GB", summary.gamesBack],
-                      ["UD Pts", summary.underdogPoints],
-                      ["SD1", summary.suddenDeath],
-                      ["SD2", summary.suddenDeath2 ?? "—"],
-                      ["SD1 $", summary.sd1Dollars ?? "—"],
-                      ["SD2 $", summary.sd2Dollars ?? "—"],
-                      ["Main $", summary.mainDollars],
-                      ["Net $", summary.netDollars],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="min-w-0 border-r border-slate-800 px-0.5 py-2 last:border-r-0"
-                      >
-                        <dt className="truncate text-[6px] font-black uppercase text-slate-500">
-                          {label}
-                        </dt>
-                        <dd className="mt-0.5 truncate text-[9px] font-black">
-                          {value}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
+                  <div className="mt-2 overflow-x-auto rounded-md border border-slate-700">
+                    <table className="w-full text-center text-[10px] tabular-nums">
+                      <thead className="bg-slate-800/60 text-[9px] uppercase text-slate-300">
+                        <tr>
+                          {[
+                            "Record",
+                            "GB",
+                            ...summary.pools.map(({ label }) => label),
+                          ].map((label) => (
+                            <th key={label} scope="col" className="px-1 py-1.5">
+                              {label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="font-bold">
+                        <tr>
+                          {[
+                            summary.record,
+                            summary.gamesBack,
+                            ...summary.pools.map(({ standing }) => standing),
+                          ].map((value, index) => (
+                            <td
+                              key={index}
+                              className="whitespace-nowrap px-1 py-1.5"
+                            >
+                              {value}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="border-y border-slate-700 text-emerald-300">
+                          <th
+                            colSpan={2}
+                            scope="row"
+                            className="px-1 py-1.5 text-slate-300"
+                          >
+                            Payout
+                          </th>
+                          {summary.pools.map(({ label, payout }) => (
+                            <td
+                              key={label}
+                              className="whitespace-nowrap px-1 py-1.5"
+                            >
+                              {payout}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr>
+                          <th
+                            colSpan={4}
+                            scope="row"
+                            className="px-2 py-1.5 text-left"
+                          >
+                            Total payout
+                          </th>
+                          <td colSpan={2} className="px-2 py-1.5 text-right">
+                            {summary.totalPayout}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-2">

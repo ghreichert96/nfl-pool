@@ -12,6 +12,7 @@ import type { PerformancePoint } from "@/features/competition/performance";
 export type EntryPerformance = {
   id: number;
   name: string;
+  rank?: number;
   history: PerformancePoint[];
   payouts: {
     label: string;
@@ -22,28 +23,22 @@ export type EntryPerformance = {
 const DetailContext = createContext<(id: number, opener: HTMLElement) => void>(
   () => {},
 );
-export function EntryDetailButton({
-  entryId,
-  children,
-}: {
-  entryId: number;
-  children: ReactNode;
-}) {
-  const open = useContext(DetailContext);
-  return (
-    <button
-      type="button"
-      className="entry-detail-trigger rounded py-1 text-left font-inherit active:bg-cyan-400/20"
-      onClick={(event) => {
-        event.stopPropagation();
-        open(entryId, event.currentTarget);
-      }}
-      aria-label={`Performance details for ${children}`}
-    >
-      {children}
-    </button>
-  );
-}
+const chartModes = {
+  overall: {
+    label: "Payout Rank",
+    description:
+      "Rank by projected total payout across all pools through each week.",
+  },
+  standings: {
+    label: "Main Pool Standing",
+    description: "Main Pool rank based on the season record through each week.",
+  },
+  weekly: {
+    label: "Main Finish by Week",
+    description: "Main Pool rank based only on that week’s results.",
+  },
+} as const;
+
 export function EntryDetailRow({
   entryId,
   name,
@@ -84,9 +79,7 @@ export function EntryPerformanceProvider({
   children: ReactNode;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [mode, setMode] = useState<"overall" | "standings" | "weekly">(
-    "overall",
-  );
+  const [mode, setMode] = useState<keyof typeof chartModes>("overall");
   const opener = useRef<HTMLElement | null>(null);
   const [portalTarget, setPortalTarget] = useState<Element | null>(null);
   const isOpen = selected !== null;
@@ -125,15 +118,6 @@ export function EntryPerformanceProvider({
       value={(id, element) => {
         opener.current = element;
         setPortalTarget(element.closest(".pick-shell"));
-        element
-          .closest("tr")
-          ?.animate?.(
-            [
-              { backgroundColor: "#38bdf840" },
-              { backgroundColor: "transparent" },
-            ],
-            { duration: 500 },
-          );
         setSelected(id);
         setMode("overall");
       }}
@@ -230,10 +214,10 @@ export function EntryPerformanceProvider({
                 ))}
               </div>
               <div className="mt-2 grid grid-cols-[5.25rem_1fr] gap-1 sm:grid-cols-[6.5rem_1fr] sm:gap-2">
-                <div className="grid grid-rows-[1fr_auto_1fr] justify-items-center gap-0.5">
+                <div className="grid content-center justify-items-center gap-1 self-center">
                   <button
                     type="button"
-                    className="performance-control performance-carousel-control grid size-6 place-items-center rounded border font-black disabled:opacity-35"
+                    className="performance-carousel-control grid size-9 place-items-center rounded-full border disabled:opacity-35"
                     aria-label="Previous entry"
                     disabled={index === 0}
                     onClick={() => move(-1)}
@@ -241,10 +225,12 @@ export function EntryPerformanceProvider({
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 24 24"
-                      className="size-4"
+                      className="size-6"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="3"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
                       <path d="m5 15 7-7 7 7" />
                     </svg>
@@ -255,11 +241,19 @@ export function EntryPerformanceProvider({
                       className="block break-words text-[11px] font-black sm:text-sm"
                     >
                       {entry.name}
+                      {entry.rank !== undefined && (
+                        <>
+                          {" "}
+                          <span className="whitespace-nowrap tabular-nums opacity-70">
+                            #{entry.rank}
+                          </span>
+                        </>
+                      )}
                     </strong>
                   </div>
                   <button
                     type="button"
-                    className="performance-control performance-carousel-control grid size-6 place-items-center rounded border font-black disabled:opacity-35"
+                    className="performance-carousel-control grid size-9 place-items-center rounded-full border disabled:opacity-35"
                     aria-label="Next entry"
                     disabled={index === entries.length - 1}
                     onClick={() => move(1)}
@@ -267,10 +261,12 @@ export function EntryPerformanceProvider({
                     <svg
                       aria-hidden="true"
                       viewBox="0 0 24 24"
-                      className="size-4"
+                      className="size-6"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="3"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
                       <path d="m5 9 7 7 7-7" />
                     </svg>
@@ -291,15 +287,17 @@ export function EntryPerformanceProvider({
                           className={`performance-control min-h-8 rounded-md border px-1 py-1 text-[9px] font-bold leading-tight sm:text-xs ${mode === value ? "performance-control-selected" : ""}`}
                           onClick={() => setMode(value)}
                         >
-                          {value === "overall"
-                            ? "Payout Rank"
-                            : value === "standings"
-                              ? "Main Pool Standing"
-                              : "Main Finish by Week"}
+                          {chartModes[value].label}
                         </button>
                       ),
                     )}
                   </div>
+                  <p
+                    id="performance-chart-description"
+                    className="mt-2 text-xs opacity-75"
+                  >
+                    {chartModes[mode].description}
+                  </p>
                   {points.length ? (
                     <div
                       role="region"
@@ -310,6 +308,7 @@ export function EntryPerformanceProvider({
                       <svg
                         viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                         role="img"
+                        aria-describedby="performance-chart-description"
                         aria-label={`${entry.name} ${mode === "overall" ? "payout rank" : mode === "standings" ? "main pool standing" : "main finish"} by week`}
                         className="block max-w-none overflow-visible"
                         style={{ width: chartWidth }}

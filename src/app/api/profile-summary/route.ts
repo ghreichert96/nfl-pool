@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { loadCompetition } from "@/features/competition/data";
-import { gamesBack } from "@/features/competition/scoring";
+import { sideOrder } from "@/features/competition/performance";
+import { gamesBack, ranksByGamesBack } from "@/features/competition/scoring";
 import { getPoolContext } from "@/lib/pool-context";
 import { selectPoolWeek } from "@/lib/pool-weeks";
 
@@ -23,25 +24,57 @@ export async function GET() {
   );
   const standing = data.standings.find((item) => item.entryId === entry.id);
   const financial = data.financials.get(entry.id);
+  if (!standing) return NextResponse.json({ summary: null });
+  const rankLabel = (rank: number | undefined) =>
+    rank === undefined ? "—" : `#${rank}`;
+  const mainRank = ranksByGamesBack(data.standings).get(entry.id);
+  const udRank = sideOrder(data.standings, data.entries, "ud").ranks.get(
+    entry.id,
+  );
+  const suddenDeath = (number: number) => {
+    const contest = data.sdContests.find((item) => item.number === number);
+    if (!contest?.started || !contest.participantIds.includes(entry.id))
+      return "—";
+    const entrants = data.entries.filter((item) =>
+      contest.participantIds.includes(item.id),
+    );
+    const rank = sideOrder(contest.standings, entrants, "sd").ranks.get(
+      entry.id,
+    );
+    const strikes = contest.standings.find(
+      (item) => item.entryId === entry.id,
+    )?.suddenDeathStrikes;
+    return `${rankLabel(rank)} · ${strikes ?? 0}/${contest.strike_limit}`;
+  };
   return NextResponse.json({
-    summary: standing
-      ? {
-          record: `${standing.wins}-${standing.losses}-${standing.ties}`,
-          gamesBack: gamesBack(standing, data.standings).toFixed(1),
-          underdogPoints: standing.underdogPoints.toFixed(1),
-          suddenDeath: `${standing.suddenDeathStrikes}/2`,
-          suddenDeath2: (() => {
-            const c = data.sdContests.find((c) => c.number === 2);
-            return c?.started
-              ? `${c.standings.find((s) => s.entryId === entry.id)?.suddenDeathStrikes ?? 0}/${c.strike_limit}`
-              : "—";
-          })(),
-          sd1Dollars: formatMoney(financial?.sd ?? 0),
-          sd2Dollars: formatMoney(financial?.sd2 ?? 0),
-          mainDollars: formatMoney(financial?.main ?? 0),
-          netDollars: formatMoney(financial?.net ?? 0),
-        }
-      : null,
+    summary: {
+      entryCode: entry.entry_code,
+      record: `${standing.wins}-${standing.losses}-${standing.ties}`,
+      gamesBack: gamesBack(standing, data.standings).toFixed(1),
+      pools: [
+        {
+          label: "Main Rank",
+          standing: rankLabel(mainRank),
+          payout: formatMoney(financial?.main ?? 0),
+        },
+        {
+          label: "UD Pts",
+          standing: `${standing.underdogPoints.toFixed(1)} · ${rankLabel(udRank)}`,
+          payout: formatMoney(financial?.ud ?? 0),
+        },
+        {
+          label: "SD1",
+          standing: suddenDeath(1),
+          payout: formatMoney(financial?.sd ?? 0),
+        },
+        {
+          label: "SD2",
+          standing: suddenDeath(2),
+          payout: formatMoney(financial?.sd2 ?? 0),
+        },
+      ],
+      totalPayout: formatMoney(financial?.net ?? 0),
+    },
   });
 }
 
